@@ -46,6 +46,7 @@ turk-hub/
 ├── backend/            # FastAPI App (Auth, Dictionary API, WebSockets)
 ├── frontend/           # React + Tailwind UI Components & Pages
 └── README.md
+```
 
 ## 🎯 Layihənin Məqsədi (Dual Purpose)
 
