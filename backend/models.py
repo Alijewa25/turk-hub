@@ -5,7 +5,7 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_order=True, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
@@ -15,12 +15,12 @@ class DictionaryWord(Base):
     __tablename__ = "dictionary_words"
 
     id = Column(Integer, primary_key=True, index=True)
-    root_word = Column(String, index=True, nullable=False)  # Ortaq kök söz (Məs: Tengri / Yol)
-    az_word = Column(String, nullable=False)                 # Azərbaycan
-    tr_word = Column(String, nullable=False)                 # Türkiyə
-    kk_word = Column(String, nullable=True)                  # Qazaxıstan
-    uz_word = Column(String, nullable=True)                  # Özbəkistan
-    description = Column(Text, nullable=True)               # Sözün etimoloji hekayəsi
+    root_word = Column(String, index=True, nullable=False)
+    az_word = Column(String, nullable=False)
+    tr_word = Column(String, nullable=False)
+    kk_word = Column(String, nullable=True)
+    uz_word = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
 
 class Project(Base):
     __tablename__ = "projects"
@@ -28,5 +28,5 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=False)
-    required_skills = Column(String, nullable=False)        # Məs: "React, Python, Design"
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    required_skills = Column(String, nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
