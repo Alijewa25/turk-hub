@@ -31,6 +31,14 @@ $$
 
 - 💬 **Real-Time Discussion Rooms:** Canlı mövzu otaqları.
 
+## 🛠️ Tech Stack
+
+* **Frontend:** React.js, TypeScript, Tailwind CSS
+* **Backend:** Python (FastAPI / Uvicorn)
+* **Database:** PostgreSQL (SQLAlchemy ORM)
+* **Real-Time & Cache:** WebSockets, Redis
+* **Authentication:** JWT (HTTP-only cookies)
+
 ## 🎯 Layihənin Məqsədi (Dual Purpose)
 
 - **Social Innovation:** Türk Forum 2026 yarışmasının "Sosial İnnovasiya" kateqoriyası üzrə təqdimat layihəsi.
