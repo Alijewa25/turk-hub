@@ -39,6 +39,11 @@ $$
 * **Real-Time & Cache:** WebSockets, Redis
 * **Authentication:** JWT (HTTP-only cookies)
 
+turk-hub/
+├── backend/            # FastAPI App (Auth, Dictionary API, WebSockets)
+├── frontend/           # React + Tailwind UI Components & Pages
+└── README.md
+
 ## 🎯 Layihənin Məqsədi (Dual Purpose)
 
 - **Social Innovation:** Türk Forum 2026 yarışmasının "Sosial İnnovasiya" kateqoriyası üzrə təqdimat layihəsi.
@@ -48,20 +53,3 @@ $$
 ## 👤 Müəllif
 
 - **Təhminə Əliyeva** — Bakı Mühəndislik Universiteti
-
-turk-hub/
-├── backend/                  # Python (FastAPI) Backend
-│   ├── main.py               # BÜTÜN API və WebSockets TƏK BU FAYLDA (Monolith)
-│   ├── models.py             # Məlumat bazası modelləri (İstifadəçi, Sözlük, Proyekt)
-│   ├── database.py           # DB bağlantısı (PostgreSQL / SQLite)
-│   └── requirements.txt      # Cəmi 4-5 kitabxana (fastapi, uvicorn, sqlalchemy və s.)
-│
-├── frontend/                 # React (Vite) Frontend
-│   ├── src/
-│   │   ├── pages/            # Cəmi 3-4 əsas səhifə (Home, Dictionary, Projects, Chat)
-│   │   ├── App.tsx           # Router
-│   │   └── main.tsx
-│   ├── package.json
-│   └── tailwind.config.js    # Göktürk Mavisi (#33B2CC)
-│
-└── README.md
