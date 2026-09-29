@@ -33,12 +33,15 @@ $$
 
 ## 🛠️ Tech Stack
 
-* **Frontend:** React.js, TypeScript, Tailwind CSS
-* **Backend:** Python (FastAPI / Uvicorn)
-* **Database:** PostgreSQL (SQLAlchemy ORM)
-* **Real-Time & Cache:** WebSockets, Redis
-* **Authentication:** JWT (HTTP-only cookies)
+- **Frontend:** React.js, TypeScript, Tailwind CSS
+- **Backend:** Python (FastAPI / Uvicorn)
+- **Database:** PostgreSQL (SQLAlchemy ORM)
+- **Real-Time & Cache:** WebSockets, Redis
+- **Authentication:** JWT (HTTP-only cookies)
 
+## 📁 Project Structure
+
+```text
 turk-hub/
 ├── backend/            # FastAPI App (Auth, Dictionary API, WebSockets)
 ├── frontend/           # React + Tailwind UI Components & Pages
