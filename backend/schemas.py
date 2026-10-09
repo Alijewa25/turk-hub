@@ -12,3 +12,22 @@ class ProjectResponse(ProjectCreate):
 
     class Config:
         from_attributes = True
+
+class UserCreate(BaseModel):
+    full_name: str
+    email: str
+    password: str
+    country: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    country: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

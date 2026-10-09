@@ -100,3 +100,55 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         await manager.broadcast(f"İstifadəçi #{client_id} söhbətdən ayrıldı.")
+# --- AUTHENTICATION ENDPOINTS ---
+
+from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from auth_utils import hash_password, verify_password, create_access_token, get_current_user
+
+@app.post("/api/auth/register", response_model=schemas.UserResponse)
+@app.post("/register", response_model=schemas.UserResponse)
+@app.post("/auth/register", response_model=schemas.UserResponse)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # Check if user already exists
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if db_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Bu e-poçt ünvanı artıq istifadə olunur"
+        )
+    
+    # Create new user
+    hashed_password = hash_password(user.password)
+    db_user = models.User(
+        full_name=user.full_name,
+        email=user.email,
+        password_hash=hashed_password,
+        country=user.country
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.post("/api/auth/login", response_model=schemas.Token)
+@app.post("/login", response_model=schemas.Token)
+@app.post("/auth/login", response_model=schemas.Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Find user by email
+    user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yanlış e-poçt və ya şifrə",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Create access token
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/me", response_model=schemas.UserResponse)
+@app.get("/me", response_model=schemas.UserResponse)
+@app.get("/auth/me", response_model=schemas.UserResponse)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
