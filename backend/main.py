@@ -38,13 +38,13 @@ def search_dictionary(
     q: Optional[str] = Query(None, description="Axtarış sözü"),
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.DictionaryWord)
+    query = db.query(models.Dictionary)
     if q:
         search_pattern = f"%{q}%"
         query = query.filter(
-            (models.DictionaryWord.root_word.ilike(search_pattern)) |
-            (models.DictionaryWord.az_word.ilike(search_pattern)) |
-            (models.DictionaryWord.tr_word.ilike(search_pattern))
+            (models.Dictionary.root_concept.ilike(search_pattern)) |
+            (models.Dictionary.az_val.ilike(search_pattern)) |
+            (models.Dictionary.tr_val.ilike(search_pattern))
         )
     return query.all()
 

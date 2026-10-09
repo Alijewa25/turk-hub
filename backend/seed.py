@@ -6,39 +6,39 @@ db = SessionLocal()
 
 def seed_data():
     # Sözlük üçün sınaq dataları
-    if not db.query(models.DictionaryWord).first():
+    if not db.query(models.Dictionary).first():
         sample_words = [
-            models.DictionaryWord(
-                root_word="Bilig",
-                az_word="Bilik",
-                tr_word="Bilgi",
-                kk_word="Bilim",
-                uz_word="Bilim",
-                description="Ortaq Türk kökündən gələn anlayış, 'bilmək' feəlindən yaranmışdır."
+            models.Dictionary(
+                root_concept="Bilig",
+                az_val="Bilik",
+                tr_val="Bilgi",
+                kk_val="Bilim",
+                uz_val="Bilim",
+                etymology_note="Ortaq Türk kökündən gələn anlayış, 'bilmək' feəlindən yaranmışdır."
             ),
-            models.DictionaryWord(
-                root_word="Yol",
-                az_word="Yol",
-                tr_word="Yol",
-                kk_word="Zhol",
-                uz_word="Yo'l",
-                description="Həm fiziki marşrut, həm də gedişat/üslub mənasında istifadə olunan ortaq kök söz."
+            models.Dictionary(
+                root_concept="Yol",
+                az_val="Yol",
+                tr_val="Yol",
+                kk_val="Zhol",
+                uz_val="Yo'l",
+                etymology_note="Həm fiziki marşrut, həm də gedişat/üslub mənasında istifadə olunan ortaq kök söz."
             ),
-            models.DictionaryWord(
-                root_word="Su",
-                az_word="Su",
-                tr_word="Su",
-                kk_word="Su",
-                uz_word="Suv",
-                description="Bütün Türk dillərində həyatın əsası olan elemental söz."
+            models.Dictionary(
+                root_concept="Su",
+                az_val="Su",
+                tr_val="Su",
+                kk_val="Su",
+                uz_val="Suv",
+                etymology_note="Bütün Türk dillərində həyatın əsası olan elemental söz."
             ),
-            models.DictionaryWord(
-                root_word="Tengri",
-                az_word="Tanrı",
-                tr_word="Tanrı",
-                kk_word="Tengri",
-                uz_word="Tengri",
-                description="Qədim Türk inanclarında səma və yaradıcı mənasını verən ortaq leksik vahid."
+            models.Dictionary(
+                root_concept="Tengri",
+                az_val="Tanrı",
+                tr_val="Tanrı",
+                kk_val="Tengri",
+                uz_val="Tengri",
+                etymology_note="Qədim Türk inanclarında səma və yaradıcı mənasını verən ortaq leksik vahid."
             ),
         ]
         db.add_all(sample_words)
@@ -49,13 +49,13 @@ def seed_data():
         sample_projects = [
             models.Project(
                 title="Türk Mədəniyyət Xəritəsi",
-                description="Türk xalqlarının tarixi abidələrini göstərən interaktiv rəqəmsal xəritə layihəsi.",
+                etymology_note="Türk xalqlarının tarixi abidələrini göstərən interaktiv rəqəmsal xəritə layihəsi.",
                 required_skills="React, LeafletJS, UI/UX",
                 owner_id=1
             ),
             models.Project(
                 title="Ethno-Acoustic Synth",
-                description="Qədim Türk musiqi alətlərinin rəqəmsal ses nümunələrindən ibarət açıq kitabxana.",
+                etymology_note="Qədim Türk musiqi alətlərinin rəqəmsal ses nümunələrindən ibarət açıq kitabxana.",
                 required_skills="Python, Audio Processing, FastAPI",
                 owner_id=1
             )

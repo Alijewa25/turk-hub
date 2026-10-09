@@ -52,11 +52,10 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
-    category = Column(String, nullable=False)      # Sustainability, Tech, Culture
-    min_countries_required = Column(Integer, default=2)
-    status = Column(String, default="Recruiting")  # Recruiting, Unlocked, Completed
-    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    required_skills = Column(String, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationship
     creator = relationship("User", back_populates="projects")
+    # keep compatibility name if accessed differently? but keep as is; also set backref via creator
