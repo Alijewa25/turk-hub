@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -19,6 +19,49 @@ class User(Base):
     # Relationships
     skills = relationship("UserSkill", back_populates="user", cascade="all, delete-orphan")
     projects = relationship("Project", back_populates="creator")
+    following = relationship(
+        "Follow",
+        foreign_keys="Follow.follower_id",
+        back_populates="follower",
+        cascade="all, delete-orphan",
+    )
+    followers = relationship(
+        "Follow",
+        foreign_keys="Follow.followed_id",
+        back_populates="followed",
+        cascade="all, delete-orphan",
+    )
+    stories = relationship("Story", back_populates="author", cascade="all, delete-orphan")
+
+
+class Follow(Base):
+    __tablename__ = "follows"
+    __table_args__ = (
+        UniqueConstraint("follower_id", "followed_id", name="uq_follow_pair"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    follower_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    followed_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    follower = relationship("User", foreign_keys=[follower_id], back_populates="following")
+    followed = relationship("User", foreign_keys=[followed_id], back_populates="followers")
+
+
+class Story(Base):
+    __tablename__ = "stories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    country = Column(String, nullable=True)
+    text = Column(Text, nullable=True)
+    media_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    author = relationship("User", back_populates="stories")
 
 
 class UserSkill(Base):
