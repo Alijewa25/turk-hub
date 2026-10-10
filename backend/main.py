@@ -152,3 +152,184 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @app.get("/auth/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+# --- USER PROFILE ENDPOINTS ---
+
+@app.get("/api/users", response_model=List[schemas.UserFollowInfo])
+def list_users(
+    exclude_self: bool = True,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Bütün istifadəçiləri (tövsiyələr üçün) izləmə vəziyyəti ilə qaytarır."""
+    query = db.query(models.User)
+    if exclude_self:
+        query = query.filter(models.User.id != current_user.id)
+    users = query.all()
+
+    result = []
+    for u in users:
+        result.append(_follow_info(u, current_user, db))
+    return result
+
+
+@app.get("/api/users/{user_id}", response_model=schemas.UserFollowInfo)
+def get_user(
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="İstifadəçi tapılmadı")
+    return _follow_info(user, current_user, db)
+
+
+@app.put("/api/users/me", response_model=schemas.UserResponse)
+@app.patch("/api/users/me", response_model=schemas.UserResponse)
+@app.put("/users/me", response_model=schemas.UserResponse)
+@app.patch("/users/me", response_model=schemas.UserResponse)
+def update_me(
+    payload: schemas.UserUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if payload.country is not None:
+        current_user.country = payload.country
+    if payload.university is not None:
+        current_user.university = payload.university
+    if payload.bio is not None:
+        current_user.bio = payload.bio
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+# --- FOLLOW SYSTEM ---
+
+@app.post("/api/users/{user_id}/follow", response_model=schemas.FollowStatus)
+@app.post("/users/{user_id}/follow", response_model=schemas.FollowStatus)
+def follow_user(
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Özünüzü izləyə bilməzsiniz")
+
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="İstifadəçi tapılmadı")
+
+    existing = db.query(models.Follow).filter(
+        models.Follow.follower_id == current_user.id,
+        models.Follow.followed_id == user_id,
+    ).first()
+    if not existing:
+        db.add(models.Follow(follower_id=current_user.id, followed_id=user_id))
+        db.commit()
+
+    return _follow_status(current_user.id, user_id, db)
+
+
+@app.delete("/api/users/{user_id}/follow", response_model=schemas.FollowStatus)
+@app.delete("/users/{user_id}/follow", response_model=schemas.FollowStatus)
+def unfollow_user(
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="İstifadəçi tapılmadı")
+
+    existing = db.query(models.Follow).filter(
+        models.Follow.follower_id == current_user.id,
+        models.Follow.followed_id == user_id,
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    return _follow_status(current_user.id, user_id, db)
+
+
+# --- STORIES ---
+
+@app.get("/api/stories/feed", response_model=List[schemas.StoryResponse])
+@app.get("/stories/feed", response_model=List[schemas.StoryResponse])
+def story_feed(
+    limit: int = Query(50, ge=1, le=100),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    stories = db.query(models.Story).order_by(
+        models.Story.created_at.desc()
+    ).limit(limit).all()
+    return [_story_response(s) for s in stories]
+
+
+@app.post("/api/stories", response_model=schemas.StoryResponse)
+@app.post("/stories", response_model=schemas.StoryResponse)
+def create_story(
+    payload: schemas.StoryCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    story = models.Story(
+        user_id=current_user.id,
+        country=payload.country if payload.country else current_user.country,
+        text=payload.text,
+        media_url=payload.media_url,
+    )
+    db.add(story)
+    db.commit()
+    db.refresh(story)
+    return _story_response(story)
+
+
+# --- HELPERS ---
+
+def _follow_info(
+    user: models.User,
+    current_user: models.User,
+    db: Session
+) -> schemas.UserFollowInfo:
+    followers_count = db.query(models.Follow).filter(models.Follow.followed_id == user.id).count()
+    following_count = db.query(models.Follow).filter(models.Follow.follower_id == user.id).count()
+    is_following = db.query(models.Follow).filter(
+        models.Follow.follower_id == current_user.id,
+        models.Follow.followed_id == user.id,
+    ).first() is not None
+    return schemas.UserFollowInfo(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        country=user.country,
+        university=user.university,
+        bio=user.bio,
+        profile_picture=user.profile_picture,
+        followers_count=followers_count,
+        following_count=following_count,
+        is_following=is_following,
+    )
+
+
+def _follow_status(current_user_id: int, user_id: int, db: Session) -> schemas.FollowStatus:
+    following = db.query(models.Follow).filter(
+        models.Follow.follower_id == current_user_id,
+        models.Follow.followed_id == user_id,
+    ).first() is not None
+    followers = db.query(models.Follow).filter(models.Follow.followed_id == user_id).count()
+    return schemas.FollowStatus(following=following, followers=followers)
+
+
+def _story_response(s: models.Story) -> schemas.StoryResponse:
+    return schemas.StoryResponse(
+        id=s.id,
+        user=schemas.UserResponse.model_validate(s.author),
+        country=s.country,
+        text=s.text,
+        media_url=s.media_url,
+        created_at=s.created_at,
+    )
