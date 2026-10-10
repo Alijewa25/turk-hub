@@ -1,59 +1,22 @@
-# Türk Youth Hub 🐺
+# 🐺 Turk Youth Hub — Technical Documentation
 
-> **Discover. Connect. Collaborate.**
+## 1. Executive Summary
+Turk Youth Hub is a mobile-first social platform engineered to unite Turkic youth globally through common digital tools, institutional project management, and inter-dialect communication.
 
-![Status](https://img.shields.io/badge/Status-In%20Development-33B2CC?style=for-the-badge)
-![Track](https://img.shields.io/badge/Track-Social%20Innovation-white?style=for-the-badge)
+## 2. Technical Stack
+- Backend: FastAPI, PostgreSQL (Neon), SQLAlchemy, Psycopg
+- Frontend: React 18, TypeScript, Vite, Tailwind CSS (Pitch-Black #000000)
+- Auth & i18n: JWT OAuth2, 7-Dialect Context Switcher
+- Hosting: Render (Backend), Vercel (Frontend)
 
-**Türk Youth Hub** — Türk dövlətlərinin gənclərini bir araya gətirən, çarpaz-mədəniyyət kəşfi, peer-to-peer (P2P) dil praktikası və birgə layihə quruculuğunu təşviq edən sosial-innovativ ekosistemdir.
+## 3. Core Modules
+- Auth & Country Onboarding (AZ, TR, KK, KY, UZ, TK)
+- Follow / Unfollow & Suggestion Engine
+- 24-Hour Interactive Story Feed & Viewer
 
-## 💡 Konsepsiya
-
-Ənənəvi sosial şəbəkələrin gəncləri passiv kontent istehlakına (*infinite scroll*) yönəltməsinin əksinə olaraq, platforma real əməkdaşlığı və insan əlaqələrini ön plana çıxarır:
-
-$$
-\text{Discover (Kəşf Et)}
-\longrightarrow
-\text{Connect (Əlaqə Qur)}
-\longrightarrow
-\text{Collaborate (Əməkdaşlıq Et)}
-$$
-
-## ✨ Əsas Modullar
-
-- 🎵 **Culture & Ethno-Music Archive:** Mahnı sözləri, tərcümələr və mədəni hekayələr.
-
-- 📚 **Inter-Turkic Dictionary:** 5 Türk dilində ortaq köklü sözlərin müqayisəli xəritəsi.
-
-- 🤝 **Language Friends:** Doğma və öyrənilən dillərə əsasən P2P dil tərəfdaşlığı.
-
-- 🚀 **Project Hub:** Gənclərin bacarıqlara görə tanışıb birgə komanda qurduğu mühit.
-
-- 💬 **Real-Time Discussion Rooms:** Canlı mövzu otaqları.
-
-## 🛠️ Tech Stack
-
-- **Frontend:** React.js, TypeScript, Tailwind CSS
-- **Backend:** Python (FastAPI / Uvicorn)
-- **Database:** PostgreSQL (SQLAlchemy ORM)
-- **Real-Time & Cache:** WebSockets, Redis
-- **Authentication:** JWT (HTTP-only cookies)
-
-## 📁 Project Structure
-
-```text
-turk-hub/
-├── backend/            # FastAPI App (Auth, Dictionary API, WebSockets)
-├── frontend/           # React + Tailwind UI Components & Pages
-└── README.md
-```
-
-## 🎯 Layihənin Məqsədi (Dual Purpose)
-
-- **Social Innovation:** Türk Forum 2026 yarışmasının "Sosial İnnovasiya" kateqoriyası üzrə təqdimat layihəsi.
-
-- **Engineering Portfolio:** Holberton School təhsili çərçivəsində hazırlanan Full-Stack rəqəmsal platforma.
-
-## 👤 Müəllif
-
-- **Təhminə Əliyeva** — Bakı Mühəndislik Universiteti
+## 4. Status & Roadmap
+- [x] Auth & Onboarding Flow
+- [x] Pitch-Black UI Layout
+- [x] Follow & Story Engines
+- [ ] Pan-Turkic Etymology Dictionary (#10)
+- [ ] Institutional Project Hub
