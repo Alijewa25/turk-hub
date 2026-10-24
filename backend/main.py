@@ -33,7 +33,8 @@ def read_root():
 
 # --- DICTIONARY ENDPOINTS ---
 
-@app.get("/api/dictionary")
+@app.get("/api/dictionary", response_model=List[schemas.DictionaryResponse])
+@app.get("/dictionary", response_model=List[schemas.DictionaryResponse])
 def search_dictionary(
     q: Optional[str] = Query(None, description="Axtarış sözü"),
     db: Session = Depends(get_db)
@@ -44,7 +45,11 @@ def search_dictionary(
         query = query.filter(
             (models.Dictionary.root_concept.ilike(search_pattern)) |
             (models.Dictionary.az_val.ilike(search_pattern)) |
-            (models.Dictionary.tr_val.ilike(search_pattern))
+            (models.Dictionary.tr_val.ilike(search_pattern)) |
+            (models.Dictionary.kk_val.ilike(search_pattern)) |
+            (models.Dictionary.uz_val.ilike(search_pattern)) |
+            (models.Dictionary.ky_val.ilike(search_pattern)) |
+            (models.Dictionary.tm_val.ilike(search_pattern))
         )
     return query.all()
 
