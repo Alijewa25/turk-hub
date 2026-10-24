@@ -65,3 +65,18 @@ class StoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+class DictionaryBase(BaseModel):
+    root_concept: str
+    az_val: Optional[str] = None
+    tr_val: Optional[str] = None
+    kk_val: Optional[str] = None
+    uz_val: Optional[str] = None
+    ky_val: Optional[str] = None
+    tm_val: Optional[str] = None
+    etymology_note: Optional[str] = None
+
+class DictionaryResponse(DictionaryBase):
+    id: int
+
+    class Config:
+        from_attributes = True
