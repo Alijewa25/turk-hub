@@ -5,3 +5,7 @@ frontend/node_modules/
 .env
 .venv/
 backend/.venv/
+backend/.venv/
+.venv/
+__pycache__/
+*.pyc
