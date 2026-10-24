@@ -49,13 +49,13 @@ def seed_data():
         sample_projects = [
             models.Project(
                 title="Türk Mədəniyyət Xəritəsi",
-                etymology_note="Türk xalqlarının tarixi abidələrini göstərən interaktiv rəqəmsal xəritə layihəsi.",
+                description="Türk xalqlarının tarixi abidələrini göstərən interaktiv rəqəmsal xəritə layihəsi.",
                 required_skills="React, LeafletJS, UI/UX",
                 owner_id=1
             ),
             models.Project(
                 title="Ethno-Acoustic Synth",
-                etymology_note="Qədim Türk musiqi alətlərinin rəqəmsal ses nümunələrindən ibarət açıq kitabxana.",
+                description="Qədim Türk musiqi alətlərinin rəqəmsal səs nümunələrindən ibarət açıq kitabxana.",
                 required_skills="Python, Audio Processing, FastAPI",
                 owner_id=1
             )
