@@ -4,8 +4,6 @@ import {
   BookOpen,
   MessageCircle,
   Music,
-  Pause,
-  Play,
   Radio,
   Rocket,
   ScanLine,
@@ -18,6 +16,7 @@ import {
 } from 'lucide-react';
 import { API_URL } from '../api';
 import { useI18n } from '../i18n';
+import { MusicModal } from './MusicModal';
 
 type ExploreId = 'dictionary' | 'ethno-music' | 'hackathon' | 'ar' | 'live' | 'projects';
 
@@ -36,13 +35,6 @@ const TILES: ExploreTile[] = [
   { id: 'ar', title: 'AR Runestones', tag: 'Mədəniyyət', gradient: 'from-emerald-500/40 to-black', icon: ScanLine },
   { id: 'live', title: 'Live Rooms', tag: 'Real-Time', gradient: 'from-rose-500/40 to-black', icon: Radio },
   { id: 'projects', title: 'Project Hub', tag: 'Startap', gradient: 'from-amber-500/40 to-black', icon: Rocket },
-];
-
-const INSTRUMENTS = [
-  { name: 'Kopuz', emoji: '🎼', desc: 'Qədim türk simli aləti — dastan musiqisinin kökü.' },
-  { name: 'Dombra', emoji: '🎸', desc: 'Qazax və qırğız mədəniyyətinin iki simli simvolu.' },
-  { name: 'Tar', emoji: '🪕', desc: 'Azərbaycan muğam ənənəsinin aparıcı aləti.' },
-  { name: 'Kaval', emoji: '🎶', desc: 'Türkiyə və Türkmənistanın nəfəsli melodiyaları.' },
 ];
 
 const RUNES = [
@@ -86,43 +78,6 @@ const ModalShell: React.FC<{
     </div>
   </div>
 );
-
-const EthnoMusicContent: React.FC = () => {
-  const [playing, setPlaying] = useState<string | null>(null);
-
-  return (
-    <div className="space-y-2">
-      {INSTRUMENTS.map((instrument) => {
-        const isPlaying = playing === instrument.name;
-        return (
-          <button
-            key={instrument.name}
-            onClick={() => setPlaying(isPlaying ? null : instrument.name)}
-            className={`w-full flex items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
-              isPlaying
-                ? 'border-skyBlue/50 bg-skyBlue/10'
-                : 'border-neutral-800 bg-black/50 hover:border-skyBlue/30'
-            }`}
-          >
-            <span className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center text-lg">
-              {instrument.emoji}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs font-semibold text-slate-100">{instrument.name}</span>
-              <span className="block text-[11px] text-slate-500 leading-relaxed">{instrument.desc}</span>
-            </span>
-            <span className="w-8 h-8 rounded-full bg-skyBlue/15 text-skyBlue flex items-center justify-center">
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            </span>
-          </button>
-        );
-      })}
-      <p className="pt-1 text-[10px] text-slate-600">
-        Demo rejimi: audio axını tezliklə ortaq etno-musiqi kitabxanasına qoşulacaq.
-      </p>
-    </div>
-  );
-};
 
 const HackathonContent: React.FC<{ onNavigate: (tab: string) => void; onClose: () => void }> = ({
   onNavigate,
@@ -206,20 +161,26 @@ const LiveRoomsContent: React.FC = () => {
     setMessages([`${room.name} otağına qoşuldun. Söhbətə başla!`]);
     const wsBase = API_URL.replace(/\/$/, '').replace(/^http/, 'ws');
     const clientId = `web-${Math.random().toString(36).slice(2, 8)}`;
-    const socket = new WebSocket(`${wsBase}/ws/chat/${clientId}`);
+    const token = localStorage.getItem('token');
+    const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+    const socket = new WebSocket(`${wsBase}/ws/chat/${room.id}/${clientId}${qs}`);
     socketRef.current = socket;
-    socket.onmessage = (event) => setMessages((prev) => [...prev, event.data]);
+    socket.onmessage = (event) => setMessages((prev) => [...prev, String(event.data)]);
     socket.onerror = () => setMessages((prev) => [...prev, 'Bağlantı xətası: live server əlçatan deyil.']);
     return () => {
       socket.close();
-      socketRef.current = null;
+      if (socketRef.current === socket) socketRef.current = null;
     };
   }, [room]);
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text || socketRef.current?.readyState !== WebSocket.OPEN) return;
+    if (!text) return;
+    if (socketRef.current?.readyState !== WebSocket.OPEN) {
+      setMessages((prev) => [...prev, 'Mesaj göndərilmədi: bağlantı yoxdur.']);
+      return;
+    }
     socketRef.current.send(text);
     setInput('');
   };
@@ -406,14 +367,15 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onNavigate }) => {
         Kartlara toxun — {t('navExplore')} modulları canlı backend ilə sinxron işləyir.
       </p>
 
-      {active && activeTile && (
+      {active === 'ethno-music' && <MusicModal open onClose={() => setActive(null)} />}
+
+      {active && active !== 'ethno-music' && activeTile && (
         <ModalShell
           title={activeTile.title}
           subtitle={activeTile.tag}
           icon={activeTile.icon}
           onClose={() => setActive(null)}
         >
-          {active === 'ethno-music' && <EthnoMusicContent />}
           {active === 'hackathon' && <HackathonContent onNavigate={onNavigate} onClose={() => setActive(null)} />}
           {active === 'ar' && <ArContent />}
           {active === 'live' && <LiveRoomsContent />}
