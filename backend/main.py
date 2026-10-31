@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import os, uuid, shutil
 
 import models
 import schemas
@@ -22,6 +24,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/")
 def read_root():
@@ -122,12 +128,31 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
             status_code=400,
             detail="Bu e-poçt ünvanı artıq istifadə olunur"
         )
-    
+
+    username = user.username
+    if username:
+        username_clean = username.strip().lstrip('@').lower()
+        if db.query(models.User).filter(models.User.username == username_clean).first():
+            raise HTTPException(
+                status_code=400,
+                detail="Bu istifadəçi adı artıq istifadə olunur"
+            )
+        username = username_clean
+    else:
+        base = user.email.split('@')[0].lower().replace('.', '')
+        candidate = base
+        idx = 1
+        while db.query(models.User).filter(models.User.username == candidate).first():
+            candidate = f"{base}{idx}"
+            idx += 1
+        username = candidate
+
     # Create new user
     hashed_password = hash_password(user.password)
     db_user = models.User(
         full_name=user.full_name,
         email=user.email,
+        username=username,
         password_hash=hashed_password,
         country=user.country
     )
@@ -163,6 +188,7 @@ def get_me(current_user: models.User = Depends(get_current_user)):
 @app.get("/api/users", response_model=List[schemas.UserFollowInfo])
 def list_users(
     exclude_self: bool = True,
+    q: Optional[str] = Query(None),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -170,6 +196,13 @@ def list_users(
     query = db.query(models.User)
     if exclude_self:
         query = query.filter(models.User.id != current_user.id)
+    if q:
+        pattern = f"%{q.lower()}%"
+        query = query.filter(
+            (models.User.full_name.ilike(pattern)) |
+            (models.User.username.ilike(pattern)) |
+            (models.User.email.ilike(pattern))
+        )
     users = query.all()
 
     result = []
@@ -199,15 +232,39 @@ def update_me(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    if payload.username is not None:
+        username_clean = payload.username.strip().lstrip('@').lower()
+        existing = db.query(models.User).filter(models.User.username == username_clean, models.User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Bu istifadəçi adı artıq istifadə olunur")
+        current_user.username = username_clean
+    if payload.full_name is not None:
+        current_user.full_name = payload.full_name
     if payload.country is not None:
         current_user.country = payload.country
     if payload.university is not None:
         current_user.university = payload.university
     if payload.bio is not None:
         current_user.bio = payload.bio
+    if payload.profile_picture is not None:
+        current_user.profile_picture = payload.profile_picture
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@app.post("/api/upload")
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    allowed = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".svg"}
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail="İcazə verilməyən fayl formatı")
+    fname = f"{uuid.uuid4().hex}{ext}"
+    path = os.path.join(UPLOAD_DIR, fname)
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"url": f"/uploads/{fname}", "filename": file.filename}
 
 
 # --- FOLLOW SYSTEM ---
@@ -257,6 +314,135 @@ def unfollow_user(
         db.commit()
 
     return _follow_status(current_user.id, user_id, db)
+
+
+# --- POSTS ---
+
+@app.get("/api/posts", response_model=List[schemas.PostResponse])
+@app.get("/posts", response_model=List[schemas.PostResponse])
+def list_posts(
+    limit: int = Query(100, ge=1, le=200),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    posts = db.query(models.Post).order_by(models.Post.created_at.desc()).limit(limit).all()
+    result = []
+    for p in posts:
+        result.append(schemas.PostResponse(
+            id=p.id,
+            user_id=p.user_id,
+            body=p.body,
+            image_url=p.image_url,
+            file_url=p.file_url,
+            file_name=p.file_name,
+            created_at=p.created_at,
+            author=schemas.UserResponse.model_validate(p.author) if p.author else None,
+        ))
+    return result
+
+
+@app.post("/api/posts", response_model=schemas.PostResponse)
+@app.post("/posts", response_model=schemas.PostResponse)
+def create_post(
+    payload: schemas.PostCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    post = models.Post(
+        user_id=current_user.id,
+        body=payload.body,
+        image_url=payload.image_url,
+        file_url=payload.file_url,
+        file_name=payload.file_name,
+    )
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+    return schemas.PostResponse(
+        id=post.id,
+        user_id=post.user_id,
+        body=post.body,
+        image_url=post.image_url,
+        file_url=post.file_url,
+        file_name=post.file_name,
+        created_at=post.created_at,
+        author=schemas.UserResponse.model_validate(current_user),
+    )
+
+
+@app.get("/api/users/{user_id}/posts", response_model=List[schemas.PostResponse])
+def user_posts(user_id: int, db: Session = Depends(get_db)):
+    posts = db.query(models.Post).filter(models.Post.user_id == user_id).order_by(models.Post.created_at.desc()).all()
+    result = []
+    for p in posts:
+        result.append(schemas.PostResponse(
+            id=p.id,
+            user_id=p.user_id,
+            body=p.body,
+            image_url=p.image_url,
+            file_url=p.file_url,
+            file_name=p.file_name,
+            created_at=p.created_at,
+            author=schemas.UserResponse.model_validate(p.author) if p.author else None,
+        ))
+    return result
+
+
+# --- MESSAGES (DM) ---
+
+@app.get("/api/messages/conversations")
+def conversations(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    sent = db.query(models.Message.receiver_id).filter(models.Message.sender_id == current_user.id).distinct().all()
+    received = db.query(models.Message.sender_id).filter(models.Message.receiver_id == current_user.id).distinct().all()
+    ids = set([s[0] for s in sent] + [r[0] for r in received])
+    users = []
+    for uid in ids:
+        u = db.query(models.User).filter(models.User.id == uid).first()
+        if u:
+            users.append(schemas.UserResponse.model_validate(u))
+    return users
+
+
+@app.get("/api/messages/{user_id}", response_model=List[schemas.MessageResponse])
+def get_messages(user_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    msgs = db.query(models.Message).filter(
+        ((models.Message.sender_id == current_user.id) & (models.Message.receiver_id == user_id)) |
+        ((models.Message.sender_id == user_id) & (models.Message.receiver_id == current_user.id))
+    ).order_by(models.Message.created_at.asc()).all()
+    result = []
+    for m in msgs:
+        result.append(schemas.MessageResponse(
+            id=m.id,
+            sender_id=m.sender_id,
+            receiver_id=m.receiver_id,
+            content=m.content,
+            read=m.read,
+            created_at=m.created_at,
+            sender=schemas.UserResponse.model_validate(m.sender) if m.sender else None,
+            receiver=schemas.UserResponse.model_validate(m.receiver) if m.receiver else None,
+        ))
+    return result
+
+
+@app.post("/api/messages", response_model=schemas.MessageResponse)
+@app.post("/messages", response_model=schemas.MessageResponse)
+def send_message(payload: schemas.MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.receiver_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Özünüzə mesaj göndərə bilməzsiniz")
+    msg = models.Message(sender_id=current_user.id, receiver_id=payload.receiver_id, content=payload.content)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return schemas.MessageResponse(
+        id=msg.id,
+        sender_id=msg.sender_id,
+        receiver_id=msg.receiver_id,
+        content=msg.content,
+        read=msg.read,
+        created_at=msg.created_at,
+        sender=schemas.UserResponse.model_validate(current_user),
+        receiver=schemas.UserResponse.model_validate(msg.receiver) if msg.receiver else None,
+    )
 
 
 # --- STORIES ---
@@ -310,6 +496,7 @@ def _follow_info(
         id=user.id,
         full_name=user.full_name,
         email=user.email,
+        username=user.username,
         country=user.country,
         university=user.university,
         bio=user.bio,
@@ -332,7 +519,7 @@ def _follow_status(current_user_id: int, user_id: int, db: Session) -> schemas.F
 def _story_response(s: models.Story) -> schemas.StoryResponse:
     return schemas.StoryResponse(
         id=s.id,
-        user=schemas.UserResponse.model_validate(s.author),
+        user=schemas.UserResponse.model_validate(s.author) if s.author else schemas.UserResponse(id=0, full_name="", email=""),
         country=s.country,
         text=s.text,
         media_url=s.media_url,

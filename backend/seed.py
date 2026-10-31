@@ -6,43 +6,77 @@ db = SessionLocal()
 
 def seed_data():
     # Sözlük üçün sınaq dataları
-    if not db.query(models.Dictionary).first():
-        sample_words = [
-            models.Dictionary(
-                root_concept="Bilig",
-                az_val="Bilik",
-                tr_val="Bilgi",
-                kk_val="Bilim",
-                uz_val="Bilim",
-                etymology_note="Ortaq Türk kökündən gələn anlayış, 'bilmək' feəlindən yaranmışdır."
-            ),
-            models.Dictionary(
-                root_concept="Yol",
-                az_val="Yol",
-                tr_val="Yol",
-                kk_val="Zhol",
-                uz_val="Yo'l",
-                etymology_note="Həm fiziki marşrut, həm də gedişat/üslub mənasında istifadə olunan ortaq kök söz."
-            ),
-            models.Dictionary(
-                root_concept="Su",
-                az_val="Su",
-                tr_val="Su",
-                kk_val="Su",
-                uz_val="Suv",
-                etymology_note="Bütün Türk dillərində həyatın əsası olan elemental söz."
-            ),
-            models.Dictionary(
-                root_concept="Tengri",
-                az_val="Tanrı",
-                tr_val="Tanrı",
-                kk_val="Tengri",
-                uz_val="Tengri",
-                etymology_note="Qədim Türk inanclarında səma və yaradıcı mənasını verən ortaq leksik vahid."
-            ),
-        ]
-        db.add_all(sample_words)
-        print("Sınaq sözləri bazaya əlavə edildi! 🐺")
+    sample_words = [
+        {
+            "root_concept": "Bilig",
+            "dialects": {
+                "aze": "Bilik",
+                "tur": "Bilgi",
+                "kaz": "Bilim",
+                "uzb": "Bilim",
+                "kyg": "Bilim",
+                "tkm": "Bilim",
+            },
+            "etymology_note": "Ortaq Türk kökündən gələn anlayış, 'bilmək' feəlindən yaranmışdır.",
+        },
+        {
+            "root_concept": "Yol",
+            "dialects": {
+                "aze": "Yol",
+                "tur": "Yol",
+                "kaz": "Zhol",
+                "uzb": "Yo'l",
+                "kyg": "Jol",
+                "tkm": "Yol",
+            },
+            "etymology_note": "Həm fiziki marşrut, həm də gedişat/üslub mənasında istifadə olunan ortaq kök söz.",
+        },
+        {
+            "root_concept": "Su",
+            "dialects": {
+                "aze": "Su",
+                "tur": "Su",
+                "kaz": "Su",
+                "uzb": "Suv",
+                "kyg": "Suu",
+                "tkm": "Suw",
+            },
+            "etymology_note": "Bütün Türk dillərində həyatın əsası olan elemental söz.",
+        },
+        {
+            "root_concept": "Tengri",
+            "dialects": {
+                "aze": "Tanrı",
+                "tur": "Tanrı",
+                "kaz": "Tengri",
+                "uzb": "Tengri",
+                "kyg": "Tengir",
+                "tkm": "Tengri",
+            },
+            "etymology_note": "Qədim Türk inanclarında səma və yaradıcı mənasını verən ortaq leksik vahid.",
+        },
+    ]
+
+    for word in sample_words:
+        values = {
+            "az_val": word["dialects"]["aze"],
+            "tr_val": word["dialects"]["tur"],
+            "kk_val": word["dialects"]["kaz"],
+            "uz_val": word["dialects"]["uzb"],
+            "ky_val": word["dialects"]["kyg"],
+            "tm_val": word["dialects"]["tkm"],
+            "etymology_note": word["etymology_note"],
+        }
+        existing = db.query(models.Dictionary).filter(
+            models.Dictionary.root_concept == word["root_concept"]
+        ).first()
+        if existing:
+            for field, value in values.items():
+                setattr(existing, field, value)
+        else:
+            db.add(models.Dictionary(root_concept=word["root_concept"], **values))
+
+    print("Sınaq sözləri bazaya yeniləndi! 🐺")
 
     # Layihələr üçün sınaq dataları
     if not db.query(models.Project).first():

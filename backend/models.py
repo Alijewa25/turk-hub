@@ -8,6 +8,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, nullable=False)
+    username = Column(String, unique=True, index=True, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     country = Column(String, nullable=True)          # Azerbaijan, Türkiye, Kazakhstan, etc.
@@ -32,6 +33,9 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     stories = relationship("Story", back_populates="author", cascade="all, delete-orphan")
+    posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
+    sent_messages = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender", cascade="all, delete-orphan")
+    received_messages = relationship("Message", foreign_keys="Message.receiver_id", back_populates="receiver", cascade="all, delete-orphan")
 
 
 class Follow(Base):
@@ -87,6 +91,34 @@ class Dictionary(Base):
     ky_val = Column(String, nullable=True)  # Kyrgyz
     tm_val = Column(String, nullable=True)  # Turkmen
     etymology_note = Column(Text, nullable=True)
+
+
+class Post(Base):
+    __tablename__ = "posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=True)
+    image_url = Column(String, nullable=True)
+    file_url = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    author = relationship("User", back_populates="posts")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    read = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    sender = relationship("User", foreign_keys=[sender_id], back_populates="sent_messages")
+    receiver = relationship("User", foreign_keys=[receiver_id], back_populates="received_messages")
 
 
 class Project(Base):
