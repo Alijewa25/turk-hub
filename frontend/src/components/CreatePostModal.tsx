@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Image, Loader2, X } from 'lucide-react';
+import { FileText, Image, Loader2, X } from 'lucide-react';
+import { API_URL } from '../api';
 import { useI18n } from '../i18n';
-
-// Create mode type removed (unused)
 
 interface CreatePostModalProps {
   open: boolean;
   mode: 'post' | 'story';
   onClose: () => void;
-  onPublish: (body: string, media?: any) => void;
+  onPublish: (body: string, media?: any) => void | Promise<void>;
 }
 
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, onClose, onPublish }) => {
@@ -16,12 +15,17 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
   const [body, setBody] = useState('');
   const [uploading, setUploading] = useState(false);
   const [media, setMedia] = useState<any>(null);
+  const [error, setError] = useState('');
   const token = localStorage.getItem('token');
   const [publishing, setPublishing] = useState(false);
 
   const upload = async (file: File) => {
-    if (!token) return;
+    if (!token) {
+      setError('Giriş tələb olunur.');
+      return;
+    }
     setUploading(true);
+    setError('');
     try {
       const form = new FormData();
       form.append('file', file);
@@ -30,17 +34,20 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
-      if (res.ok) {
-        const data = await res.json();
-        const url = data.url.startsWith('http') ? data.url : `${API_URL}${data.url}`;
-        setMedia({
-          image_url: file.type.startsWith('image/') ? url : undefined,
-          file_url: url,
-          file_name: data.filename || file.name,
-        });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null);
+        throw new Error(detail?.detail || 'Yükləmə uğursuz oldu.');
       }
-    } catch {
-      // ignore
+      const data = await res.json();
+      const url = data.url?.startsWith('http') ? data.url : `${API_URL}${data.url}`;
+      setMedia({
+        image_url: file.type.startsWith('image/') ? url : undefined,
+        file_url: url,
+        file_name: data.filename || file.name,
+      });
+    } catch (err: any) {
+      setError(err?.message || 'Yükləmə xətası.');
+      setMedia(null);
     } finally {
       setUploading(false);
     }
@@ -50,6 +57,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
 
   const isStory = mode === 'story';
   const hint = isStory ? t('myStory') : t('createHint');
+  const canPublish = Boolean(body.trim() || media) && !publishing && !uploading;
 
   return (
     <div
@@ -92,9 +100,16 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
             />
           </label>
           {uploading && <Loader2 className="w-3 h-3 animate-spin" />}
-          {media?.file_name && <span className="text-[10px] text-emerald-400 truncate max-w-[150px] flex items-center gap-1"><FileText className="w-3 h-3" />{media.file_name}</span>}
+          {media?.file_name && (
+            <span className="text-[10px] text-emerald-400 truncate max-w-[150px] flex items-center gap-1">
+              <FileText className="w-3 h-3" />
+              {media.file_name}
+            </span>
+          )}
           <span className="text-[11px] ml-auto">{hint}</span>
         </div>
+
+        {error && <p className="mt-2 text-[11px] text-red-400">{error}</p>}
 
         <div className="mt-4 flex gap-2">
           <button
@@ -104,13 +119,19 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
             {t('cancel')}
           </button>
           <button
-            disabled={(!body.trim() && mode !== 'story' && !media) || publishing || uploading}
+            disabled={!canPublish}
             onClick={async () => {
               setPublishing(true);
-              await onPublish(body.trim(), media);
-              setBody('');
-              setMedia(null);
-              setPublishing(false);
+              setError('');
+              try {
+                await onPublish(body.trim(), media);
+                setBody('');
+                setMedia(null);
+              } catch (err: any) {
+                setError(err?.message || 'Paylaşım uğursuz oldu.');
+              } finally {
+                setPublishing(false);
+              }
             }}
             className="flex-1 py-2.5 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98]"
           >
