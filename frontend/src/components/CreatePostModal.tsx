@@ -2,19 +2,49 @@ import React, { useState } from 'react';
 import { Image, Loader2, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 
-type CreateMode = 'post' | 'story';
+// Create mode type removed (unused)
 
 interface CreatePostModalProps {
   open: boolean;
-  mode?: CreateMode;
+  mode: 'post' | 'story';
   onClose: () => void;
-  onPublish: (body: string) => void;
+  onPublish: (body: string, media?: any) => void;
 }
 
-export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode = 'post', onClose, onPublish }) => {
+export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, onClose, onPublish }) => {
   const { t } = useI18n();
   const [body, setBody] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [media, setMedia] = useState<any>(null);
+  const token = localStorage.getItem('token');
   const [publishing, setPublishing] = useState(false);
+
+  const upload = async (file: File) => {
+    if (!token) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const url = data.url.startsWith('http') ? data.url : `${API_URL}${data.url}`;
+        setMedia({
+          image_url: file.type.startsWith('image/') ? url : undefined,
+          file_url: url,
+          file_name: data.filename || file.name,
+        });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -46,11 +76,24 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode = '
           className="w-full px-4 py-3 bg-black border border-neutral-800 rounded-xl text-sm text-slate-100 placeholder-neutral-600 focus:outline-none focus:border-skyBlue focus:ring-2 focus:ring-skyBlue/20 transition-all resize-none"
         />
 
-        <div className="mt-3 flex items-center gap-2 text-slate-500">
-          <button className="p-2 rounded-lg border border-neutral-800 hover:border-skyBlue/50 hover:text-skyBlue transition-colors">
+        <div className="mt-3 flex items-center gap-2 text-slate-500 flex-wrap">
+          <label className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-skyBlue transition-colors cursor-pointer">
             <Image className="w-4 h-4" />
-          </button>
-          <span className="text-[11px]">{hint}</span>
+            Şəkil/PDF
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) upload(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {uploading && <Loader2 className="w-3 h-3 animate-spin" />}
+          {media?.file_name && <span className="text-[10px] text-emerald-400 truncate max-w-[150px] flex items-center gap-1"><FileText className="w-3 h-3" />{media.file_name}</span>}
+          <span className="text-[11px] ml-auto">{hint}</span>
         </div>
 
         <div className="mt-4 flex gap-2">
@@ -61,11 +104,12 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode = '
             {t('cancel')}
           </button>
           <button
-            disabled={!body.trim() || publishing}
-            onClick={() => {
+            disabled={(!body.trim() && mode !== 'story' && !media) || publishing || uploading}
+            onClick={async () => {
               setPublishing(true);
-              onPublish(body.trim());
+              await onPublish(body.trim(), media);
               setBody('');
+              setMedia(null);
               setPublishing(false);
             }}
             className="flex-1 py-2.5 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98]"
