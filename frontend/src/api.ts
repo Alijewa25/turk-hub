@@ -2,14 +2,35 @@ import axios from 'axios';
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
+/** Resolve relative upload paths against the API host. */
+export function mediaUrl(path?: string | null): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  return `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export interface StoryAuthor {
   id: number;
   full_name: string;
   email?: string | null;
+  username?: string | null;
   country?: string | null;
   university?: string | null;
   bio?: string | null;
   profile_picture?: string | null;
+}
+
+export interface ApiPost {
+  id: number;
+  user_id: number;
+  body?: string | null;
+  image_url?: string | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  created_at?: string | null;
+  author?: StoryAuthor | null;
 }
 
 export interface StoryItem {
@@ -100,23 +121,34 @@ export async function fetchStories(token: string | null): Promise<StoryItem[]> {
 export async function publishStory(
   token: string | null,
   text: string,
-  country?: string
+  country?: string,
+  mediaUrlValue?: string | null
 ): Promise<StoryItem> {
+  const payload = {
+    text,
+    country: country ?? null,
+    media_url: mediaUrlValue ?? null,
+  };
   try {
-    const res = await axios.post(
-      `${API_URL}/api/stories`,
-      { text, country: country ?? null },
-      { headers: headers(token) }
-    );
+    const res = await axios.post(`${API_URL}/api/stories`, payload, { headers: headers(token) });
     return res.data;
-  } catch {
-    const res = await axios.post(
-      `${API_URL}/stories`,
-      { text, country: country ?? null },
-      { headers: headers(token) }
-    );
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.post(`${API_URL}/stories`, payload, { headers: headers(token) });
     return res.data;
   }
+}
+
+export async function fetchPosts(token: string | null): Promise<ApiPost[]> {
+  const res = await axios.get(`${API_URL}/api/posts`, { headers: headers(token) });
+  return res.data;
+}
+
+export async function fetchUserPosts(userId: number, token: string | null = null): Promise<ApiPost[]> {
+  const res = await axios.get(`${API_URL}/api/users/${userId}/posts`, {
+    headers: token ? headers(token) : undefined,
+  });
+  return res.data;
 }
 
 export async function fetchSuggestions(token: string | null): Promise<FollowUser[]> {
