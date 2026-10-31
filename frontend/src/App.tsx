@@ -16,8 +16,11 @@ import { ProjectHub } from './components/ProjectHub';
 import { RoomsView } from './components/RoomsView';
 import { MessagesView } from './components/MessagesView';
 import {
+  ApiPost,
+  API_URL,
   createProject,
   fetchCurrentUser,
+  fetchPosts,
   fetchProjects,
   fetchStories,
   fetchSuggestions,
@@ -28,6 +31,7 @@ import {
   ProjectItem,
   publishStory,
   StoryItem,
+  timeAgo,
   unfollowUser,
 } from './api';
 import { flagOf, useI18n } from './i18n';
@@ -45,6 +49,8 @@ const INITIAL_POSTS: PostData[] = [
       title: 'TÜRK FORUM 2026 - Rəsmi Sənədlər & Qaydalar',
       description: 'İştirak qaydaları, gündəm, və forum strukturu haqqında məlumat.',
       badge: 'Rəsmi Elan',
+      image:
+        'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
     },
     likes: 245,
     comments: 36,
@@ -60,6 +66,8 @@ const INITIAL_POSTS: PostData[] = [
       title: 'Holberton & TÜRK FORUM 2026 Hackathon Elanı',
       description: '48 saatlıq hackathon - Türk dünyasının texnoloji gələcəyini birgə qururuq.',
       badge: 'Hackathon 2026',
+      image:
+        'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=1200&q=80',
     },
     likes: 312,
     comments: 58,
@@ -117,15 +125,39 @@ function loadSeenStories(): Set<number> {
   return loadNumberSet('th_seen_stories');
 }
 
+function mapApiPost(p: ApiPost): PostData {
+  const hasMedia = Boolean(p.image_url || p.file_url);
+  return {
+    id: String(p.id),
+    authorId: p.user_id,
+    author: p.author?.full_name || 'İstifadəçi',
+    country: p.author?.country || '',
+    role: p.author?.university || 'Tələbə',
+    time: timeAgo(p.created_at) || '',
+    body: p.body || '',
+    media: hasMedia
+      ? {
+          title: p.file_name || undefined,
+          image: p.image_url || undefined,
+          fileUrl: p.file_url || undefined,
+          fileName: p.file_name || undefined,
+        }
+      : undefined,
+    likes: 0,
+    comments: 0,
+  };
+}
+
 export function App() {
   const { t } = useI18n();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('user') || 'null'));
+  const [user, setUser] = useState<any>(() => loadStored<any>('user', null));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [profileViewUserId, setProfileViewUserId] = useState<number | null>(null);
   const [messagesTarget, setMessagesTarget] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<PostData[]>(() => loadStored<PostData[]>('th_user_posts', []));
+  const [feedPosts, setFeedPosts] = useState<PostData[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [createMode, setCreateMode] = useState<'post' | 'story'>('post');
 
@@ -154,12 +186,22 @@ export function App() {
     localStorage.setItem('th_joined_projects', JSON.stringify([...joinedProjectIds]));
   }, [joinedProjectIds]);
 
+  const refreshFeed = useCallback(async (authToken: string) => {
+    try {
+      const apiPosts = await fetchPosts(authToken);
+      setFeedPosts(apiPosts.map(mapApiPost));
+    } catch {
+      // keep existing feed
+    }
+  }, []);
+
   useEffect(() => {
     if (!token) return;
     fetchCurrentUser(token)
       .then((freshUser) => {
         setUser(freshUser);
         localStorage.setItem('user', JSON.stringify(freshUser));
+        if (!freshUser.country) setNeedsOnboarding(true);
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -180,6 +222,8 @@ export function App() {
 
   useEffect(() => {
     if (!token) return;
+    void refreshFeed(token);
+
     fetchStories(token)
       .then((data) => {
         setStories(data);
@@ -193,7 +237,7 @@ export function App() {
         setFollowingIds(new Set(data.filter((u) => u.is_following).map((u) => u.id)));
       })
       .catch(() => undefined);
-  }, [token]);
+  }, [token, refreshFeed]);
 
   const loadProjects = useCallback(async () => {
     if (!token) return;
@@ -218,7 +262,7 @@ export function App() {
         onLoginSuccess={(tok, u, isNewUser) => {
           setToken(tok);
           setUser(u);
-          setNeedsOnboarding(Boolean(isNewUser));
+          setNeedsOnboarding(Boolean(isNewUser) || !u?.country);
           setActiveTab('home');
         }}
       />
@@ -239,14 +283,19 @@ export function App() {
   }
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('th_user_posts');
+    localStorage.removeItem('th_joined_projects');
     setToken(null);
     setUser(null);
     setUserPosts([]);
+    setFeedPosts([]);
     setJoinedProjectIds(new Set());
     setStats({ followers: 0, following: 0 });
     setNeedsOnboarding(false);
     setActiveTab('home');
+    setProfileViewUserId(null);
   };
 
   const openCreate = (mode: 'post' | 'story') => {
@@ -256,65 +305,40 @@ export function App() {
 
   const handlePublish = async (body: string, media?: any) => {
     if (createMode === 'story') {
-      publishStory(token, body, user?.country)
-        .then((story) => setStories((prev) => [story, ...prev]))
-        .catch(() => undefined);
+      const story = await publishStory(
+        token,
+        body,
+        user?.country,
+        media?.image_url || media?.file_url || null
+      );
+      setStories((prev) => [story, ...prev]);
       setShowCreate(false);
       return;
     }
 
-    try {
-      const { API_URL } = await import('./api');
-      const res = await fetch(`${API_URL}/api/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          body,
-          image_url: media?.image_url || undefined,
-          file_url: media?.file_url || undefined,
-          file_name: media?.file_name || undefined,
-        }),
-      });
-      if (res.ok) {
-        // refresh not strictly necessary, append locally
-      }
-    } catch {
-      // ignore
+    const res = await fetch(`${API_URL}/api/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        body,
+        image_url: media?.image_url || undefined,
+        file_url: media?.file_url || undefined,
+        file_name: media?.file_name || undefined,
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.json().catch(() => null);
+      throw new Error(detail?.detail || 'Post yaradıla bilmədi.');
     }
 
-    setUserPosts((prev) => [
-      {
-        id: `p${Date.now()}`,
-        authorId: user?.id,
-        author: user?.full_name || 'İstifadəçi',
-        country: user?.country || 'Azerbaijan',
-        role: user?.university || 'Tələbə',
-        time: 'indi',
-        body,
-        media: media?.image_url
-          ? {
-              title: media?.file_name || body.slice(0, 40),
-              description: body,
-              image: media.image_url,
-              fileUrl: media.file_url,
-              fileName: media.file_name,
-            }
-          : media?.file_url
-          ? {
-              title: media?.file_name || body.slice(0, 40),
-              description: body,
-              fileUrl: media.file_url,
-              fileName: media.file_name,
-            }
-          : undefined,
-        likes: 0,
-        comments: 0,
-      },
-      ...prev,
-    ]);
+    const created: ApiPost = await res.json();
+    const mapped = mapApiPost(created);
+    setUserPosts((prev) => [mapped, ...prev.filter((p) => p.id !== mapped.id)]);
+    setFeedPosts((prev) => [mapped, ...prev.filter((p) => p.id !== mapped.id)]);
     setShowCreate(false);
     setActiveTab('home');
   };
@@ -358,13 +382,7 @@ export function App() {
       }
       setStats((prev) => ({ ...prev, following: Math.max(0, prev.following + (wasFollowing ? -1 : 1)) }));
     } catch {
-      setFollowingIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
-      setStats((prev) => ({ ...prev, following: Math.max(0, prev.following + (wasFollowing ? -1 : 1)) }));
+      // leave followingIds / stats unchanged on failure
     } finally {
       setFollowPendingIds((prev) => {
         const next = new Set(prev);
@@ -389,36 +407,14 @@ export function App() {
     setProjectsError('');
   };
 
-  const enrichedInitialPosts = INITIAL_POSTS.map((post) => {
-    if (post.id === 'forum-2026-rules') {
-      return {
-        ...post,
-        media: {
-          title: 'TÜRK FORUM 2026 - Rəsmi Sənədlər & Qaydalar',
-          description: 'İştirak qaydaları, gündəm, və forum strukturu haqqında məlumat.',
-          badge: 'Rəsmi Elan',
-          image:
-            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
-        },
-      };
-    }
-    if (post.id === 'holberton-hackathon-2026') {
-      return {
-        ...post,
-        media: {
-          title: 'Holberton & TÜRK FORUM 2026 Hackathon Elanı',
-          description: '48 saatlıq hackathon - Türk dünyasının texnoloji gələcəyini birgə qururuq.',
-          badge: 'Hackathon 2026',
-          image:
-            'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=1200&q=80',
-        },
-      };
-    }
-    return post;
-  });
-
-  const feedPosts = [...userPosts, ...enrichedInitialPosts];
+  const serverIds = new Set(feedPosts.map((p) => p.id));
+  const localOnly = userPosts.filter((p) => !serverIds.has(p.id));
+  const displayFeed = [...localOnly, ...feedPosts, ...INITIAL_POSTS];
   const joinedProjects = projects.filter((project) => joinedProjectIds.has(project.id));
+  const ownPosts = [
+    ...userPosts,
+    ...feedPosts.filter((p) => p.authorId === user?.id && !userPosts.some((u) => u.id === p.id)),
+  ];
 
   return (
     <div className="min-h-screen bg-black text-slate-100">
@@ -447,7 +443,7 @@ export function App() {
               {!storiesLoaded && (
                 <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">Hekayələr yüklənir...</div>
               )}
-              {feedPosts.map((post) => (
+              {displayFeed.map((post) => (
                 <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} />
               ))}
             </>
@@ -466,7 +462,14 @@ export function App() {
 
           {activeTab === 'rooms' && <RoomsView />}
 
-          {activeTab === 'messages' && <MessagesView token={token} currentUser={user} initialTarget={messagesTarget} onClose={() => setMessagesTarget(null)} />}
+          {activeTab === 'messages' && (
+            <MessagesView
+              token={token}
+              currentUser={user}
+              initialTarget={messagesTarget}
+              onClose={() => setMessagesTarget(null)}
+            />
+          )}
 
           {activeTab === 'dictionary' && <Dictionary />}
 
@@ -512,7 +515,7 @@ export function App() {
           {activeTab === 'profile' && (
             <ProfileView
               user={user}
-              posts={userPosts}
+              posts={ownPosts}
               projects={joinedProjects}
               stats={stats}
               onLogout={handleLogout}
