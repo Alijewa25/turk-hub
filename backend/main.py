@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, Form
+from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import os, uuid, shutil
+import os, uuid
 
 import models
 import schemas
@@ -17,9 +17,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,22 +68,39 @@ def search_dictionary(
         )
     return query.all()
 
+# --- AUTHENTICATION ENDPOINTS ---
+
+from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from auth_utils import (
+    ALGORITHM,
+    SECRET_KEY,
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+)
+
 # --- PROJECT HUB ENDPOINTS ---
 
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
+@app.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(db: Session = Depends(get_db)):
     return db.query(models.Project).all()
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse)
+@app.post("/projects", response_model=schemas.ProjectResponse)
 def create_project(
-    project: schemas.ProjectCreate, 
+    project: schemas.ProjectCreate,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     db_project = models.Project(
         title=project.title,
         description=project.description,
         required_skills=project.required_skills,
-        owner_id=1
+        owner_id=current_user.id
     )
     db.add(db_project)
     db.commit()
@@ -85,37 +111,88 @@ def create_project(
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.rooms: dict[str, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, room_id: str):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.rooms.setdefault(room_id, []).append(websocket)
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, websocket: WebSocket, room_id: str):
+        conns = self.rooms.get(room_id)
+        if not conns:
+            return
+        try:
+            conns.remove(websocket)
+        except ValueError:
+            pass
+        if not conns:
+            self.rooms.pop(room_id, None)
 
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
+    async def broadcast(self, room_id: str, message: str):
+        dead: List[WebSocket] = []
+        for connection in list(self.rooms.get(room_id, [])):
+            try:
+                await connection.send_text(message)
+            except Exception:
+                dead.append(connection)
+        for connection in dead:
+            self.disconnect(connection, room_id)
 
 manager = ConnectionManager()
 
-@app.websocket("/ws/chat/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await manager.connect(websocket)
-    await manager.broadcast(f"İstifadəçi #{client_id} söhbətə qoşuldu 🐺")
+
+def _ws_display_name(token: Optional[str], client_id: str, db: Session) -> str:
+    if not token:
+        return f"İstifadəçi #{client_id}"
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            return f"İstifadəçi #{client_id}"
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if user:
+            return user.full_name or user.username or f"İstifadəçi #{client_id}"
+    except JWTError:
+        pass
+    return f"İstifadəçi #{client_id}"
+
+
+async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: Optional[str] = None):
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        display = _ws_display_name(token, client_id, db)
+    finally:
+        db.close()
+
+    await manager.connect(websocket, room_id)
+    await manager.broadcast(room_id, f"{display} söhbətə qoşuldu 🐺")
     try:
         while True:
             data = await websocket.receive_text()
-            await manager.broadcast(f"İstifadəçi #{client_id}: {data}")
+            await manager.broadcast(room_id, f"{display}: {data}")
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        await manager.broadcast(f"İstifadəçi #{client_id} söhbətdən ayrıldı.")
-# --- AUTHENTICATION ENDPOINTS ---
+        manager.disconnect(websocket, room_id)
+        await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
 
-from fastapi import HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from auth_utils import hash_password, verify_password, create_access_token, get_current_user
+
+@app.websocket("/ws/chat/{room_id}/{client_id}")
+async def websocket_room_endpoint(
+    websocket: WebSocket,
+    room_id: str,
+    client_id: str,
+    token: Optional[str] = Query(None),
+):
+    await _chat_loop(websocket, room_id, client_id, token)
+
+
+@app.websocket("/ws/chat/{client_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    client_id: str,
+    token: Optional[str] = Query(None),
+):
+    await _chat_loop(websocket, "global", client_id, token)
 
 @app.post("/api/auth/register", response_model=schemas.UserResponse)
 @app.post("/register", response_model=schemas.UserResponse)
@@ -257,13 +334,28 @@ def update_me(
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
     ext = os.path.splitext(file.filename or "")[1].lower()
-    allowed = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".svg"}
+    allowed = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
     if ext not in allowed:
         raise HTTPException(status_code=400, detail="İcazə verilməyən fayl formatı")
+
+    max_bytes = 5 * 1024 * 1024  # 5MB
     fname = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, fname)
+    size = 0
     with open(path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        while True:
+            chunk = await file.read(1024 * 64)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > max_bytes:
+                buffer.close()
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+                raise HTTPException(status_code=400, detail="Fayl ölçüsü 5MB-dan böyük ola bilməz")
+            buffer.write(chunk)
     return {"url": f"/uploads/{fname}", "filename": file.filename}
 
 
@@ -429,7 +521,12 @@ def get_messages(user_id: int, current_user: models.User = Depends(get_current_u
 def send_message(payload: schemas.MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if payload.receiver_id == current_user.id:
         raise HTTPException(status_code=400, detail="Özünüzə mesaj göndərə bilməzsiniz")
-    msg = models.Message(sender_id=current_user.id, receiver_id=payload.receiver_id, content=payload.content)
+    receiver = db.query(models.User).filter(models.User.id == payload.receiver_id).first()
+    if not receiver:
+        raise HTTPException(status_code=404, detail="Alıcı tapılmadı")
+    if not (payload.content or "").strip():
+        raise HTTPException(status_code=400, detail="Mesaj boş ola bilməz")
+    msg = models.Message(sender_id=current_user.id, receiver_id=payload.receiver_id, content=payload.content.strip())
     db.add(msg)
     db.commit()
     db.refresh(msg)
@@ -441,7 +538,7 @@ def send_message(payload: schemas.MessageCreate, current_user: models.User = Dep
         read=msg.read,
         created_at=msg.created_at,
         sender=schemas.UserResponse.model_validate(current_user),
-        receiver=schemas.UserResponse.model_validate(msg.receiver) if msg.receiver else None,
+        receiver=schemas.UserResponse.model_validate(receiver),
     )
 
 
