@@ -99,7 +99,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         if (!cancelled) setLoading(false);
       });
 
-    return () => {
+    
+  const handleAvatarUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`${API_URL}/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFormData((prev: any) => ({ ...prev, avatar_url: data.url }));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  return () => {
       cancelled = true;
     };
   }, [viewingOther, viewUserId, token, user, posts, stats]);
@@ -142,6 +160,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const avatarSrc = mediaUrl(profile?.profile_picture || profile?.avatar_url);
+
+  
+  const handleAvatarUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`${API_URL}/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFormData((prev: any) => ({ ...prev, avatar_url: data.url }));
+      }
+    } catch (err) { console.error(err); }
+  };
 
   return (
     <section className="space-y-6 pb-20">
