@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
-import { Bookmark, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
+import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
+import { mediaUrl } from '../api';
 import { flagOf, useI18n } from '../i18n';
+
+export interface PostMedia {
+  title?: string;
+  description?: string;
+  badge?: string;
+  image?: string;
+  fileUrl?: string;
+  fileName?: string;
+}
 
 export interface PostData {
   id: string;
@@ -10,7 +20,7 @@ export interface PostData {
   role: string;
   time: string;
   body: string;
-  media?: { title: string; description: string; badge?: string };
+  media?: PostMedia;
   likes: number;
   comments: number;
 }
@@ -29,6 +39,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
 
   const likeCount = post.likes + (liked ? 1 : 0);
   const flag = flagOf(post.country);
+  const imageSrc = mediaUrl(post.media?.image);
+  const fileHref = mediaUrl(post.media?.fileUrl);
+  const isPdf =
+    Boolean(fileHref) &&
+    (post.media?.fileName?.toLowerCase().endsWith('.pdf') ||
+      fileHref.toLowerCase().includes('.pdf') ||
+      (!post.media?.image && Boolean(post.media?.fileUrl)));
 
   return (
     <article className="bg-neutral-900/60 border border-neutral-800 rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700">
@@ -51,13 +68,33 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
         </button>
       </div>
 
-      <p className="px-3 pb-3 text-sm text-slate-300 leading-relaxed">{post.body}</p>
+      {post.body && <p className="px-3 pb-3 text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{post.body}</p>}
 
-      {post.media && (
+      {imageSrc && (
+        <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-neutral-800">
+          <img src={imageSrc} alt={post.media?.title || 'Post media'} className="w-full max-h-96 object-cover" />
+        </div>
+      )}
+
+      {isPdf && fileHref && (
+        <a
+          href={fileHref}
+          target="_blank"
+          rel="noreferrer"
+          className="mx-3 mb-3 flex items-center gap-2 rounded-xl border border-neutral-800 bg-black/60 px-3 py-2.5 text-xs text-emerald-400 hover:border-emerald-500/40 transition-colors"
+        >
+          <FileText className="w-4 h-4 shrink-0" />
+          <span className="truncate">{post.media?.fileName || 'PDF sənədi'}</span>
+        </a>
+      )}
+
+      {!imageSrc && !isPdf && post.media && (post.media.title || post.media.description || post.media.badge) && (
         <div className="mx-3 mb-3 bg-gradient-to-br from-neutral-900 via-neutral-900 to-skyBlue/10 rounded-xl p-5 flex flex-col items-center text-center border border-neutral-800">
           <Sparkles className="w-8 h-8 text-skyBlue mb-2 animate-pulse" />
-          <h4 className="text-sm font-bold text-slate-100">{post.media.title}</h4>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs">{post.media.description}</p>
+          {post.media.title && <h4 className="text-sm font-bold text-slate-100">{post.media.title}</h4>}
+          {post.media.description && (
+            <p className="text-xs text-slate-400 mt-1 max-w-xs">{post.media.description}</p>
+          )}
           {post.media.badge && (
             <span className="mt-3 text-[10px] bg-skyBlue/10 text-skyBlue border border-skyBlue/30 px-3 py-1 rounded-full">
               {post.media.badge}
@@ -97,7 +134,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
       {showComments && (
         <div className="px-3 pb-3 border-t border-neutral-800 pt-3 space-y-2">
           <p className="text-xs text-slate-400">
-            <span className="text-slate-200 font-semibold">selcan.uz</span>Əla layihədir, qoşuluram!
+            <span className="text-slate-200 font-semibold">selcan.uz</span> Əla layihədir, qoşuluram!
           </p>
           <form
             onSubmit={(e) => {
