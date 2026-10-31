@@ -622,3 +622,26 @@ def _story_response(s: models.Story) -> schemas.StoryResponse:
         media_url=s.media_url,
         created_at=s.created_at,
     )
+
+
+@app.post("/api/posts/{post_id}/like")
+def like_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    # Like toggle or increment
+    post.likes_count = (post.likes_count or 0) + 1
+    db.commit()
+    return {"status": "ok", "likes_count": post.likes_count}
+
+@app.post("/api/posts/{post_id}/comment")
+def comment_post(post_id: int, payload: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    text = payload.get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Rəy boş ola bilməz")
+    post.comments_count = (post.comments_count or 0) + 1
+    db.commit()
+    return {"status": "ok", "comments_count": post.comments_count}
