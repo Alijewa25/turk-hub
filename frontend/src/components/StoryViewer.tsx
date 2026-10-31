@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { StoryItem } from '../api';
+import { mediaUrl, StoryItem } from '../api';
 import { flagOf, useI18n } from '../i18n';
 
 interface StoryViewerProps {
@@ -85,8 +85,15 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, index, onClos
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center overflow-y-auto">
-          <p className="text-xl font-semibold text-slate-100 leading-relaxed">{story.text || '...'}</p>
+        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center overflow-y-auto gap-4">
+          {story.media_url && (
+            <img
+              src={mediaUrl(story.media_url)}
+              alt=""
+              className="max-h-[45vh] w-full object-contain rounded-xl border border-neutral-800"
+            />
+          )}
+          <p className="text-xl font-semibold text-slate-100 leading-relaxed">{story.text || (story.media_url ? '' : '...')}</p>
         </div>
 
         <div className="p-4 flex items-center justify-between">
