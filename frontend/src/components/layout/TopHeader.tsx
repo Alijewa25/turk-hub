@@ -12,9 +12,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ user, setActiveTab, onCrea
   return (
     <header className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-neutral-900 bg-black/90 backdrop-blur-md">
       <button onClick={() => setActiveTab('home')} className="flex items-center gap-2">
-        <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-skyBlue to-cyan-400 flex items-center justify-center font-black text-black text-sm shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40">
-          T
-        </span>
+        <img src="/logo.jpg" alt="TURK HUB Logo" className="w-8 h-8 rounded-full object-cover" />
         <span className="text-sm font-black tracking-widest bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-transparent">
           TURK HUB
         </span>

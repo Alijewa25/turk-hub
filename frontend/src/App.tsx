@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { AuthView } from './components/AuthView';
 import { CountrySelection } from './components/CountrySelection';
@@ -9,35 +9,67 @@ import { StoriesBar } from './components/StoriesBar';
 import { StoryViewer } from './components/StoryViewer';
 import { PostCard, PostData } from './components/PostCard';
 import { CreatePostModal } from './components/CreatePostModal';
+import { Dictionary } from './components/Dictionary';
+import { ExploreView } from './components/ExploreView';
+import { ProfileView } from './components/ProfileView';
+import { ProjectHub } from './components/ProjectHub';
+import { RoomsView } from './components/RoomsView';
+import { MessagesView } from './components/MessagesView';
 import {
+  createProject,
+  fetchCurrentUser,
+  fetchProjects,
   fetchStories,
   fetchSuggestions,
+  fetchUserStats,
   followUser,
   FollowUser,
+  ProjectDraft,
+  ProjectItem,
   publishStory,
   StoryItem,
   unfollowUser,
 } from './api';
 import { flagOf, useI18n } from './i18n';
-import {
-  Bell,
-  BookOpen,
-  Heart,
-  MessageCircle,
-  Rocket,
-  Search,
-  Sparkles,
-  User,
-  Users,
-} from 'lucide-react';
+import { Bell, BookOpen, Heart, MessageCircle, Sparkles, Users } from 'lucide-react';
 
 const INITIAL_POSTS: PostData[] = [
+  {
+    id: 'forum-2026-rules',
+    author: 'TÜRK FORUM 2026 Təşkilat Komitəsi',
+    country: 'Azerbaijan',
+    role: 'Rəsmi',
+    time: 'Bu gün',
+    body: 'TÜRK FORUM 2026 - Rəsmi Sənədlər & Qaydalar.\n\nForumun məqsədi: Türk xalqları arasında akademik, mədəni və texnoloji əməkdaşlığı gücləndirmək.\n\nQaydalar: hörmətli müzakirə, elmi əsaslı arqument, çoxdilli ünsiyyətə açıq olmaq.\n\nƏtraflı sənədlər "Otaqlar/Chat" və ya Kəşf bölməsində "TÜRK FORUM 2026" altındadır.',
+    media: {
+      title: 'TÜRK FORUM 2026 - Rəsmi Sənədlər & Qaydalar',
+      description: 'İştirak qaydaları, gündəm, və forum strukturu haqqında məlumat.',
+      badge: 'Rəsmi Elan',
+    },
+    likes: 245,
+    comments: 36,
+  },
+  {
+    id: 'holberton-hackathon-2026',
+    author: 'Holberton School Azerbaijan',
+    country: 'Azerbaijan',
+    role: 'Təhsil müəssisəsi',
+    time: 'Bu gün',
+    body: 'Holberton School Azerbaijan tərəfindən TÜRK HACKATHON 2026 elan olunur!\n\nMövzu: "Pan-Türk Texnologiyaları - Birgə Gələcək"\n\nİştirakçılar: Azərbaycan, Türkiyə, Qazaxıstan, Özbəkistan, Qırğızıstan, Türkmənistan tələbələri\n\nMüraciət: Holberton School Azerbaijan ofisində və onlayn.\n\nKomandalar yaratmaq və ideyalar paylaşmaq üçün Project Hub-dan istifadə edə bilərsiniz!',
+    media: {
+      title: 'Holberton & TÜRK FORUM 2026 Hackathon Elanı',
+      description: '48 saatlıq hackathon - Türk dünyasının texnoloji gələcəyini birgə qururuq.',
+      badge: 'Hackathon 2026',
+    },
+    likes: 312,
+    comments: 58,
+  },
   {
     id: 'p1',
     author: 'Tahmina Aliyeva',
     country: 'Azerbaijan',
     role: 'BEU Innovator',
-    time: '2 səat əvvəl',
+    time: '2 saat əvvəl',
     body: 'Türk dilləri arasında etimoloji və süni intellekt əsaslı anında tərcümə modulunu hazırlayırıq. 3+ ölkədən komanda yığırıq!',
     media: {
       title: 'AI-Powered Pan-Turkic Translator',
@@ -52,27 +84,11 @@ const INITIAL_POSTS: PostData[] = [
     author: 'Emre Yıldız',
     country: 'Türkiye',
     role: 'ODTU Mezunu',
-    time: '5 səat əvvəl',
+    time: '5 saat əvvəl',
     body: 'Göktürk runelərini AR tətbiqində göstərmək üçün ilk prototip hazırdır. Qazaxıstan və Qırğızıstan tələbələri ilə sınaqdan keçiririk.',
     likes: 96,
     comments: 17,
   },
-];
-
-const EXPLORE_TILES = [
-  { title: 'Etimoloji Lüğət', tag: 'Dil', gradient: 'from-skyBlue/40 to-black' },
-  { title: 'Hackathon 2026', tag: 'Event', gradient: 'from-cyan-500/40 to-black' },
-  { title: 'EcoMarket', tag: 'Startap', gradient: 'from-emerald-500/40 to-black' },
-  { title: 'AR Runestones', tag: 'Mədəniyyət', gradient: 'from-violet-500/40 to-black' },
-  { title: 'Tələbə Mobiliyi', tag: 'Təhsil', gradient: 'from-amber-500/40 to-black' },
-  { title: 'Göktürk Keyboard', tag: 'Alət', gradient: 'from-rose-500/40 to-black' },
-];
-
-const PROJECTS = [
-  { name: 'Türk Dili AI Tərcümə', flag: '🇹🇷', members: 12, desc: 'Etimoloji əsaslı real-time tərcümə mühərriki.' },
-  { name: 'Ortaq Bazar (EcoMarket)', flag: '🇦🇿', members: 8, desc: 'Altı ölkənin kiçik biznesləri üçün vahid platforma.' },
-  { name: 'Göktürk Runestones AR', flag: '🇰🇿', members: 5, desc: 'Runeləri artırılmış reallıqla oxumaq tətbiqi.' },
-  { name: 'Pan-Türk Tələbə Mobiliyi', flag: '🇺🇿', members: 9, desc: 'Universitetlərarası mübadilə və qrant kataloqu.' },
 ];
 
 const NOTIFICATIONS = [
@@ -83,13 +99,22 @@ const NOTIFICATIONS = [
   { icon: BookOpen, text: 'Lüğətə 42 yeni söz əlavə olundu', time: '2 gün', color: 'text-violet-400' },
 ];
 
-function loadSeenStories(): Set<number> {
+function loadStored<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem('th_seen_stories');
-    return new Set<number>(raw ? JSON.parse(raw) : []);
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return new Set();
+    return fallback;
   }
+}
+
+function loadNumberSet(key: string): Set<number> {
+  const raw = loadStored<unknown>(key, []);
+  return new Set<number>(Array.isArray(raw) ? (raw as number[]) : []);
+}
+
+function loadSeenStories(): Set<number> {
+  return loadNumberSet('th_seen_stories');
 }
 
 export function App() {
@@ -98,7 +123,9 @@ export function App() {
   const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('user') || 'null'));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
-  const [posts, setPosts] = useState<PostData[]>(INITIAL_POSTS);
+  const [profileViewUserId, setProfileViewUserId] = useState<number | null>(null);
+  const [messagesTarget, setMessagesTarget] = useState<any>(null);
+  const [userPosts, setUserPosts] = useState<PostData[]>(() => loadStored<PostData[]>('th_user_posts', []));
   const [showCreate, setShowCreate] = useState(false);
   const [createMode, setCreateMode] = useState<'post' | 'story'>('post');
 
@@ -110,6 +137,46 @@ export function App() {
   const [suggestions, setSuggestions] = useState<FollowUser[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
   const [followPendingIds, setFollowPendingIds] = useState<Set<number>>(new Set());
+
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState('');
+  const [joinedProjectIds, setJoinedProjectIds] = useState<Set<number>>(() =>
+    loadNumberSet('th_joined_projects')
+  );
+  const [stats, setStats] = useState({ followers: 0, following: 0 });
+
+  useEffect(() => {
+    localStorage.setItem('th_user_posts', JSON.stringify(userPosts));
+  }, [userPosts]);
+
+  useEffect(() => {
+    localStorage.setItem('th_joined_projects', JSON.stringify([...joinedProjectIds]));
+  }, [joinedProjectIds]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchCurrentUser(token)
+      .then((freshUser) => {
+        setUser(freshUser);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+      })
+      .catch((err) => {
+        if (err?.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+        }
+      });
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !user?.id) return;
+    fetchUserStats(token, user.id)
+      .then((data) => setStats({ followers: data.followers_count, following: data.following_count }))
+      .catch(() => undefined);
+  }, [token, user?.id]);
 
   useEffect(() => {
     if (!token) return;
@@ -127,6 +194,23 @@ export function App() {
       })
       .catch(() => undefined);
   }, [token]);
+
+  const loadProjects = useCallback(async () => {
+    if (!token) return;
+    setProjectsLoading(true);
+    setProjectsError('');
+    try {
+      setProjects(await fetchProjects(token));
+    } catch {
+      setProjectsError('Layihələr yüklənə bilmədi. Backend bağlantısını yoxla.');
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) void loadProjects();
+  }, [token, loadProjects]);
 
   if (!token) {
     return (
@@ -158,7 +242,11 @@ export function App() {
     localStorage.clear();
     setToken(null);
     setUser(null);
+    setUserPosts([]);
+    setJoinedProjectIds(new Set());
+    setStats({ followers: 0, following: 0 });
     setNeedsOnboarding(false);
+    setActiveTab('home');
   };
 
   const openCreate = (mode: 'post' | 'story') => {
@@ -166,29 +254,69 @@ export function App() {
     setShowCreate(true);
   };
 
-  const handlePublish = (body: string) => {
+  const handlePublish = async (body: string, media?: any) => {
     if (createMode === 'story') {
       publishStory(token, body, user?.country)
         .then((story) => setStories((prev) => [story, ...prev]))
         .catch(() => undefined);
       setShowCreate(false);
-    } else {
-      setPosts((prev) => [
-        {
-          id: `p${Date.now()}`,
-          author: user?.full_name || 'İstifadəçi',
-          country: user?.country || 'Azerbaijan',
-          role: user?.university || 'Tələbə',
-          time: 'indi',
-          body,
-          likes: 0,
-          comments: 0,
-        },
-        ...prev,
-      ]);
-      setShowCreate(false);
-      setActiveTab('home');
+      return;
     }
+
+    try {
+      const { API_URL } = await import('./api');
+      const res = await fetch(`${API_URL}/api/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          body,
+          image_url: media?.image_url || undefined,
+          file_url: media?.file_url || undefined,
+          file_name: media?.file_name || undefined,
+        }),
+      });
+      if (res.ok) {
+        // refresh not strictly necessary, append locally
+      }
+    } catch {
+      // ignore
+    }
+
+    setUserPosts((prev) => [
+      {
+        id: `p${Date.now()}`,
+        authorId: user?.id,
+        author: user?.full_name || 'İstifadəçi',
+        country: user?.country || 'Azerbaijan',
+        role: user?.university || 'Tələbə',
+        time: 'indi',
+        body,
+        media: media?.image_url
+          ? {
+              title: media?.file_name || body.slice(0, 40),
+              description: body,
+              image: media.image_url,
+              fileUrl: media.file_url,
+              fileName: media.file_name,
+            }
+          : media?.file_url
+          ? {
+              title: media?.file_name || body.slice(0, 40),
+              description: body,
+              fileUrl: media.file_url,
+              fileName: media.file_name,
+            }
+          : undefined,
+        likes: 0,
+        comments: 0,
+      },
+      ...prev,
+    ]);
+    setShowCreate(false);
+    setActiveTab('home');
   };
 
   const selectStory = (story: StoryItem) => {
@@ -213,10 +341,11 @@ export function App() {
   };
 
   const toggleFollow = async (id: number) => {
-    if (followPendingIds.has(id)) return;
+    if (!token || followPendingIds.has(id)) return;
     setFollowPendingIds((prev) => new Set(prev).add(id));
+    const wasFollowing = followingIds.has(id);
     try {
-      if (followingIds.has(id)) {
+      if (wasFollowing) {
         await unfollowUser(token, id);
         setFollowingIds((prev) => {
           const next = new Set(prev);
@@ -227,14 +356,15 @@ export function App() {
         await followUser(token, id);
         setFollowingIds((prev) => new Set(prev).add(id));
       }
+      setStats((prev) => ({ ...prev, following: Math.max(0, prev.following + (wasFollowing ? -1 : 1)) }));
     } catch {
-      // backend offline — local UI toggles anyway for demo
       setFollowingIds((prev) => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return next;
       });
+      setStats((prev) => ({ ...prev, following: Math.max(0, prev.following + (wasFollowing ? -1 : 1)) }));
     } finally {
       setFollowPendingIds((prev) => {
         const next = new Set(prev);
@@ -243,6 +373,52 @@ export function App() {
       });
     }
   };
+
+  const toggleProjectJoin = (id: number) => {
+    setJoinedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleCreateProject = async (draft: ProjectDraft) => {
+    const project = await createProject(token, draft);
+    setProjects((prev) => [project, ...prev.filter((p) => p.id !== project.id)]);
+    setProjectsError('');
+  };
+
+  const enrichedInitialPosts = INITIAL_POSTS.map((post) => {
+    if (post.id === 'forum-2026-rules') {
+      return {
+        ...post,
+        media: {
+          title: 'TÜRK FORUM 2026 - Rəsmi Sənədlər & Qaydalar',
+          description: 'İştirak qaydaları, gündəm, və forum strukturu haqqında məlumat.',
+          badge: 'Rəsmi Elan',
+          image:
+            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
+        },
+      };
+    }
+    if (post.id === 'holberton-hackathon-2026') {
+      return {
+        ...post,
+        media: {
+          title: 'Holberton & TÜRK FORUM 2026 Hackathon Elanı',
+          description: '48 saatlıq hackathon - Türk dünyasının texnoloji gələcəyini birgə qururuq.',
+          badge: 'Hackathon 2026',
+          image:
+            'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=1200&q=80',
+        },
+      };
+    }
+    return post;
+  });
+
+  const feedPosts = [...userPosts, ...enrichedInitialPosts];
+  const joinedProjects = projects.filter((project) => joinedProjectIds.has(project.id));
 
   return (
     <div className="min-h-screen bg-black text-slate-100">
@@ -271,82 +447,40 @@ export function App() {
               {!storiesLoaded && (
                 <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">Hekayələr yüklənir...</div>
               )}
-              {posts.map((p) => (
-                <PostCard key={p.id} post={p} onJoin={() => setActiveTab('projects')} />
+              {feedPosts.map((post) => (
+                <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} />
               ))}
             </>
           )}
 
           {activeTab === 'explore' && (
-            <section>
-              <div className="relative mb-4">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  placeholder="Layihə, istifadəçi və ya açar söz axtar..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-sm text-slate-100 placeholder-neutral-600 focus:outline-none focus:border-skyBlue focus:ring-2 focus:ring-skyBlue/20 transition-all"
-                />
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {EXPLORE_TILES.map((item, i) => (
-                  <div
-                    key={i}
-                    className={`group relative aspect-square rounded-xl bg-gradient-to-br ${item.gradient} border border-neutral-800 p-3 flex flex-col justify-end overflow-hidden cursor-pointer hover:border-skyBlue/50 transition-all duration-200`}
-                  >
-                    <span className="text-[10px] uppercase tracking-wider text-skyBlue font-bold">{item.tag}</span>
-                    <span className="text-xs font-semibold text-slate-100 mt-0.5">{item.title}</span>
-                    <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                ))}
-              </div>
-            </section>
+            <ExploreView
+              onNavigate={(tab, payload) => {
+                if (tab === 'profile' && payload?.viewUserId) {
+                  setProfileViewUserId(payload.viewUserId);
+                }
+                setActiveTab(tab);
+              }}
+            />
           )}
 
-          {activeTab === 'dictionary' && (
-            <section className="text-center py-6">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-skyBlue/10 border border-skyBlue/30 flex items-center justify-center mb-3">
-                <BookOpen className="w-7 h-7 text-skyBlue" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-100">{t('navDictionary')}</h2>
-              <p className="text-xs text-slate-400 mt-1">Axtarış modulu hazırlanır...</p>
-              <div className="mt-4 max-w-sm mx-auto relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  placeholder="Söz axtar (məs. 'su', 'ak')"
-                  className="w-full pl-9 pr-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-sm text-slate-100 placeholder-neutral-600 focus:outline-none focus:border-skyBlue focus:ring-2 focus:ring-skyBlue/20 transition-all"
-                />
-              </div>
-            </section>
-          )}
+          {activeTab === 'rooms' && <RoomsView />}
+
+          {activeTab === 'messages' && <MessagesView token={token} currentUser={user} initialTarget={messagesTarget} onClose={() => setMessagesTarget(null)} />}
+
+          {activeTab === 'dictionary' && <Dictionary />}
 
           {activeTab === 'projects' && (
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Rocket className="w-5 h-5 text-skyBlue" />
-                <h2 className="text-base font-bold text-slate-100">{t('navProjects')} (Project Hub)</h2>
-              </div>
-              <div className="space-y-3">
-                {PROJECTS.map((p, i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 hover:border-skyBlue/40 transition-colors duration-200"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-lg">
-                        {p.flag}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-semibold text-slate-100 truncate">{p.name}</h3>
-                        <p className="text-[11px] text-slate-500">{p.members} komanda üzvü</p>
-                      </div>
-                      <button className="px-3 py-1.5 rounded-lg bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold transition-colors active:scale-95">
-                        Qoşul
-                      </button>
-                    </div>
-                    <p className="mt-2 text-xs text-slate-400 leading-relaxed">{p.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <ProjectHub
+              projects={projects}
+              joinedIds={joinedProjectIds}
+              loading={projectsLoading}
+              error={projectsError}
+              onRetry={() => void loadProjects()}
+              onJoin={toggleProjectJoin}
+              onCreate={handleCreateProject}
+              user={user}
+            />
           )}
 
           {activeTab === 'notifications' && (
@@ -376,46 +510,27 @@ export function App() {
           )}
 
           {activeTab === 'profile' && (
-            <section className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 text-center shadow-lg shadow-black/40">
-              <div className="w-20 h-20 bg-black border-2 border-skyBlue rounded-full mx-auto flex items-center justify-center text-4xl mb-3">
-                {flagOf(user?.country)}
-              </div>
-              <h2 className="text-base font-bold text-slate-100">
-                {user?.full_name} <span className="text-base align-middle">{flagOf(user?.country)}</span>
-              </h2>
-              <p className="text-xs text-slate-500">{user?.email}</p>
-              <p className="text-xs text-skyBlue mt-1 font-medium">
-                {user?.country} • {user?.university || t('memberRole')}
-              </p>
-              <p className="text-xs text-slate-400 mt-3 italic">{user?.bio || 'Türk Youth Hub Innovatoru'}</p>
-
-              <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                {[
-                  { label: 'Paylaşım', value: posts.length },
-                  { label: 'Layihə', value: 4 },
-                  { label: 'Bağlantı', value: 128 },
-                ].map((s, i) => (
-                  <div key={i} className="rounded-xl border border-neutral-800 bg-black/60 py-2.5">
-                    <p className="text-sm font-bold text-slate-100">{s.value}</p>
-                    <p className="text-[10px] text-slate-500">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 rounded-xl border border-neutral-800 bg-black/60 py-3 px-4 flex items-center justify-center gap-2">
-                <User className="w-4 h-4 text-skyBlue" />
-                <span className="text-[11px] text-slate-400">
-                  {user?.country || 'Azərbaycan'} • {flagOf(user?.country)} • {t('navProfile').toUpperCase()}
-                </span>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                className="mt-6 px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-xs font-semibold hover:bg-red-500/20 transition-colors"
-              >
-                {t('logout')}
-              </button>
-            </section>
+            <ProfileView
+              user={user}
+              posts={userPosts}
+              projects={joinedProjects}
+              stats={stats}
+              onLogout={handleLogout}
+              onNavigate={(tab, payload) => {
+                if (payload?.viewUserId) {
+                  setProfileViewUserId(payload.viewUserId);
+                }
+                if (payload?.messageUser) {
+                  setMessagesTarget(payload.messageUser);
+                  setActiveTab('messages');
+                  return;
+                }
+                setActiveTab(tab);
+              }}
+              viewUserId={profileViewUserId}
+              onClearView={() => setProfileViewUserId(null)}
+              token={token}
+            />
           )}
 
           {activeTab === 'home' && (
@@ -433,6 +548,9 @@ export function App() {
         followingIds={followingIds}
         followPendingIds={followPendingIds}
         onToggleFollow={toggleFollow}
+        projects={projects}
+        joinedProjectIds={joinedProjectIds}
+        onJoinProject={toggleProjectJoin}
         setActiveTab={setActiveTab}
       />
 

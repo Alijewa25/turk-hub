@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, BookOpen, Compass, Home, LogOut, Plus, Rocket, User } from 'lucide-react';
+import { Bell, BookOpen, Compass, Home, LogOut, Mail, MessageCircle, Plus, Rocket, User } from 'lucide-react';
 import { flagOf, useI18n } from '../../i18n';
 
 interface SidebarProps {
@@ -16,6 +16,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
   const navItems = [
     { id: 'home', label: t('navHome'), icon: Home },
     { id: 'explore', label: t('navExplore'), icon: Compass },
+    { id: 'rooms', label: 'Otaqlar / Chat', icon: MessageCircle },
+    { id: 'messages', label: 'Mesajlar', icon: Mail },
     { id: 'projects', label: t('navProjects'), icon: Rocket },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },
     { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: 3 },
@@ -25,9 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
   return (
     <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col border-r border-neutral-900 bg-black px-3 py-5">
       <button onClick={() => setActiveTab('home')} className="flex items-center gap-2.5 px-3 mb-7 text-left">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-skyBlue to-cyan-400 flex items-center justify-center font-black text-black shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40">
-          T
-        </span>
+        <img src="/logo.jpg" alt="TURK HUB Logo" className="w-9 h-9 rounded-full object-cover" />
         <span className="text-base font-black tracking-widest bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-transparent">
           TURK HUB
         </span>
@@ -77,10 +77,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
           <span className="relative w-9 h-9 rounded-full bg-black border border-skyBlue/40 text-lg flex items-center justify-center">
             {flagOf(user?.country)}
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold text-slate-100 truncate">{user?.full_name || 'İstifadəçi'}</span>
-            <span className="block text-[10px] text-slate-500 truncate">{user?.country || 'Türk Youth Hub'}</span>
-          </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-slate-100 truncate">{user?.full_name || 'İstifadəçi'}</span>
+              <span className="block text-[10px] text-slate-500 truncate">@{user?.username || user?.id || 'turkhub'}</span>
+            </span>
           <button
             onClick={(e) => {
               e.stopPropagation();

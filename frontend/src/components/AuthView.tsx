@@ -16,16 +16,17 @@ interface AuthViewProps {
   onLoginSuccess: (token: string, user: any, isNewUser: boolean) => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://turk-hub.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 const BRAND_FLAGS = ['🇦🇿', '🇹🇷', '🇰🇿', '🇺🇿', '🇰🇬', '🇹🇲'];
 
 export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const { lang, setLang, t } = useI18n();
   const [isLogin, setIsLogin] = useState(true);
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialMsg, setSocialMsg] = useState('');
@@ -82,7 +83,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
         localStorage.setItem('user', JSON.stringify(userData));
         onLoginSuccess(token, userData, false);
       } else {
-        const regData = { full_name: fullName, email, password };
+        const regData = { full_name: fullName, email, password, username: username || undefined };
         await tryEndpoints(['/api/auth/register', '/register', '/auth/register'], regData, true);
 
         const params = new URLSearchParams();
@@ -91,7 +92,14 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
 
         const { res } = await tryEndpoints(['/api/auth/login', '/login', '/auth/login'], params);
         const token = res.data.access_token;
-        const userData = res.data.user || { full_name: fullName, email };
+        let userData = res.data.user;
+        if (!userData) {
+          try {
+            userData = await fetchMe(token);
+          } catch {
+            userData = { full_name: fullName, email, username: username || undefined };
+          }
+        }
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
         onLoginSuccess(token, userData, true);
@@ -242,17 +250,29 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             {!isLogin && (
-              <div>
-                <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('labelFullName')}</label>
-                <input
-                  type="text"
-                  placeholder={t('labelFullName')}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className={inputClass}
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('labelFullName')}</label>
+                  <input
+                    type="text"
+                    placeholder={t('labelFullName')}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">İstifadəçi adı (@username)</label>
+                  <input
+                    type="text"
+                    placeholder="örn: turk_user (unikal)"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </>
             )}
 
             <div>

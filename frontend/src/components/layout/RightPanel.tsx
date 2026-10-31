@@ -1,6 +1,6 @@
 import React from 'react';
-import { ArrowRight, Sparkles, TrendingUp } from 'lucide-react';
-import { FollowUser } from '../../api';
+import { ArrowRight, Rocket, Sparkles, TrendingUp } from 'lucide-react';
+import { FollowUser, ProjectItem } from '../../api';
 import { flagOf, useI18n } from '../../i18n';
 
 interface RightPanelProps {
@@ -9,15 +9,11 @@ interface RightPanelProps {
   followingIds: Set<number>;
   followPendingIds: Set<number>;
   onToggleFollow: (id: number) => void;
+  projects?: ProjectItem[];
+  joinedProjectIds?: Set<number>;
+  onJoinProject?: (id: number) => void;
   setActiveTab: (tab: string) => void;
 }
-
-const PROJECTS = [
-  { name: 'Türk Dili AI Tərcümə', members: '12 komanda', flag: '🇹🇷' },
-  { name: 'Ortaq Bazar (EcoMarket)', members: '8 komanda', flag: '🇦🇿' },
-  { name: 'Göktürk Runestones AR', members: '5 komanda', flag: '🇰🇿' },
-  { name: 'Pan-Türk Tələbə Mobiliyi', members: '9 komanda', flag: '🇺🇿' },
-];
 
 const FOOTER_LINKS = ['Haqqımızda', 'Yardım', 'Şərtlər', 'Məxfilik', 'Dil: AZ'];
 const TRENDING = ['Etimoloji Lüğət v2', 'Hackathon 2026', 'Startap Akcelerator'];
@@ -28,6 +24,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   followingIds,
   followPendingIds,
   onToggleFollow,
+  projects = [],
+  joinedProjectIds = new Set<number>(),
+  onJoinProject,
   setActiveTab,
 }) => {
   const { t } = useI18n();
@@ -103,24 +102,40 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           <TrendingUp className="w-4 h-4 text-skyBlue" />
         </div>
         <ul className="space-y-2">
-          {PROJECTS.map((s, i) => (
-            <li
-              key={i}
-              className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2.5 hover:border-skyBlue/40 transition-colors duration-200"
-            >
-              <span className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-base">{s.flag}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-semibold text-slate-100 truncate">{s.name}</span>
-                <span className="block text-[10px] text-slate-500">{s.members}</span>
-              </span>
-              <button
-                onClick={() => setActiveTab('projects')}
-                className="text-[11px] font-bold text-black bg-skyBlue hover:bg-skyBlue-hover px-2.5 py-1 rounded-lg transition-colors"
+          {projects.slice(0, 4).map((project) => {
+            const joined = joinedProjectIds.has(project.id);
+            return (
+              <li
+                key={project.id}
+                className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2.5 hover:border-skyBlue/40 transition-colors duration-200"
               >
-                Qoşul
-              </button>
+                <span className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center">
+                  <Rocket className="w-4 h-4 text-skyBlue" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold text-slate-100 truncate">{project.title}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">
+                    {project.required_skills || 'Açıq komanda'}
+                  </span>
+                </span>
+                <button
+                  onClick={() => onJoinProject?.(project.id)}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors ${
+                    joined
+                      ? 'text-emerald-400 border border-emerald-500/30 bg-emerald-500/10'
+                      : 'text-black bg-skyBlue hover:bg-skyBlue-hover'
+                  }`}
+                >
+                  {joined ? 'Qoşulub' : 'Qoşul'}
+                </button>
+              </li>
+            );
+          })}
+          {projects.length === 0 && (
+            <li className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-3 text-[11px] text-slate-500">
+              Layihələr yüklənir...
             </li>
-          ))}
+          )}
         </ul>
       </div>
 

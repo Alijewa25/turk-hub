@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const API_URL = import.meta.env.VITE_API_URL || 'https://turk-hub.onrender.com';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 export interface StoryAuthor {
   id: number;
@@ -27,8 +27,64 @@ export interface FollowUser extends StoryAuthor {
   is_following: boolean;
 }
 
+export interface ProjectItem {
+  id: number;
+  title: string;
+  description: string;
+  required_skills?: string | null;
+  owner_id?: number | null;
+  created_at?: string | null;
+}
+
+export interface ProjectDraft {
+  title: string;
+  description: string;
+  required_skills: string;
+}
+
 function headers(token: string | null) {
   return { Authorization: `Bearer ${token}` };
+}
+
+export async function fetchCurrentUser(token: string | null): Promise<StoryAuthor> {
+  try {
+    const res = await axios.get(`${API_URL}/api/auth/me`, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.get(`${API_URL}/me`, { headers: headers(token) });
+    return res.data;
+  }
+}
+
+export async function fetchUserStats(token: string | null, userId: number): Promise<FollowUser> {
+  const res = await axios.get(`${API_URL}/api/users/${userId}`, { headers: headers(token) });
+  return res.data;
+}
+
+export async function fetchProjects(token: string | null = null): Promise<ProjectItem[]> {
+  try {
+    const res = await axios.get(`${API_URL}/api/projects`, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.get(`${API_URL}/projects`, { headers: headers(token) });
+    return res.data;
+  }
+}
+
+export async function createProject(
+  token: string | null,
+  draft: ProjectDraft
+): Promise<ProjectItem> {
+  try {
+    const res = await axios.post(`${API_URL}/api/projects`, draft, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.post(`${API_URL}/projects`, draft, { headers: headers(token) });
+    return res.data;
+  }
 }
 
 export async function fetchStories(token: string | null): Promise<StoryItem[]> {
