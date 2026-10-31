@@ -4,6 +4,7 @@ import { flagOf, useI18n } from '../i18n';
 
 export interface PostData {
   id: string;
+  authorId?: number;
   author: string;
   country: string;
   role: string;
