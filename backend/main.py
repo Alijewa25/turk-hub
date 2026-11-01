@@ -142,6 +142,68 @@ def submit_dictionary_entry(
 
 # --- AUTHENTICATION ENDPOINTS ---
 
+@app.post("/api/auth/register", response_model=schemas.UserResponse)
+@app.post("/register", response_model=schemas.UserResponse)
+@app.post("/auth/register", response_model=schemas.UserResponse)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if db_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Bu e-poçt ünvanı artıq istifadə olunur"
+        )
+
+    username = user.username
+    if username:
+        username_clean = username.strip().lstrip('@').lower()
+        if db.query(models.User).filter(models.User.username == username_clean).first():
+            raise HTTPException(
+                status_code=400,
+                detail="Bu istifadəçi adı artıq istifadə olunur"
+            )
+        username = username_clean
+    else:
+        base = user.email.split('@')[0].lower().replace('.', '')
+        candidate = base
+        idx = 1
+        while db.query(models.User).filter(models.User.username == candidate).first():
+            candidate = f"{base}{idx}"
+            idx += 1
+        username = candidate
+
+    hashed_password = hash_password(user.password)
+    db_user = models.User(
+        full_name=user.full_name,
+        email=user.email,
+        username=username,
+        password_hash=hashed_password,
+        country=user.country
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.post("/api/auth/login", response_model=schemas.Token)
+@app.post("/login", response_model=schemas.Token)
+@app.post("/auth/login", response_model=schemas.Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yanlış e-poçt və ya şifrə",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/me", response_model=schemas.UserResponse)
+@app.get("/me", response_model=schemas.UserResponse)
+@app.get("/auth/me", response_model=schemas.UserResponse)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
 # --- PROJECT HUB ENDPOINTS ---
 
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
@@ -169,169 +231,7 @@ def create_project(
     db.refresh(db_project)
     return db_project
 
-# --- WEBSOCKET REAL-TIME CHAT ---
-
-class ConnectionManager:
-    def __init__(self):
-        self.rooms: dict[str, List[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, room_id: str):
-        await websocket.accept()
-        self.rooms.setdefault(room_id, []).append(websocket)
-
-    def disconnect(self, websocket: WebSocket, room_id: str):
-        conns = self.rooms.get(room_id)
-        if not conns:
-            return
-        try:
-            conns.remove(websocket)
-        except ValueError:
-            pass
-        if not conns:
-            self.rooms.pop(room_id, None)
-
-    async def broadcast(self, room_id: str, message: str):
-        dead: List[WebSocket] = []
-        for connection in list(self.rooms.get(room_id, [])):
-            try:
-                await connection.send_text(message)
-            except Exception:
-                dead.append(connection)
-        for connection in dead:
-            self.disconnect(connection, room_id)
-
-manager = ConnectionManager()
-
-
-def _ws_display_name(token: Optional[str], client_id: str, db: Session) -> str:
-    if not token:
-        return f"İstifadəçi #{client_id}"
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if not email:
-            return f"İstifadəçi #{client_id}"
-        user = db.query(models.User).filter(models.User.email == email).first()
-        if user:
-            return user.full_name or user.username or f"İstifadəçi #{client_id}"
-    except JWTError:
-        pass
-    return f"İstifadəçi #{client_id}"
-
-
-async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: Optional[str] = None):
-    from database import SessionLocal
-    db = SessionLocal()
-    try:
-        display = _ws_display_name(token, client_id, db)
-    finally:
-        db.close()
-
-    await manager.connect(websocket, room_id)
-    await manager.broadcast(room_id, f"{display} söhbətə qoşuldu 🐺")
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await manager.broadcast(room_id, f"{display}: {data}")
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, room_id)
-        await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
-
-
-@app.websocket("/ws/chat/{room_id}/{client_id}")
-async def websocket_room_endpoint(
-    websocket: WebSocket,
-    room_id: str,
-    client_id: str,
-    token: Optional[str] = Query(None),
-):
-    await _chat_loop(websocket, room_id, client_id, token)
-
-
-@app.websocket("/ws/chat/global/{client_id}")
-async def websocket_global_endpoint(
-    websocket: WebSocket,
-    client_id: str,
-    token: Optional[str] = Query(None),
-):
-    await _chat_loop(websocket, "global", client_id, token)
-
-
-@app.websocket("/ws/chat/{client_id}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    client_id: str,
-    token: Optional[str] = Query(None),
-):
-    await _chat_loop(websocket, "global", client_id, token)
-
-@app.post("/api/auth/register", response_model=schemas.UserResponse)
-@app.post("/register", response_model=schemas.UserResponse)
-@app.post("/auth/register", response_model=schemas.UserResponse)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if db_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Bu e-poçt ünvanı artıq istifadə olunur"
-        )
-
-    username = user.username
-    if username:
-        username_clean = username.strip().lstrip('@').lower()
-        if db.query(models.User).filter(models.User.username == username_clean).first():
-            raise HTTPException(
-                status_code=400,
-                detail="Bu istifadəçi adı artıq istifadə olunur"
-            )
-        username = username_clean
-    else:
-        base = user.email.split('@')[0].lower().replace('.', '')
-        candidate = base
-        idx = 1
-        while db.query(models.User).filter(models.User.username == candidate).first():
-            candidate = f"{base}{idx}"
-            idx += 1
-        username = candidate
-
-    # Create new user
-    hashed_password = hash_password(user.password)
-    db_user = models.User(
-        full_name=user.full_name,
-        email=user.email,
-        username=username,
-        password_hash=hashed_password,
-        country=user.country
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-@app.post("/api/auth/login", response_model=schemas.Token)
-@app.post("/login", response_model=schemas.Token)
-@app.post("/auth/login", response_model=schemas.Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Find user by email
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Yanlış e-poçt və ya şifrə",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    # Create access token
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/api/auth/me", response_model=schemas.UserResponse)
-@app.get("/me", response_model=schemas.UserResponse)
-@app.get("/auth/me", response_model=schemas.UserResponse)
-def get_me(current_user: models.User = Depends(get_current_user)):
-    return current_user
-
-# --- USER PROFILE ENDPOINTS ---
+# --- USER PROFILE & AVATAR ENDPOINTS ---
 
 @app.get("/api/users", response_model=List[schemas.UserFollowInfo])
 @app.get("/users", response_model=List[schemas.UserFollowInfo])
@@ -412,6 +312,8 @@ def update_me(
         current_user.bio = payload.bio
     if payload.profile_picture is not None:
         current_user.profile_picture = payload.profile_picture
+    if getattr(payload, 'avatar_url', None) is not None:
+        current_user.profile_picture = payload.avatar_url
     if getattr(payload, 'university', None) is None and getattr(payload, 'institution', None) is not None:
         current_user.university = payload.institution
     if getattr(payload, 'skills', None) is not None and isinstance(payload.skills, list):
@@ -424,6 +326,36 @@ def update_me(
     return current_user
 
 
+@app.post("/api/users/upload-avatar")
+@app.post("/users/upload-avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    allowed = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail="Yalnız şəkil formatları qəbul olunur (.jpg, .jpeg, .png, .webp)")
+
+    fname = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    path = os.path.join(UPLOAD_DIR, fname)
+    
+    with open(path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    avatar_path = f"/uploads/{fname}"
+    current_user.profile_picture = avatar_path
+    if hasattr(current_user, 'avatar_url'):
+        setattr(current_user, 'avatar_url', avatar_path)
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {"status": "ok", "avatar_url": avatar_path, "url": avatar_path}
+
+
 @app.post("/api/upload")
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
@@ -432,7 +364,7 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
     if ext not in allowed:
         raise HTTPException(status_code=400, detail="İcazə verilməyən fayl formatı")
 
-    max_bytes = 5 * 1024 * 1024  # 5MB
+    max_bytes = 5 * 1024 * 1024
     fname = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, fname)
     size = 0
@@ -616,6 +548,28 @@ def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models
     return result
 
 
+@app.post("/api/posts/{post_id}/like")
+def like_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    post.likes_count = (post.likes_count or 0) + 1
+    db.commit()
+    return {"status": "ok", "likes_count": post.likes_count}
+
+@app.post("/api/posts/{post_id}/comment")
+def comment_post(post_id: int, payload: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    text = payload.get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Rəy boş ola bilməz")
+    post.comments_count = (post.comments_count or 0) + 1
+    db.commit()
+    return {"status": "ok", "comments_count": post.comments_count}
+
+
 # --- MESSAGES (DM) ---
 
 @app.get("/api/messages/conversations")
@@ -714,6 +668,103 @@ def create_story(
     return _story_response(story)
 
 
+# --- WEBSOCKET REAL-TIME CHAT ---
+
+class ConnectionManager:
+    def __init__(self):
+        self.rooms: dict[str, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, room_id: str):
+        await websocket.accept()
+        self.rooms.setdefault(room_id, []).append(websocket)
+
+    def disconnect(self, websocket: WebSocket, room_id: str):
+        conns = self.rooms.get(room_id)
+        if not conns:
+            return
+        try:
+            conns.remove(websocket)
+        except ValueError:
+            pass
+        if not conns:
+            self.rooms.pop(room_id, None)
+
+    async def broadcast(self, room_id: str, message: str):
+        dead: List[WebSocket] = []
+        for connection in list(self.rooms.get(room_id, [])):
+            try:
+                await connection.send_text(message)
+            except Exception:
+                dead.append(connection)
+        for connection in dead:
+            self.disconnect(connection, room_id)
+
+manager = ConnectionManager()
+
+
+def _ws_display_name(token: Optional[str], client_id: str, db: Session) -> str:
+    if not token:
+        return f"İstifadəçi #{client_id}"
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            return f"İstifadəçi #{client_id}"
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if user:
+            return user.full_name or user.username or f"İstifadəçi #{client_id}"
+    except JWTError:
+        pass
+    return f"İstifadəçi #{client_id}"
+
+
+async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: Optional[str] = None):
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        display = _ws_display_name(token, client_id, db)
+    finally:
+        db.close()
+
+    await manager.connect(websocket, room_id)
+    await manager.broadcast(room_id, f"{display} söhbətə qoşuldu 🐺")
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await manager.broadcast(room_id, f"{display}: {data}")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, room_id)
+        await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
+
+
+@app.websocket("/ws/chat/{room_id}/{client_id}")
+async def websocket_room_endpoint(
+    websocket: WebSocket,
+    room_id: str,
+    client_id: str,
+    token: Optional[str] = Query(None),
+):
+    await _chat_loop(websocket, room_id, client_id, token)
+
+
+@app.websocket("/ws/chat/global/{client_id}")
+async def websocket_global_endpoint(
+    websocket: WebSocket,
+    client_id: str,
+    token: Optional[str] = Query(None),
+):
+    await _chat_loop(websocket, "global", client_id, token)
+
+
+@app.websocket("/ws/chat/{client_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    client_id: str,
+    token: Optional[str] = Query(None),
+):
+    await _chat_loop(websocket, "global", client_id, token)
+
+
 # --- HELPERS ---
 
 def _follow_info(
@@ -727,6 +778,7 @@ def _follow_info(
         models.Follow.follower_id == current_user.id,
         models.Follow.followed_id == user.id,
     ).first() is not None
+    avatar = user.profile_picture or getattr(user, 'avatar_url', None)
     return schemas.UserFollowInfo(
         id=user.id,
         full_name=user.full_name,
@@ -735,7 +787,8 @@ def _follow_info(
         country=user.country,
         university=user.university,
         bio=user.bio,
-        profile_picture=user.profile_picture,
+        profile_picture=avatar,
+        avatar_url=avatar,
         followers_count=followers_count,
         following_count=following_count,
         is_following=is_following,
@@ -760,26 +813,3 @@ def _story_response(s: models.Story) -> schemas.StoryResponse:
         media_url=s.media_url,
         created_at=s.created_at,
     )
-
-
-@app.post("/api/posts/{post_id}/like")
-def like_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post tapılmadı")
-    # Like toggle or increment
-    post.likes_count = (post.likes_count or 0) + 1
-    db.commit()
-    return {"status": "ok", "likes_count": post.likes_count}
-
-@app.post("/api/posts/{post_id}/comment")
-def comment_post(post_id: int, payload: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post tapılmadı")
-    text = payload.get("text", "").strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Rəy boş ola bilməz")
-    post.comments_count = (post.comments_count or 0) + 1
-    db.commit()
-    return {"status": "ok", "comments_count": post.comments_count}
