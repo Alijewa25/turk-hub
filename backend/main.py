@@ -334,18 +334,23 @@ def get_me(current_user: models.User = Depends(get_current_user)):
 # --- USER PROFILE ENDPOINTS ---
 
 @app.get("/api/users", response_model=List[schemas.UserFollowInfo])
+@app.get("/users", response_model=List[schemas.UserFollowInfo])
+@app.get("/api/users/search", response_model=List[schemas.UserFollowInfo])
+@app.get("/users/search", response_model=List[schemas.UserFollowInfo])
 def list_users(
     exclude_self: bool = True,
     q: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    username: Optional[str] = Query(None),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Bütün istifadəçiləri (tövsiyələr üçün) izləmə vəziyyəti ilə qaytarır."""
     query = db.query(models.User)
     if exclude_self:
         query = query.filter(models.User.id != current_user.id)
-    if q:
-        pattern = f"%{q.lower()}%"
+    term = q or search or username
+    if term:
+        pattern = f"%{term.lower()}%"
         query = query.filter(
             (models.User.full_name.ilike(pattern)) |
             (models.User.username.ilike(pattern)) |
