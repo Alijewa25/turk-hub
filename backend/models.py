@@ -83,14 +83,17 @@ class Dictionary(Base):
     __tablename__ = "dictionary"
 
     id = Column(Integer, primary_key=True, index=True)
-    root_concept = Column(String, index=True, nullable=False)  # e.g., "Birlik / Bir"
-    az_val = Column(String, nullable=True)  # Azerbaijani
-    tr_val = Column(String, nullable=True)  # Turkish
-    kk_val = Column(String, nullable=True)  # Kazakh
-    uz_val = Column(String, nullable=True)  # Uzbek
-    ky_val = Column(String, nullable=True)  # Kyrgyz
-    tm_val = Column(String, nullable=True)  # Turkmen
+    root_concept = Column(String, index=True, nullable=False)
+    az_val = Column(String, nullable=True)
+    tr_val = Column(String, nullable=True)
+    kk_val = Column(String, nullable=True)
+    uz_val = Column(String, nullable=True)
+    ky_val = Column(String, nullable=True)
+    tm_val = Column(String, nullable=True)
     etymology_note = Column(Text, nullable=True)
+    source = Column(String, nullable=True)
+    submitted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved = Column(Integer, default=1)
 
 
 class Post(Base):
@@ -102,6 +105,8 @@ class Post(Base):
     image_url = Column(String, nullable=True)
     file_url = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
+    likes_count = Column(Integer, default=0)
+    comments_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     author = relationship("User", back_populates="posts")
@@ -128,9 +133,9 @@ class Project(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     required_skills = Column(String, nullable=True)
+    target_countries = Column(String, nullable=True)
+    contact_info = Column(String, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationship
     creator = relationship("User", back_populates="projects")
-    # keep compatibility name if accessed differently? but keep as is; also set backref via creator
