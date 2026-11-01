@@ -29,17 +29,32 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch(`${API_URL}/api/upload`, {
+
+      let res = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form,
-      });
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        res = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+      }
+
       if (!res.ok) {
         const detail = await res.json().catch(() => null);
         throw new Error(detail?.detail || 'Yükləmə uğursuz oldu.');
       }
+
       const data = await res.json();
-      const url = data.url?.startsWith('http') ? data.url : `${API_URL}${data.url}`;
+      const rawUrl = data.url || data.file_url || data.path || '';
+      const url = rawUrl.startsWith('http')
+        ? rawUrl
+        : `${API_URL}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+
       setMedia({
         image_url: file.type.startsWith('image/') ? url : undefined,
         file_url: url,
