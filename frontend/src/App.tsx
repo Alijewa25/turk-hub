@@ -143,8 +143,8 @@ function mapApiPost(p: ApiPost): PostData {
           fileName: p.file_name || undefined,
         }
       : undefined,
-    likes: 0,
-    comments: 0,
+    likes: p.likes_count || 0,
+    comments: p.comments_count || 0,
   };
 }
 
@@ -444,7 +444,7 @@ export function App() {
                 <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">Hekayələr yüklənir...</div>
               )}
               {displayFeed.map((post) => (
-                <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} />
+                <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} token={token} postId={post.id} />
               ))}
             </>
           )}
@@ -483,6 +483,10 @@ export function App() {
               onJoin={toggleProjectJoin}
               onCreate={handleCreateProject}
               user={user}
+              onContactFounder={(ownerId) => {
+                setMessagesTarget({ id: ownerId });
+                setActiveTab('messages');
+              }}
             />
           )}
 
