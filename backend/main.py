@@ -52,6 +52,8 @@ def read_root():
 @app.get("/dictionary", response_model=List[schemas.DictionaryResponse])
 def search_dictionary(
     q: Optional[str] = Query(None, description="Axtarış sözü"),
+    dialect: Optional[str] = Query(None),
+    compare: Optional[bool] = Query(False),
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Dictionary)
@@ -66,7 +68,66 @@ def search_dictionary(
             (models.Dictionary.ky_val.ilike(search_pattern)) |
             (models.Dictionary.tm_val.ilike(search_pattern))
         )
-    return query.all()
+    results = query.all()
+    return results
+
+
+@app.get("/api/dictionary/compare")
+def dictionary_compare(
+    q: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    search_pattern = f"%{q}%"
+    items = db.query(models.Dictionary).filter(
+        (models.Dictionary.root_concept.ilike(search_pattern)) |
+        (models.Dictionary.az_val.ilike(search_pattern)) |
+        (models.Dictionary.tr_val.ilike(search_pattern)) |
+        (models.Dictionary.kk_val.ilike(search_pattern)) |
+        (models.Dictionary.uz_val.ilike(search_pattern)) |
+        (models.Dictionary.ky_val.ilike(search_pattern)) |
+        (models.Dictionary.tm_val.ilike(search_pattern))
+    ).all()
+    comparison = []
+    for item in items:
+        comparison.append({
+            "root": item.root_concept,
+            "forms": {
+                "az": item.az_val,
+                "tr": item.tr_val,
+                "kk": item.kk_val,
+                "uz": item.uz_val,
+                "ky": item.ky_val,
+                "tm": item.tm_val,
+            },
+            "etymology": item.etymology_note,
+        })
+    return {"query": q, "comparison": comparison}
+
+
+@app.post("/api/dictionary/submit", response_model=schemas.DictionaryResponse)
+@app.post("/dictionary/submit", response_model=schemas.DictionaryResponse)
+def submit_dictionary_entry(
+    entry: schemas.DictionaryCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_entry = models.Dictionary(
+        root_concept=entry.root_concept,
+        az_val=entry.az_val,
+        tr_val=entry.tr_val,
+        kk_val=entry.kk_val,
+        uz_val=entry.uz_val,
+        ky_val=entry.ky_val,
+        tm_val=entry.tm_val,
+        etymology_note=entry.etymology_note,
+        submitted_by=current_user.id,
+        approved=1,
+        source="user"
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
 
 # --- AUTHENTICATION ENDPOINTS ---
 
@@ -100,6 +161,8 @@ def create_project(
         title=project.title,
         description=project.description,
         required_skills=project.required_skills,
+        target_countries=project.target_countries,
+        contact_info=project.contact_info,
         owner_id=current_user.id
     )
     db.add(db_project)
@@ -184,6 +247,15 @@ async def websocket_room_endpoint(
     token: Optional[str] = Query(None),
 ):
     await _chat_loop(websocket, room_id, client_id, token)
+
+
+@app.websocket("/ws/chat/global/{client_id}")
+async def websocket_global_endpoint(
+    websocket: WebSocket,
+    client_id: str,
+    token: Optional[str] = Query(None),
+):
+    await _chat_loop(websocket, "global", client_id, token)
 
 
 @app.websocket("/ws/chat/{client_id}")
@@ -300,6 +372,16 @@ def get_user(
     return _follow_info(user, current_user, db)
 
 
+@app.get("/api/users/profile", response_model=schemas.UserResponse)
+@app.get("/users/profile", response_model=schemas.UserResponse)
+def get_profile(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+
+@app.put("/api/users/profile", response_model=schemas.UserResponse)
+@app.patch("/api/users/profile", response_model=schemas.UserResponse)
+@app.put("/users/profile", response_model=schemas.UserResponse)
+@app.patch("/users/profile", response_model=schemas.UserResponse)
 @app.put("/api/users/me", response_model=schemas.UserResponse)
 @app.patch("/api/users/me", response_model=schemas.UserResponse)
 @app.put("/users/me", response_model=schemas.UserResponse)
@@ -325,6 +407,13 @@ def update_me(
         current_user.bio = payload.bio
     if payload.profile_picture is not None:
         current_user.profile_picture = payload.profile_picture
+    if getattr(payload, 'university', None) is None and getattr(payload, 'institution', None) is not None:
+        current_user.university = payload.institution
+    if getattr(payload, 'skills', None) is not None and isinstance(payload.skills, list):
+        db.query(models.UserSkill).filter(models.UserSkill.user_id == current_user.id).delete()
+        for skill in payload.skills:
+            if isinstance(skill, str) and skill.strip():
+                db.add(models.UserSkill(user_id=current_user.id, skill_name=skill.strip()))
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -427,6 +516,8 @@ def list_posts(
             image_url=p.image_url,
             file_url=p.file_url,
             file_name=p.file_name,
+            likes_count=p.likes_count or 0,
+            comments_count=p.comments_count or 0,
             created_at=p.created_at,
             author=schemas.UserResponse.model_validate(p.author) if p.author else None,
         ))
@@ -446,6 +537,8 @@ def create_post(
         image_url=payload.image_url,
         file_url=payload.file_url,
         file_name=payload.file_name,
+        likes_count=0,
+        comments_count=0,
     )
     db.add(post)
     db.commit()
@@ -457,6 +550,8 @@ def create_post(
         image_url=post.image_url,
         file_url=post.file_url,
         file_name=post.file_name,
+        likes_count=post.likes_count or 0,
+        comments_count=post.comments_count or 0,
         created_at=post.created_at,
         author=schemas.UserResponse.model_validate(current_user),
     )
@@ -474,6 +569,8 @@ def user_posts(user_id: int, db: Session = Depends(get_db)):
             image_url=p.image_url,
             file_url=p.file_url,
             file_name=p.file_name,
+            likes_count=p.likes_count or 0,
+            comments_count=p.comments_count or 0,
             created_at=p.created_at,
             author=schemas.UserResponse.model_validate(p.author) if p.author else None,
         ))
