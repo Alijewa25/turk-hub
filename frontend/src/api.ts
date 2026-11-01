@@ -199,6 +199,27 @@ export async function unfollowUser(token: string | null, userId: number) {
   return res.data;
 }
 
+export async function uploadAvatar(token: string | null, formData: FormData) {
+  try {
+    const res = await axios.post(`${API_URL}/api/users/upload-avatar`, formData, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.post(`${API_URL}/users/upload-avatar`, formData, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  }
+}
+
 export function timeAgo(iso?: string | null): string {
   if (!iso) return '';
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
