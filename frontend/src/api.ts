@@ -29,6 +29,8 @@ export interface ApiPost {
   image_url?: string | null;
   file_url?: string | null;
   file_name?: string | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
   created_at?: string | null;
   author?: StoryAuthor | null;
 }
@@ -53,6 +55,8 @@ export interface ProjectItem {
   title: string;
   description: string;
   required_skills?: string | null;
+  target_countries?: string | null;
+  contact_info?: string | null;
   owner_id?: number | null;
   created_at?: string | null;
 }
@@ -61,6 +65,8 @@ export interface ProjectDraft {
   title: string;
   description: string;
   required_skills: string;
+  target_countries?: string;
+  contact_info?: string;
 }
 
 function headers(token: string | null) {
@@ -149,6 +155,28 @@ export async function fetchUserPosts(userId: number, token: string | null = null
     headers: token ? headers(token) : undefined,
   });
   return res.data;
+}
+
+export async function likePost(token: string | null, postId: number | string) {
+  try {
+    const res = await axios.post(`${API_URL}/api/posts/${postId}/like`, {}, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.post(`${API_URL}/posts/${postId}/like`, {}, { headers: headers(token) });
+    return res.data;
+  }
+}
+
+export async function commentPost(token: string | null, postId: number | string, text: string) {
+  try {
+    const res = await axios.post(`${API_URL}/api/posts/${postId}/comment`, { text }, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    const res = await axios.post(`${API_URL}/posts/${postId}/comment`, { text }, { headers: headers(token) });
+    return res.data;
+  }
 }
 
 export async function fetchSuggestions(token: string | null): Promise<FollowUser[]> {
