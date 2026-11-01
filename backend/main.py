@@ -1,13 +1,24 @@
-from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os, uuid
 
+from jose import JWTError, jwt
+
 import models
 import schemas
 from database import engine, get_db
+from auth_utils import (
+    ALGORITHM,
+    SECRET_KEY,
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -130,18 +141,6 @@ def submit_dictionary_entry(
     return db_entry
 
 # --- AUTHENTICATION ENDPOINTS ---
-
-from fastapi import HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from auth_utils import (
-    ALGORITHM,
-    SECRET_KEY,
-    hash_password,
-    verify_password,
-    create_access_token,
-    get_current_user,
-)
 
 # --- PROJECT HUB ENDPOINTS ---
 
