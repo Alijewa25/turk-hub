@@ -30,9 +30,10 @@ interface PostCardProps {
   onJoin?: () => void;
   token?: string | null;
   postId?: string | number;
+  user?: any;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user }) => {
   const { t } = useI18n();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -51,6 +52,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     (post.media?.fileName?.toLowerCase().endsWith('.pdf') ||
       fileHref.toLowerCase().includes('.pdf') ||
       (!post.media?.image && Boolean(post.media?.fileUrl)));
+
+  const currentAuthorName = user?.full_name || user?.username || 'İstifadəçi';
 
   return (
     <article className="bg-neutral-900/60 border border-neutral-800 rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700">
@@ -151,7 +154,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         <div className="px-3 pb-3 border-t border-neutral-800 pt-3 space-y-2">
           {comments.map((c) => (
             <p key={c.id} className="text-xs text-slate-400">
-              <span className="text-slate-200 font-semibold">{c.author}</span> {c.text}
+              <span className="text-slate-200 font-semibold">{c.author}:</span> {c.text}
             </p>
           ))}
           <form
@@ -160,7 +163,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
               const text = comment.trim();
               if (!text) return;
               try {
-                setComments((prev) => [...prev, { id: Date.now().toString(), author: 'Sən', text }]);
+                setComments((prev) => [...prev, { id: Date.now().toString(), author: currentAuthorName, text }]);
                 setCommentCount((c) => c + 1);
                 setComment('');
                 const res = await commentPost(token, pid, text);
