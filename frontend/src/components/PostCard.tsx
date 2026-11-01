@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
-import { mediaUrl } from '../api';
+import { commentPost, likePost, mediaUrl } from '../api';
 import { flagOf, useI18n } from '../i18n';
 
 export interface PostMedia {
@@ -28,16 +28,21 @@ export interface PostData {
 interface PostCardProps {
   post: PostData;
   onJoin?: () => void;
+  token?: string | null;
+  postId?: string | number;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId }) => {
   const { t } = useI18n();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
+  const [likeCount, setLikeCount] = useState(post.likes || 0);
+  const [commentCount, setCommentCount] = useState(post.comments || 0);
+  const [comments, setComments] = useState<Array<{ id: string; author: string; text: string }>>([]);
 
-  const likeCount = post.likes + (liked ? 1 : 0);
+  const pid = postId ?? post.id;
   const flag = flagOf(post.country);
   const imageSrc = mediaUrl(post.media?.image);
   const fileHref = mediaUrl(post.media?.fileUrl);
@@ -105,7 +110,18 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
 
       <div className="px-3 pb-2 flex items-center gap-4 text-slate-400">
         <button
-          onClick={() => setLiked((l) => !l)}
+          onClick={async () => {
+            if (liked) return;
+            try {
+              setLiked(true);
+              setLikeCount((c) => c + 1);
+              const res = await likePost(token, pid);
+              if (res?.likes_count !== undefined) setLikeCount(res.likes_count);
+            } catch {
+              setLiked(false);
+              setLikeCount((c) => Math.max(0, c - 1));
+            }
+          }}
           className={`flex items-center gap-1.5 text-xs transition-colors ${liked ? 'text-red-500' : 'hover:text-red-500'}`}
         >
           <Heart className="w-5 h-5 transition-transform duration-200 active:scale-125" fill={liked ? 'currentColor' : 'none'} />
@@ -116,7 +132,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
           className="flex items-center gap-1.5 text-xs hover:text-skyBlue transition-colors"
         >
           <MessageCircle className="w-5 h-5" />
-          {post.comments}
+          {commentCount}
         </button>
         <button className="flex items-center gap-1.5 text-xs hover:text-skyBlue transition-colors" aria-label="Paylaş">
           <Share2 className="w-5 h-5" />
@@ -133,13 +149,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin }) => {
 
       {showComments && (
         <div className="px-3 pb-3 border-t border-neutral-800 pt-3 space-y-2">
-          <p className="text-xs text-slate-400">
-            <span className="text-slate-200 font-semibold">selcan.uz</span> Əla layihədir, qoşuluram!
-          </p>
+          {comments.map((c) => (
+            <p key={c.id} className="text-xs text-slate-400">
+              <span className="text-slate-200 font-semibold">{c.author}</span> {c.text}
+            </p>
+          ))}
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              setComment('');
+              const text = comment.trim();
+              if (!text) return;
+              try {
+                setComments((prev) => [...prev, { id: Date.now().toString(), author: 'Sən', text }]);
+                setCommentCount((c) => c + 1);
+                setComment('');
+                const res = await commentPost(token, pid, text);
+                if (res?.comments_count !== undefined) setCommentCount(res.comments_count);
+              } catch {
+                setComment(text);
+              }
             }}
             className="flex gap-2"
           >
