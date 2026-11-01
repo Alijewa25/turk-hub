@@ -16,7 +16,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
   const navItems = [
     { id: 'home', label: t('navHome'), icon: Home },
     { id: 'explore', label: t('navExplore'), icon: Compass },
-    { id: 'rooms', label: 'Otaqlar / Chat', icon: MessageCircle },
+    { id: 'rooms', label: 'Otaqlar / Canlı Chat', icon: MessageCircle },
     { id: 'messages', label: 'Mesajlar', icon: Mail },
     { id: 'projects', label: t('navProjects'), icon: Rocket },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },

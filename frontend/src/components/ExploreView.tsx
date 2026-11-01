@@ -48,6 +48,9 @@ const ROOMS = [
   { id: 'az-tr', name: 'AZ ↔ TR Dil Otağı', flags: '🇦🇿 🇹🇷', topic: 'Etimologiya və gündəlik dil' },
   { id: 'kaz-uzb', name: 'KZ ↔ UZ Tələbə Söhbəti', flags: '🇰🇿 🇺🇿', topic: 'Təhsil və mobillik' },
   { id: 'kg-tm', name: 'KG ↔ TM Mədəniyyət', flags: '🇰🇬 🇹🇲', topic: 'Musiqi və ənənələr' },
+  { id: 'az-kk', name: 'AZ ↔ KZ Əməkdaşlıq', flags: '🇦🇿 🇰🇿', topic: 'Startap və layihələr' },
+  { id: 'tr-uz', name: 'TR ↔ UZ Dialoq', flags: '🇹🇷 🇺🇿', topic: 'Tərcümə və dil öyrənmə' },
+  { id: 'ky-tm', name: 'KG ↔ TM Ənənəvi', flags: '🇰🇬 🇹🇲', topic: 'Folklor və etno-mədəniyyət' },
 ];
 
 const ModalShell: React.FC<{

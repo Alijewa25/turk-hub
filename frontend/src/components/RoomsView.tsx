@@ -7,6 +7,9 @@ const ROOMS = [
   { id: 'tr', name: '🇹🇷 Türkiye Türkçesi', lang: 'Turkey' },
   { id: 'kk', name: '🇰🇿 Қазақ Tілі', lang: 'Kazakhstan' },
   { id: 'uz', name: '🇺🇿 O‘zbek Tili', lang: 'Uzbekistan' },
+  { id: 'tm', name: '🇹🇲 Türkmençe', lang: 'Turkmenistan' },
+  { id: 'ky', name: '🇰🇬 Кыргызча', lang: 'Kyrgyzstan' },
+  { id: 'global', name: '🌐 Pan-Türk Ümumi Otağı', lang: 'Global' },
 ];
 
 export const RoomsView: React.FC = () => {
@@ -17,7 +20,7 @@ export const RoomsView: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    setMessages([`${activeRoom.name} otağına qoşuldun. Söhbətə başlaya bilərsiniz.`]);
+    setMessages([`${activeRoom.name} otağına qoşuldun. Canlı ümumi otaq və dil uyğunluğu üçün istifadə oluna bilər.`]);
     setStatus('connecting');
 
     const wsBase = API_URL.replace(/\/$/, '').replace(/^http/, 'ws');
