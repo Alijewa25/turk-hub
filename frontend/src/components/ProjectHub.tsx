@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, Plus, RefreshCw, Rocket, X } from 'lucide-react';
+import { Loader2, MessageCircle, Plus, RefreshCw, Rocket, X } from 'lucide-react';
 import { ProjectDraft, ProjectItem } from '../api';
 import { useI18n } from '../i18n';
 
@@ -12,9 +12,12 @@ interface ProjectHubProps {
   onJoin: (id: number) => void;
   onCreate: (draft: ProjectDraft) => Promise<void>;
   user?: any;
+  onContactFounder?: (ownerId: number) => void;
 }
 
-const EMPTY_DRAFT: ProjectDraft = { title: '', description: '', required_skills: '' };
+const EMPTY_DRAFT: ProjectDraft = { title: '', description: '', required_skills: '', target_countries: '', contact_info: '' };
+
+
 
 export const ProjectHub: React.FC<ProjectHubProps> = ({
   projects,
@@ -25,12 +28,14 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   onJoin,
   onCreate,
   user,
+  onContactFounder,
 }) => {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<ProjectDraft>(EMPTY_DRAFT);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
+  const [selected, setSelected] = useState<ProjectItem | null>(null);
 
   const closeModal = () => {
     if (creating) return;
@@ -44,10 +49,18 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
     setCreating(true);
     setFormError('');
     try {
+      const target = (draft.target_countries || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (target.length < 2) {
+        setFormError('Layihə ən azı 2-3 Türk dövləti üçün nəzərdə tutulmalıdır.');
+        setCreating(false);
+        return;
+      }
       await onCreate({
         title: draft.title.trim(),
         description: draft.description.trim(),
         required_skills: draft.required_skills.trim(),
+        target_countries: target.join(', '),
+        contact_info: draft.contact_info?.trim() || '',
       });
       setOpen(false);
       setDraft(EMPTY_DRAFT);
@@ -102,12 +115,14 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {projects.map((project) => {
+              {projects.map((project) => {
             const joined = joinedIds.has(project.id);
+            const targets = (project.target_countries || '').split(',').map((s) => s.trim()).filter(Boolean);
             return (
               <div
                 key={project.id}
-                className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 hover:border-skyBlue/40 transition-colors duration-200"
+                onClick={() => setSelected(project)}
+                className="cursor-pointer rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 hover:border-skyBlue/40 transition-colors duration-200"
               >
                 <div className="flex items-center gap-3">
                   <span className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-skyBlue">
@@ -120,7 +135,10 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                     </p>
                   </div>
                   <button
-                    onClick={() => onJoin(project.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onJoin(project.id);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors active:scale-95 ${
                       joined
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
@@ -130,7 +148,16 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                     {joined ? 'Qoşulub' : 'Qoşul'}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-slate-400 leading-relaxed">{project.description}</p>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed line-clamp-2">{project.description}</p>
+                {targets.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {targets.map((c) => (
+                      <span key={c} className="rounded-full border border-skyBlue/30 bg-skyBlue/10 px-2 py-0.5 text-[9px] text-skyBlue">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {project.required_skills && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {project.required_skills.split(',').map((skill) => (
@@ -196,6 +223,18 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                 placeholder="Tələb olunan bacarıqlar (React, Python, UI/UX)"
                 className={inputClass}
               />
+              <input
+                value={draft.target_countries}
+                onChange={(e) => setDraft((prev) => ({ ...prev, target_countries: e.target.value }))}
+                placeholder="Hədəf ölkələr (min 2-3, vergüllə ayırın)"
+                className={inputClass}
+              />
+              <input
+                value={draft.contact_info}
+                onChange={(e) => setDraft((prev) => ({ ...prev, contact_info: e.target.value }))}
+                placeholder="Əlaqə (isteğe bağlı)"
+                className={inputClass}
+              />
             </div>
 
             <div className="mt-4 flex gap-2">
@@ -215,6 +254,74 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {selected && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Rocket className="w-5 h-5 text-skyBlue" />
+                <h2 className="text-sm font-bold text-slate-100">{selected.title}</h2>
+              </div>
+              <button onClick={() => setSelected(null)} className="text-slate-500 hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Təsvir</p>
+              <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{selected.description}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Hədəf Türk dövləti</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(selected.target_countries || '').split(',').map((c) => c.trim()).filter(Boolean).map((c) => (
+                  <span key={c} className="rounded-full border border-skyBlue/30 bg-skyBlue/10 px-2.5 py-1 text-[10px] text-skyBlue">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {selected.required_skills && (
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Tələb olunan bacarıqlar</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selected.required_skills.split(',').map((skill) => (
+                    <span key={skill.trim()} className="rounded-full border border-neutral-800 bg-black/60 px-2.5 py-1 text-[10px] text-slate-400">
+                      {skill.trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 pt-2">
+              {selected.owner_id && onContactFounder && (
+                <button
+                  onClick={() => {
+                    onContactFounder(selected.owner_id!);
+                    setSelected(null);
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Kontakt - DM göndər
+                </button>
+              )}
+              <button
+                onClick={() => onJoin(selected.id)}
+                className="flex-1 py-2.5 rounded-xl border border-neutral-800 text-xs font-semibold text-slate-300 hover:bg-neutral-800"
+              >
+                {joinedIds.has(selected.id) ? 'Qoşulub' : 'Komandaya qoşul'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>
