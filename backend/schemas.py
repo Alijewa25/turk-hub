@@ -7,10 +7,17 @@ class ProjectCreate(BaseModel):
     title: str
     description: str
     required_skills: str
+    target_countries: Optional[str] = None
+    contact_info: Optional[str] = None
 
 
-class ProjectResponse(ProjectCreate):
+class ProjectResponse(BaseModel):
     id: int
+    title: str
+    description: str
+    required_skills: Optional[str] = None
+    target_countries: Optional[str] = None
+    contact_info: Optional[str] = None
     owner_id: Optional[int] = None
 
     class Config:
@@ -46,6 +53,9 @@ class UserUpdate(BaseModel):
     university: Optional[str] = None
     bio: Optional[str] = None
     profile_picture: Optional[str] = None
+    skills: Optional[list] = None
+    institution: Optional[str] = None
+    metadata: Optional[dict] = None
 
 class UserFollowInfo(UserResponse):
     followers_count: int = 0
@@ -92,6 +102,8 @@ class PostResponse(BaseModel):
     image_url: Optional[str] = None
     file_url: Optional[str] = None
     file_name: Optional[str] = None
+    likes_count: int = 0
+    comments_count: int = 0
     created_at: Optional[datetime] = None
     author: Optional[UserResponse] = None
 
@@ -126,8 +138,21 @@ class DictionaryBase(BaseModel):
     tm_val: Optional[str] = None
     etymology_note: Optional[str] = None
 
+
+class DictionaryCreate(BaseModel):
+    root_concept: str
+    az_val: Optional[str] = None
+    tr_val: Optional[str] = None
+    kk_val: Optional[str] = None
+    uz_val: Optional[str] = None
+    ky_val: Optional[str] = None
+    tm_val: Optional[str] = None
+    etymology_note: Optional[str] = None
+
+
 class DictionaryResponse(DictionaryBase):
     id: int
+    source: Optional[str] = None
 
     @computed_field
     @property
