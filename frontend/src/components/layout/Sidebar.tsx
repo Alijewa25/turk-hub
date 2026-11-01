@@ -1,5 +1,6 @@
-import React from 'react';
-import { Bell, BookOpen, Compass, Home, LogOut, Mail, MessageCircle, Plus, Rocket, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, BookOpen, Compass, Home, LogOut, Mail, MessageCircle, Plus, Rocket, Search, User } from 'lucide-react';
+import { fetchSuggestions } from '../../api';
 import { flagOf, useI18n } from '../../i18n';
 
 interface SidebarProps {
@@ -8,10 +9,15 @@ interface SidebarProps {
   user?: any;
   onCreatePost: () => void;
   onLogout: () => void;
+  token?: string | null;
+  onViewProfile?: (id: number) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onCreatePost, onLogout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onCreatePost, onLogout, token = null, onViewProfile }) => {
   const { t } = useI18n();
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [show, setShow] = useState(false);
 
   const navItems = [
     { id: 'home', label: t('navHome'), icon: Home },
@@ -32,6 +38,47 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
           TURK HUB
         </span>
       </button>
+
+      <div className="mx-1 mb-2 relative">
+        <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-2 py-1.5">
+          <Search className="w-4 h-4 text-slate-500" />
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setShow(true);
+              if (e.target.value.trim()) {
+                fetchSuggestions(token, e.target.value.trim()).then(setResults).catch(() => setResults([]));
+              } else {
+                setResults([]);
+              }
+            }}
+            onBlur={() => setTimeout(() => setShow(false), 200)}
+            placeholder="İstifadəçi axtar (ad/username)"
+            className="flex-1 bg-transparent text-xs text-slate-100 placeholder-neutral-600 focus:outline-none"
+          />
+        </div>
+        {show && q.trim() && results.length > 0 && (
+          <div className="absolute top-9 left-0 right-0 bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xl z-50">
+            {results.slice(0,6).map((u) => (
+              <button
+                key={u.id}
+                onClick={() => {
+                  if (onViewProfile) onViewProfile(u.id);
+                  setShow(false); setQ('');
+                }}
+                className="w-full flex items-center gap-2 px-2 py-2 hover:bg-neutral-800 text-left"
+              >
+                <span className="text-sm">{flagOf(u.country)}</span>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-100 truncate">{u.full_name}</p>
+                  <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <nav className="flex flex-col gap-1">
         {navItems.map((item) => {

@@ -179,9 +179,14 @@ export async function commentPost(token: string | null, postId: number | string,
   }
 }
 
-export async function fetchSuggestions(token: string | null): Promise<FollowUser[]> {
-  const res = await axios.get(`${API_URL}/api/users`, { headers: headers(token) });
-  return res.data;
+export async function fetchSuggestions(token: string | null, q?: string): Promise<FollowUser[]> {
+  try {
+    const res = await axios.get(`${API_URL}/api/users${q ? `?q=${encodeURIComponent(q)}&search=${encodeURIComponent(q)}` : ''}`, { headers: headers(token) });
+    return res.data;
+  } catch {
+    const res = await axios.get(`${API_URL}/users${q ? `?q=${encodeURIComponent(q)}&search=${encodeURIComponent(q)}` : ''}`, { headers: headers(token) });
+    return res.data;
+  }
 }
 
 export async function followUser(token: string | null, userId: number) {

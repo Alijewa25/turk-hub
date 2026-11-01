@@ -418,13 +418,18 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-black text-slate-100">
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        user={user}
-        onCreatePost={() => openCreate('post')}
-        onLogout={handleLogout}
-      />
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              user={user}
+              onCreatePost={() => openCreate('post')}
+              onLogout={handleLogout}
+              token={token}
+              onViewProfile={(id) => {
+                setProfileViewUserId(id);
+                setActiveTab('profile');
+              }}
+            />
 
       <TopHeader user={user} setActiveTab={setActiveTab} onCreatePost={() => openCreate('post')} />
 

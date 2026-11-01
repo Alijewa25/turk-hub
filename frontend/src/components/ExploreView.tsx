@@ -30,7 +30,7 @@ interface ExploreTile {
 
 const TILES: ExploreTile[] = [
   { id: 'dictionary', title: 'Etimoloji Lüğət', tag: 'Dil', gradient: 'from-skyBlue/40 to-black', icon: BookOpen },
-  { id: 'ethno-music', title: 'Ethno-Music', tag: 'Mədəniyyət', gradient: 'from-violet-500/40 to-black', icon: Music },
+  { id: 'ethno-music', title: 'Pan-Türk Musiqisi', tag: 'Mədəniyyət', gradient: 'from-violet-500/40 to-black', icon: Music },
   { id: 'hackathon', title: 'Hackathon 2026', tag: 'Event', gradient: 'from-cyan-500/40 to-black', icon: Trophy },
   { id: 'ar', title: 'AR Runestones', tag: 'Mədəniyyət', gradient: 'from-emerald-500/40 to-black', icon: ScanLine },
   { id: 'live', title: 'Live Rooms', tag: 'Real-Time', gradient: 'from-rose-500/40 to-black', icon: Radio },

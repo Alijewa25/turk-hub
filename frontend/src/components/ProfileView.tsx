@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Edit3, MessageCircle, X } from 'lucide-react';
+import { flagOf } from '../i18n';
 import { API_URL, fetchUserPosts, fetchUserStats, mediaUrl } from '../api';
 
 interface ProfileViewProps {
@@ -13,6 +14,7 @@ interface ProfileViewProps {
   onClearView?: () => void;
   onClearViewUser?: () => void;
   onNavigate?: (tab: string, targetUser?: any) => void;
+  onOpenMessages?: (user: any) => void;
   onUserUpdated?: (updatedUser: any) => void;
 }
 
@@ -25,7 +27,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   viewUserId,
   onClearView,
   onClearViewUser,
-  onNavigate,
+  onNavigate: _onNavigate,
+  onOpenMessages,
   onUserUpdated,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -35,8 +38,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [editName, setEditName] = useState(user?.full_name || '');
   const [editUsername, setEditUsername] = useState(user?.username || '');
   const [editBio, setEditBio] = useState(user?.bio || '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || user?.profile_picture || '');
   const [uploading, setUploading] = useState(false);
+  const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null);
+  const [followList, setFollowList] = useState<any[]>([]); const _setFollowList = setFollowList; void _setFollowList;
 
   const isSelf = !viewUserId || viewUserId === user?.id;
   const currentToken = token || localStorage.getItem('token');
@@ -159,12 +164,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => onNavigate?.('messages', profileUser)}
-              className="px-3 py-1.5 bg-sky-500 text-black text-xs font-bold rounded-lg flex items-center gap-1.5"
-            >
-              <MessageCircle className="w-4 h-4" /> DM Yaz
-            </button>
+                  <button
+                    onClick={() => {
+                      if (onOpenMessages) onOpenMessages(profileUser);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Mesaj Göndər
+                  </button>
           )}
         </div>
 
@@ -175,6 +183,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div><span className="font-bold text-slate-100">{stats.following}</span> izlənilən</div>
         </div>
       </div>
+
+      {showFollowList && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" onClick={() => setShowFollowList(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-4 max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-slate-100">{showFollowList === 'followers' ? 'İzləyicilər' : 'İzlənilənlər'}</h3>
+              <button onClick={() => setShowFollowList(null)} className="text-slate-500">×</button>
+            </div>
+            <div className="space-y-2">
+              {followList.map((u: any) => (
+                <div key={u.id} className="flex items-center gap-2 p-2 rounded-xl border border-neutral-800">
+                  <span className="text-lg">{flagOf(u.country)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-100 truncate">{u.full_name}</p>
+                    <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>
+                  </div>
+                  <button onClick={() => { if (onOpenMessages) onOpenMessages(u); setShowFollowList(null); }} className="px-2 py-1 text-[10px] text-skyBlue">DM</button>
+                </div>
+              ))}
+              {followList.length === 0 && <p className="text-xs text-slate-500">Boş</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isEditing && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">

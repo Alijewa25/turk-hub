@@ -365,6 +365,7 @@ def list_users(
 
 
 @app.get("/api/users/{user_id}", response_model=schemas.UserFollowInfo)
+@app.get("/users/{user_id}", response_model=schemas.UserFollowInfo)
 def get_user(
     user_id: int,
     current_user: models.User = Depends(get_current_user),
@@ -453,6 +454,39 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
 
 
 # --- FOLLOW SYSTEM ---
+
+@app.get("/api/users/{user_id}/followers", response_model=List[schemas.UserFollowInfo])
+@app.get("/api/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
+@app.get("/users/{user_id}/followers", response_model=List[schemas.UserFollowInfo])
+@app.get("/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
+def list_followers(
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    follows = db.query(models.Follow).filter(models.Follow.followed_id == user_id).all()
+    users = []
+    for f in follows:
+        u = db.query(models.User).filter(models.User.id == f.follower_id).first()
+        if u:
+            users.append(_follow_info(u, current_user, db))
+    return users
+
+
+@app.get("/api/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
+def list_following(
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    follows = db.query(models.Follow).filter(models.Follow.follower_id == user_id).all()
+    users = []
+    for f in follows:
+        u = db.query(models.User).filter(models.User.id == f.followed_id).first()
+        if u:
+            users.append(_follow_info(u, current_user, db))
+    return users
+
 
 @app.post("/api/users/{user_id}/follow", response_model=schemas.FollowStatus)
 @app.post("/users/{user_id}/follow", response_model=schemas.FollowStatus)
@@ -562,7 +596,8 @@ def create_post(
 
 
 @app.get("/api/users/{user_id}/posts", response_model=List[schemas.PostResponse])
-def user_posts(user_id: int, db: Session = Depends(get_db)):
+@app.get("/users/{user_id}/posts", response_model=List[schemas.PostResponse])
+def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     posts = db.query(models.Post).filter(models.Post.user_id == user_id).order_by(models.Post.created_at.desc()).all()
     result = []
     for p in posts:
@@ -584,6 +619,7 @@ def user_posts(user_id: int, db: Session = Depends(get_db)):
 # --- MESSAGES (DM) ---
 
 @app.get("/api/messages/conversations")
+@app.get("/messages/conversations")
 def conversations(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     sent = db.query(models.Message.receiver_id).filter(models.Message.sender_id == current_user.id).distinct().all()
     received = db.query(models.Message.sender_id).filter(models.Message.receiver_id == current_user.id).distinct().all()
@@ -592,11 +628,12 @@ def conversations(current_user: models.User = Depends(get_current_user), db: Ses
     for uid in ids:
         u = db.query(models.User).filter(models.User.id == uid).first()
         if u:
-            users.append(schemas.UserResponse.model_validate(u))
+            users.append(_follow_info(u, current_user, db))
     return users
 
 
 @app.get("/api/messages/{user_id}", response_model=List[schemas.MessageResponse])
+@app.get("/messages/{user_id}", response_model=List[schemas.MessageResponse])
 def get_messages(user_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     msgs = db.query(models.Message).filter(
         ((models.Message.sender_id == current_user.id) & (models.Message.receiver_id == user_id)) |

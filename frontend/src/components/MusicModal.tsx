@@ -7,9 +7,14 @@ interface MusicModalProps {
 }
 
 const TRACKS = [
-  { id: 'kopuz', title: 'Kopuz', desc: 'Qədim türk simli aləti', freqs: [146.83, 220, 293.66], wave: 'triangle' as OscillatorType },
-  { id: 'dombra', title: 'Dombra', desc: 'Qazax və qırğız ritmləri', freqs: [196, 293.66, 392], wave: 'triangle' as OscillatorType },
-  { id: 'tar', title: 'Tar', desc: 'Azərbaycan muğam aləti', freqs: [220, 329.63, 440], wave: 'sawtooth' as OscillatorType },
+  { id: 'kopuz', title: 'Kopuz', desc: 'Qədim türk simli aləti - Göktürk musiqisi', freqs: [146.83, 220, 293.66], wave: 'triangle' as OscillatorType },
+  { id: 'dombra', title: 'Dombra', desc: 'Qazax və Qırğız xalq mahnıları', freqs: [196, 293.66, 392], wave: 'triangle' as OscillatorType },
+  { id: 'tar', title: 'Tar', desc: 'Azərbaycan muğam və xalq mahnıları', freqs: [220, 329.63, 440], wave: 'sawtooth' as OscillatorType },
+  { id: 'komuz', title: 'Komuz', desc: 'Qırğız epik mahnıları və küylər', freqs: [164.81, 246.94, 329.63], wave: 'triangle' as OscillatorType },
+  { id: 'dutar', title: 'Dutar', desc: 'Özbək və Türkmən xalq mahnıları', freqs: [174.61, 261.63, 349.23], wave: 'sawtooth' as OscillatorType },
+  { id: 'saz', title: 'Bağlama/Saz', desc: 'Türk Anadolu xalq mahnıları', freqs: [196, 293.66, 440, 523.25], wave: 'triangle' as OscillatorType },
+  { id: 'igil', title: 'İgil', desc: 'Altay-Türk simli aləti', freqs: [130.81, 196, 261.63], wave: 'triangle' as OscillatorType },
+  { id: 'ghijak', title: 'Qobuz/Ghijak', desc: 'Türkmən xalq havaları', freqs: [185, 277, 370], wave: 'sawtooth' as OscillatorType },
 ];
 
 export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
@@ -87,7 +92,7 @@ export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
         <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
           <div className="flex items-center gap-2">
             <Music className="w-5 h-5 text-skyBlue" />
-            <h3 className="text-sm font-bold text-slate-100">Ethno-Music Kitabxanası</h3>
+            <h3 className="text-sm font-bold text-slate-100">Pan-Türk Ethno-Music Kitabxanası</h3>
           </div>
           <button onClick={handleClose} aria-label="Bağla">
             <X className="w-4 h-4 text-slate-400" />
