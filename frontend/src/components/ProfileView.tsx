@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Edit3, MessageCircle, X } from 'lucide-react';
 import { flagOf } from '../i18n';
-import { API_URL, fetchUserPosts, fetchUserStats, mediaUrl } from '../api';
+import { API_URL, fetchUserPosts, fetchUserStats, mediaUrl, uploadAvatar } from '../api';
 
 interface ProfileViewProps {
   user: any;
@@ -41,7 +41,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || user?.profile_picture || '');
   const [uploading, setUploading] = useState(false);
   const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null);
-  const [followList, setFollowList] = useState<any[]>([]); const _setFollowList = setFollowList; void _setFollowList;
+  const [followList] = useState<any[]>([]);
 
   const isSelf = !viewUserId || viewUserId === user?.id;
   const currentToken = token || localStorage.getItem('token');
@@ -60,6 +60,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     } else {
       setProfileUser(user);
       setUserPosts(posts);
+      setAvatarUrl(user?.avatar_url || user?.profile_picture || '');
+      setEditName(user?.full_name || '');
+      setEditUsername(user?.username || '');
+      setEditBio(user?.bio || '');
       if (user?.id) {
         fetchUserStats(currentToken || null, user.id)
           .then((s: any) => s && setStats({ followers: s.followers || 0, following: s.following || 0 }))
@@ -75,17 +79,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${currentToken}` },
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAvatarUrl(data.url);
+      const res = await uploadAvatar(currentToken, formData);
+      if (res?.avatar_url || res?.url) {
+        const newUrl = res.avatar_url || res.url;
+        setAvatarUrl(newUrl);
+        setProfileUser((prev: any) => ({ ...prev, avatar_url: newUrl, profile_picture: newUrl }));
+        if (onUserUpdated) {
+          onUserUpdated({ ...user, avatar_url: newUrl, profile_picture: newUrl });
+        }
       }
     } catch (err) {
-      console.error(err);
+      console.error('Avatar upload failed:', err);
     } finally {
       setUploading(false);
     }
@@ -104,10 +108,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           username: editUsername,
           bio: editBio,
           avatar_url: avatarUrl,
+          profile_picture: avatarUrl,
         }),
       });
       if (res.ok) {
         const updated = await res.json();
+        setProfileUser(updated);
         if (onUserUpdated) onUserUpdated(updated);
         setIsEditing(false);
       }
@@ -117,6 +123,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const handleBack = onClearView || onClearViewUser;
+  const currentAvatar = avatarUrl || profileUser?.avatar_url || profileUser?.profile_picture;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-12">
@@ -133,8 +140,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="flex items-center gap-4">
           <div className="relative group">
             <div className="w-20 h-20 rounded-full bg-neutral-800 border-2 border-sky-500 overflow-hidden flex items-center justify-center text-2xl font-bold">
-              {profileUser?.avatar_url ? (
-                <img src={mediaUrl(profileUser.avatar_url)} alt="" className="w-full h-full object-cover" />
+              {currentAvatar ? (
+                <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
               ) : (
                 profileUser?.full_name?.[0] || 'T'
               )}
@@ -164,15 +171,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             </div>
           ) : (
-                  <button
-                    onClick={() => {
-                      if (onOpenMessages) onOpenMessages(profileUser);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Mesaj Göndər
-                  </button>
+            <button
+              onClick={() => {
+                if (onOpenMessages) onOpenMessages(profileUser);
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Mesaj Göndər
+            </button>
           )}
         </div>
 
@@ -219,7 +226,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-slate-400 block mb-1">Profil Şəkli Yüklə</label>
-                <input type="file" accept="image/*" onChange={handleAvatarUpload} className="text-xs text-slate-400" />
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700">
+                    {currentAvatar ? (
+                      <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-bold">
+                        {editName?.[0] || 'T'}
+                      </div>
+                    )}
+                  </div>
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} className="text-xs text-slate-400" />
+                </div>
               </div>
               <input
                 value={editName}
