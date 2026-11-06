@@ -1,10 +1,16 @@
-from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, HTTPException, status
+from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
+from contextlib import asynccontextmanager
 from typing import List, Optional
-import os, uuid
+import os, uuid, logging
 
 from jose import JWTError, jwt
 
@@ -20,12 +26,39 @@ from auth_utils import (
     get_current_user,
 )
 
-models.Base.metadata.create_all(bind=engine)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("turk_hub")
+
+
+def init_db() -> bool:
+    """Create missing tables and verify the database connection."""
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        logger.info("Database schema verified/created successfully")
+        return True
+    except Exception:
+        logger.exception("Database initialization failed")
+        return False
+
+
+# Try at import time for environments that do not run the ASGI lifespan.
+init_db()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
 
 app = FastAPI(
     title="Türk Youth Hub API",
     description="Backend API for Turkic Youth Social Innovation Platform",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 CORS_ORIGINS = [
@@ -64,6 +97,62 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _cors_error_response(
+    request: Request,
+    status_code: int,
+    content: dict,
+) -> JSONResponse:
+    """Build an error response that is safe to send through the browser."""
+    response = JSONResponse(status_code=status_code, content=content)
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    logger.warning(
+        "Payload validation failed for %s %s: %s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+    )
+    return _cors_error_response(
+        request,
+        status.HTTP_400_BAD_REQUEST,
+        {"detail": jsonable_encoder(exc.errors())},
+    )
+
+
+@app.exception_handler(Exception)
+async def catch_all_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    logger.error(
+        "Unhandled exception for %s %s",
+        request.method,
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return _cors_error_response(
+        request,
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        {"detail": "Daxili server xətası"},
+    )
+
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -164,10 +253,39 @@ def submit_dictionary_entry(
 
 # --- AUTHENTICATION ENDPOINTS ---
 
-@app.post("/api/auth/register", response_model=schemas.UserResponse)
-@app.post("/register", response_model=schemas.UserResponse)
-@app.post("/auth/register", response_model=schemas.UserResponse)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def _run_auth_db_operation(operation, db: Session, action: str, identity: str):
+    try:
+        return operation()
+    except OperationalError:
+        db.rollback()
+        logger.exception(
+            "%s database operation failed for %s; attempting schema repair",
+            action,
+            identity,
+        )
+
+    if not init_db():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verilənlər bazası hazır deyil",
+        )
+
+    try:
+        return operation()
+    except OperationalError as exc:
+        db.rollback()
+        logger.exception(
+            "%s database operation still failing after schema repair for %s",
+            action,
+            identity,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verilənlər bazasına qoşulmaq mümkün deyil",
+        ) from exc
+
+
+def _register_user(user: schemas.UserCreate, db: Session):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(
@@ -206,10 +324,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
-@app.post("/api/auth/login", response_model=schemas.Token)
-@app.post("/login", response_model=schemas.Token)
-@app.post("/auth/login", response_model=schemas.Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+
+def _login_user(form_data: OAuth2PasswordRequestForm, db: Session):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -219,6 +335,85 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/api/auth/register", response_model=schemas.UserResponse)
+@app.post("/register", response_model=schemas.UserResponse)
+@app.post("/auth/register", response_model=schemas.UserResponse)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    try:
+        return _run_auth_db_operation(
+            lambda: _register_user(user, db),
+            db,
+            "register",
+            user.email,
+        )
+    except HTTPException:
+        raise
+    except IntegrityError as exc:
+        db.rollback()
+        logger.exception("Registration integrity error for %s", user.email)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bu e-poçt və ya istifadəçi adı artıq istifadə olunur",
+        ) from exc
+    except (ValidationError, ValueError) as exc:
+        db.rollback()
+        logger.exception("Registration validation error for %s", user.email)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Qeydiyyat məlumatları düzgün deyil",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Registration database error for %s", user.email)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verilənlər bazası xətası",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Registration failed for %s", user.email)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Qeydiyyat zamanı gözlənilməz xəta baş verdi",
+        ) from exc
+
+
+@app.post("/api/auth/login", response_model=schemas.Token)
+@app.post("/login", response_model=schemas.Token)
+@app.post("/auth/login", response_model=schemas.Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    try:
+        return _run_auth_db_operation(
+            lambda: _login_user(form_data, db),
+            db,
+            "login",
+            form_data.username,
+        )
+    except HTTPException:
+        raise
+    except (ValidationError, ValueError) as exc:
+        db.rollback()
+        logger.exception("Login validation error for %s", form_data.username)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Giriş məlumatları düzgün deyil",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Login database error for %s", form_data.username)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verilənlər bazası xətası",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Login failed for %s", form_data.username)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Giriş zamanı gözlənilməz xəta baş verdi",
+        ) from exc
 
 @app.get("/api/auth/me", response_model=schemas.UserResponse)
 @app.get("/me", response_model=schemas.UserResponse)
