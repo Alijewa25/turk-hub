@@ -33,19 +33,33 @@ CORS_ORIGINS = [
     for o in os.getenv(
         "CORS_ORIGINS",
         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,"
-        "http://127.0.0.1:4173,http://localhost:3000,http://127.0.0.1:3000",
+        "http://127.0.0.1:4173,http://localhost:3000,http://127.0.0.1:3000,"
+        "https://turk-hub.vercel.app",
     ).split(",")
     if o.strip()
 ]
 
-# Always allow the wildcard so deployed/preview frontends can reach the API.
-# Bearer-token auth (not cookies) is used, so a wildcard origin is safe here.
-if "*" not in CORS_ORIGINS:
-    CORS_ORIGINS.append("*")
+# Production/preview origins must always be allowed, even when CORS_ORIGINS is
+# overridden by the hosting provider (e.g. Render environment variables).
+REQUIRED_CORS_ORIGINS = [
+    "https://turk-hub.vercel.app",
+    "https://www.turk-hub.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "*",
+]
+for origin in REQUIRED_CORS_ORIGINS:
+    if origin not in CORS_ORIGINS:
+        CORS_ORIGINS.append(origin)
+
+# Covers Vercel preview deployments and subdomains such as
+# https://<branch>.vercel.app and https://app.turk-hub.vercel.app.
+CORS_ORIGIN_REGEX = r"https://([a-zA-Z0-9-]+\.)*(turk-hub\.)?vercel\.app"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
