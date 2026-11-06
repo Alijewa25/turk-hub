@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
@@ -33,10 +34,90 @@ logging.basicConfig(
 logger = logging.getLogger("turk_hub")
 
 
+def sync_db_schema(engine) -> None:
+    """Add user columns that are missing from older PostgreSQL deployments."""
+    if engine.dialect.name != "postgresql":
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'username'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN username VARCHAR(100) UNIQUE;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'avatar_url'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'bio'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN bio TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'country'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN country VARCHAR(100);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'university'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN university VARCHAR(255);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'profile_picture'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'users'
+                          AND column_name = 'created_at'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN created_at TIMESTAMP;
+                    END IF;
+                END $$;
+                """
+            )
+        )
+
+
 def init_db() -> bool:
-    """Create missing tables and verify the database connection."""
+    """Create missing tables, reconcile old PostgreSQL schemas, and verify the DB."""
     try:
         models.Base.metadata.create_all(bind=engine)
+        sync_db_schema(engine)
         logger.info("Database schema verified/created successfully")
         return True
     except Exception:
