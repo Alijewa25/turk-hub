@@ -35,7 +35,7 @@ logger = logging.getLogger("turk_hub")
 
 
 def sync_db_schema(engine) -> None:
-    """Add user columns that are missing from older PostgreSQL deployments."""
+    """Add missing columns to older PostgreSQL deployments."""
     if engine.dialect.name != "postgresql":
         return
 
@@ -111,6 +111,36 @@ def sync_db_schema(engine) -> None:
                 """
             )
         )
+
+        preparer = engine.dialect.identifier_preparer
+        model_tables = (
+            models.User.__table__,
+            models.Project.__table__,
+            models.Post.__table__,
+            models.Message.__table__,
+            models.Dictionary.__table__,
+            models.Comment.__table__,
+        )
+        for table in model_tables:
+            table_name = preparer.quote(table.name)
+            for column in table.columns:
+                if column.primary_key:
+                    continue
+                if (
+                    not column.nullable
+                    and column.default is None
+                    and column.server_default is None
+                ):
+                    continue
+                column_name = preparer.quote(column.name)
+                column_type = column.type.compile(dialect=engine.dialect)
+                unique = " UNIQUE" if column.unique else ""
+                conn.execute(
+                    text(
+                        f"ALTER TABLE IF EXISTS {table_name} "
+                        f"ADD COLUMN IF NOT EXISTS {column_name} {column_type}{unique}"
+                    )
+                )
 
 
 def init_db() -> bool:
@@ -502,12 +532,35 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+
+def _safe_list_query(operation, db: Session, label: str):
+    try:
+        return operation()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("%s query failed; attempting schema repair", label)
+
+    if not init_db():
+        return []
+
+    try:
+        return operation()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("%s query failed after schema repair", label)
+        return []
+
+
 # --- PROJECT HUB ENDPOINTS ---
 
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
 @app.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(db: Session = Depends(get_db)):
-    return db.query(models.Project).all()
+    return _safe_list_query(
+        lambda: db.query(models.Project).all(),
+        db,
+        "projects",
+    )
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse)
 @app.post("/projects", response_model=schemas.ProjectResponse)
@@ -538,23 +591,24 @@ def create_project(
 def list_users(
     exclude_self: bool = True,
     q: Optional[str] = Query(None),
+    query: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     username: Optional[str] = Query(None),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.User)
+    db_query = db.query(models.User)
     if exclude_self:
-        query = query.filter(models.User.id != current_user.id)
-    term = q or search or username
+        db_query = db_query.filter(models.User.id != current_user.id)
+    term = (q or query or search or username or "").strip().lstrip("@")
     if term:
-        pattern = f"%{term.lower()}%"
-        query = query.filter(
+        pattern = f"%{term}%"
+        db_query = db_query.filter(
             (models.User.full_name.ilike(pattern)) |
             (models.User.username.ilike(pattern)) |
             (models.User.email.ilike(pattern))
         )
-    users = query.all()
+    users = db_query.all()
 
     result = []
     for u in users:
@@ -790,7 +844,11 @@ def list_posts(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    posts = db.query(models.Post).order_by(models.Post.created_at.desc()).limit(limit).all()
+    posts = _safe_list_query(
+        lambda: db.query(models.Post).order_by(models.Post.created_at.desc()).limit(limit).all(),
+        db,
+        "posts",
+    )
     result = []
     for p in posts:
         result.append(schemas.PostResponse(
@@ -1051,6 +1109,7 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
         await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
 
 
+@app.websocket("/api/ws/chat/{room_id}/{client_id}")
 @app.websocket("/ws/chat/{room_id}/{client_id}")
 async def websocket_room_endpoint(
     websocket: WebSocket,
@@ -1061,6 +1120,7 @@ async def websocket_room_endpoint(
     await _chat_loop(websocket, room_id, client_id, token)
 
 
+@app.websocket("/api/ws/chat/global/{client_id}")
 @app.websocket("/ws/chat/global/{client_id}")
 async def websocket_global_endpoint(
     websocket: WebSocket,
@@ -1070,13 +1130,21 @@ async def websocket_global_endpoint(
     await _chat_loop(websocket, "global", client_id, token)
 
 
-@app.websocket("/ws/chat/{client_id}")
+@app.websocket("/api/ws/chat/{room_id}")
+@app.websocket("/ws/chat/{room_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
-    client_id: str,
+    room_id: str,
     token: Optional[str] = Query(None),
 ):
-    await _chat_loop(websocket, "global", client_id, token)
+    known_rooms = {"az", "tr", "kk", "uz", "tm", "ky", "global"}
+    if room_id in known_rooms:
+        client_id = f"web-{uuid.uuid4().hex[:8]}"
+        target_room = room_id
+    else:
+        client_id = room_id
+        target_room = "global"
+    await _chat_loop(websocket, target_room, client_id, token)
 
 
 # --- HELPERS ---

@@ -5,6 +5,7 @@ import { CountrySelection } from './components/CountrySelection';
 import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
 import { TopHeader } from './components/layout/TopHeader';
+import { MobileMenu } from './components/layout/MobileMenu';
 import { StoriesBar } from './components/StoriesBar';
 import { StoryViewer } from './components/StoryViewer';
 import { PostCard, PostData } from './components/PostCard';
@@ -160,6 +161,7 @@ export function App() {
   const [feedPosts, setFeedPosts] = useState<PostData[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [createMode, setCreateMode] = useState<'post' | 'story'>('post');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [storiesLoaded, setStoriesLoaded] = useState(false);
@@ -296,6 +298,7 @@ export function App() {
     setNeedsOnboarding(false);
     setActiveTab('home');
     setProfileViewUserId(null);
+    setMobileMenuOpen(false);
   };
 
   const handleTabChange = (tab: string) => {
@@ -303,11 +306,13 @@ export function App() {
       setProfileViewUserId(null);
     }
     setActiveTab(tab);
+    setMobileMenuOpen(false);
   };
 
   const openCreate = (mode: 'post' | 'story') => {
     setCreateMode(mode);
     setShowCreate(true);
+    setMobileMenuOpen(false);
   };
 
   const handlePublish = async (body: string, media?: any) => {
@@ -438,7 +443,22 @@ export function App() {
               }}
             />
 
-      <TopHeader user={user} setActiveTab={handleTabChange} onCreatePost={() => openCreate('post')} />
+      <TopHeader
+        user={user}
+        setActiveTab={handleTabChange}
+        onCreatePost={() => openCreate('post')}
+        onOpenMenu={() => setMobileMenuOpen(true)}
+      />
+
+      <MobileMenu
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        user={user}
+        onCreatePost={() => openCreate('post')}
+        onLogout={handleLogout}
+      />
 
       <div className="md:pl-60 lg:pr-80">
         <main className="mx-auto w-full max-w-[620px] px-3 md:px-4 pt-4 pb-28 md:py-6">

@@ -23,11 +23,18 @@ export const RoomsView: React.FC = () => {
     setMessages([`${activeRoom.name} otağına qoşuldun. Canlı ümumi otaq və dil uyğunluğu üçün istifadə oluna bilər.`]);
     setStatus('connecting');
 
-    const wsBase = API_URL.replace(/\/$/, '').replace(/^http/, 'ws');
     const clientId = `web-${Math.random().toString(36).slice(2, 8)}`;
     const token = localStorage.getItem('token');
-    const qs = token ? `?token=${encodeURIComponent(token)}` : '';
-    const socket = new WebSocket(`${wsBase}/ws/chat/${activeRoom.id}/${clientId}${qs}`);
+    const apiBase = new URL(API_URL, window.location.origin);
+    const wsProtocol = apiBase.protocol === 'https:' ? 'wss:' : 'ws:';
+    const basePath = apiBase.pathname.replace(/\/$/, '');
+    const socketUrl = new URL(
+      `${basePath}/ws/chat/${encodeURIComponent(activeRoom.id)}/${encodeURIComponent(clientId)}`,
+      `${wsProtocol}//${apiBase.host}`
+    );
+    if (token) socketUrl.searchParams.set('token', token);
+
+    const socket = new WebSocket(socketUrl.toString());
     socketRef.current = socket;
 
     socket.onopen = () => setStatus('open');
