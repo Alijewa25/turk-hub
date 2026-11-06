@@ -16,7 +16,11 @@ interface AuthViewProps {
   onLoginSuccess: (token: string, user: any, isNewUser: boolean) => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:8000'
+).replace(/\/$/, '');
 
 const BRAND_FLAGS = ['🇦🇿', '🇹🇷', '🇰🇿', '🇺🇿', '🇰🇬', '🇹🇲'];
 
@@ -150,9 +154,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
 
         {/* Emblem header */}
         <div className="relative flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-skyBlue to-cyan-400 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40">
-            T
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="TURK HUB Logo"
+            className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
+          />
           <div>
             <p className="text-lg font-black tracking-widest text-slate-100 leading-none">TURK HUB</p>
             <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-[0.25em]">{t('emblemTag')}</p>
@@ -203,9 +209,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
       <div className="w-full md:w-1/2 lg:w-[45%] flex items-center justify-center px-4 py-10 sm:py-14 relative">
         <div className="w-full max-w-sm bg-neutral-900/60 backdrop-blur-xl border border-neutral-800 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/60">
           <div className="text-center mb-6">
-            <div className="md:hidden mx-auto mb-3 w-14 h-14 rounded-2xl bg-gradient-to-br from-skyBlue to-cyan-400 flex items-center justify-center text-black font-black text-2xl shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40">
-              T
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="TURK HUB Logo"
+              className="md:hidden mx-auto mb-3 w-14 h-14 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
+            />
             <h1 className="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-skyBlue via-cyan-300 to-skyBlue-hover bg-clip-text text-transparent">
               TURK HUB
             </h1>

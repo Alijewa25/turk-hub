@@ -298,6 +298,13 @@ export function App() {
     setProfileViewUserId(null);
   };
 
+  const handleTabChange = (tab: string) => {
+    if (tab === 'profile') {
+      setProfileViewUserId(null);
+    }
+    setActiveTab(tab);
+  };
+
   const openCreate = (mode: 'post' | 'story') => {
     setCreateMode(mode);
     setShowCreate(true);
@@ -420,7 +427,7 @@ export function App() {
     <div className="min-h-screen bg-black text-slate-100">
             <Sidebar
               activeTab={activeTab}
-              setActiveTab={setActiveTab}
+              setActiveTab={handleTabChange}
               user={user}
               onCreatePost={() => openCreate('post')}
               onLogout={handleLogout}
@@ -431,7 +438,7 @@ export function App() {
               }}
             />
 
-      <TopHeader user={user} setActiveTab={setActiveTab} onCreatePost={() => openCreate('post')} />
+      <TopHeader user={user} setActiveTab={handleTabChange} onCreatePost={() => openCreate('post')} />
 
       <div className="md:pl-60 lg:pr-80">
         <main className="mx-auto w-full max-w-[620px] px-3 md:px-4 pt-4 pb-28 md:py-6">
@@ -456,11 +463,23 @@ export function App() {
 
           {activeTab === 'explore' && (
             <ExploreView
+              token={token}
               onNavigate={(tab, payload) => {
                 if (tab === 'profile' && payload?.viewUserId) {
                   setProfileViewUserId(payload.viewUserId);
                 }
+                if (tab === 'messages' && payload?.messageUser) {
+                  setMessagesTarget(payload.messageUser);
+                }
                 setActiveTab(tab);
+              }}
+              onViewProfile={(id) => {
+                setProfileViewUserId(id);
+                setActiveTab('profile');
+              }}
+              onOpenMessages={(target) => {
+                setMessagesTarget(target);
+                setActiveTab('messages');
               }}
             />
           )}
@@ -541,6 +560,14 @@ export function App() {
               }}
               viewUserId={profileViewUserId}
               onClearView={() => setProfileViewUserId(null)}
+              onOpenMessages={(target) => {
+                setMessagesTarget(target);
+                setActiveTab('messages');
+              }}
+              onUserUpdated={(updatedUser) => {
+                setUser(updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+              }}
               token={token}
             />
           )}
@@ -563,10 +590,10 @@ export function App() {
         projects={projects}
         joinedProjectIds={joinedProjectIds}
         onJoinProject={toggleProjectJoin}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
       />
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange} />
 
       <CreatePostModal
         open={showCreate}

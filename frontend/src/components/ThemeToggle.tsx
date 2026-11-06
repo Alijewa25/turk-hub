@@ -1,25 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { useI18n } from '../i18n';
+import { useTheme } from '../theme';
 
 export const ThemeToggle: React.FC = () => {
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const stored = localStorage.getItem('th_theme');
-    return stored === 'light' ? 'light' : 'dark';
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('th_theme', theme);
-  }, [theme]);
+  const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
+  const nextLabel = theme === 'dark' ? t('lightTheme') : t('darkTheme');
 
   return (
     <button
-      onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-      className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-neutral-900/70"
-      aria-label="Tema dəyiş"
+      type="button"
+      onClick={toggleTheme}
+      className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-neutral-900/70 transition-colors"
+      aria-label={nextLabel}
+      title={nextLabel}
     >
       {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      <span>{theme === 'dark' ? 'Açıq tema' : 'Qara tema'}</span>
+      <span>{nextLabel}</span>
+      <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-500">
+        {theme === 'dark' ? 'Dark' : 'Light'}
+      </span>
     </button>
   );
 };

@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+export const API_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:8000'
+).replace(/\/$/, '');
 
 /** Resolve relative upload paths against the API host. */
 export function mediaUrl(path?: string | null): string {
@@ -69,8 +73,8 @@ export interface ProjectDraft {
   contact_info?: string;
 }
 
-function headers(token: string | null) {
-  return { Authorization: `Bearer ${token}` };
+function headers(token: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export async function fetchCurrentUser(token: string | null): Promise<StoryAuthor> {
@@ -86,6 +90,18 @@ export async function fetchCurrentUser(token: string | null): Promise<StoryAutho
 
 export async function fetchUserStats(token: string | null, userId: number): Promise<FollowUser> {
   const res = await axios.get(`${API_URL}/api/users/${userId}`, { headers: headers(token) });
+  return res.data;
+}
+
+export async function fetchUserByUsername(
+  token: string | null,
+  username: string
+): Promise<FollowUser> {
+  const clean = username.trim().replace(/^@/, '');
+  const res = await axios.get(
+    `${API_URL}/api/users/by-username/${encodeURIComponent(clean)}`,
+    { headers: headers(token) }
+  );
   return res.data;
 }
 
@@ -180,11 +196,18 @@ export async function commentPost(token: string | null, postId: number | string,
 }
 
 export async function fetchSuggestions(token: string | null, q?: string): Promise<FollowUser[]> {
+  const term = q?.trim();
+  const apiPath = term
+    ? `/api/users/search?q=${encodeURIComponent(term)}`
+    : '/api/users';
   try {
-    const res = await axios.get(`${API_URL}/api/users${q ? `?q=${encodeURIComponent(q)}&search=${encodeURIComponent(q)}` : ''}`, { headers: headers(token) });
+    const res = await axios.get(`${API_URL}${apiPath}`, { headers: headers(token) });
     return res.data;
   } catch {
-    const res = await axios.get(`${API_URL}/users${q ? `?q=${encodeURIComponent(q)}&search=${encodeURIComponent(q)}` : ''}`, { headers: headers(token) });
+    const fallbackPath = term
+      ? `/users/search?q=${encodeURIComponent(term)}`
+      : '/users';
+    const res = await axios.get(`${API_URL}${fallbackPath}`, { headers: headers(token) });
     return res.data;
   }
 }

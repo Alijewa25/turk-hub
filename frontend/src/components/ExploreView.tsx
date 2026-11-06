@@ -55,6 +55,14 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     }
   };
 
+  const handleMessageClick = (user: any) => {
+    if (onOpenMessages) {
+      onOpenMessages(user);
+    } else if (onNavigate) {
+      onNavigate('messages', { messageUser: user });
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-12">
       <div className="relative">
@@ -104,7 +112,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onOpenMessages && onOpenMessages(u)}
+                    onClick={() => handleMessageClick(u)}
                     className="p-2 rounded-xl border border-neutral-800 bg-black/60 text-slate-400 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
                     title={t('sendMessage') || 'Mesaj Göndər'}
                   >

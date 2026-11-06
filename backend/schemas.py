@@ -41,6 +41,7 @@ class UserResponse(BaseModel):
     university: Optional[str] = None
     bio: Optional[str] = None
     profile_picture: Optional[str] = None
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -53,6 +54,7 @@ class UserUpdate(BaseModel):
     university: Optional[str] = None
     bio: Optional[str] = None
     profile_picture: Optional[str] = None
+    avatar_url: Optional[str] = None
     skills: Optional[list] = None
     institution: Optional[str] = None
     metadata: Optional[dict] = None

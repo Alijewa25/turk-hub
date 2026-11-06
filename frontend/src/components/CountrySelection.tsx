@@ -7,7 +7,11 @@ interface CountrySelectionProps {
   onContinue: (updatedUser: any) => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:8000'
+).replace(/\/$/, '');
 
 export const CountrySelection: React.FC<CountrySelectionProps> = ({ onContinue }) => {
   const { setLang, t } = useI18n();
@@ -74,9 +78,11 @@ export const CountrySelection: React.FC<CountrySelectionProps> = ({ onContinue }
 
       <div className="relative w-full max-w-lg">
         <div className="text-center mb-7">
-          <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-skyBlue to-cyan-400 flex items-center justify-center text-black font-black text-2xl shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40">
-            T
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="TURK HUB Logo"
+            className="mx-auto mb-4 w-16 h-16 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
+          />
           <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-skyBlue border border-skyBlue/30 bg-skyBlue/10 rounded-full px-3 py-1.5 mb-4">
             <MapPin className="w-3.5 h-3.5" />
             {t('emblemTag')}

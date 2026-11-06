@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Send, User } from 'lucide-react';
-import { API_URL, mediaUrl } from '../api';
+import { API_URL, fetchUserByUsername, fetchUserStats, mediaUrl } from '../api';
 
 interface MessagesViewProps {
   token: string | null;
@@ -53,10 +53,33 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
   }, [token]);
 
   useEffect(() => {
-    if (initialTarget) {
+    if (!initialTarget) return;
+
+    if (initialTarget.full_name || initialTarget.username) {
       setActiveUser(initialTarget);
+      return;
     }
-  }, [initialTarget]);
+
+    let cancelled = false;
+    const loadTarget = async () => {
+      try {
+        const user = initialTarget.username
+          ? await fetchUserByUsername(token, initialTarget.username)
+          : await fetchUserStats(token, initialTarget.id);
+        if (!cancelled) setActiveUser({ ...initialTarget, ...user });
+      } catch {
+        if (!cancelled) setActiveUser(initialTarget);
+      }
+    };
+
+    if (initialTarget.id || initialTarget.username) {
+      void loadTarget();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialTarget, token]);
 
   useEffect(() => {
     if (!activeUser?.id) return;

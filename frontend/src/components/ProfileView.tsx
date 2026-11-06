@@ -47,16 +47,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const currentToken = token || localStorage.getItem('token');
 
   useEffect(() => {
-    if (!isSelf && viewUserId) {
-      fetch(`${API_URL}/api/users/${viewUserId}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => data && setProfileUser(data))
-        .catch(console.error);
+    let cancelled = false;
 
-      fetchUserPosts(viewUserId).then(setUserPosts).catch(console.error);
+    if (!isSelf && viewUserId) {
+      setProfileUser(null);
       fetchUserStats(currentToken || null, viewUserId)
-        .then((s: any) => s && setStats({ followers: s.followers || 0, following: s.following || 0 }))
-        .catch(console.error);
+        .then((data) => {
+          if (cancelled) return;
+          setProfileUser(data);
+          setStats({
+            followers: data.followers_count || 0,
+            following: data.following_count || 0,
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setProfileUser(null);
+        });
+
+      fetchUserPosts(viewUserId, currentToken || null)
+        .then((data) => {
+          if (!cancelled) setUserPosts(data);
+        })
+        .catch(() => {
+          if (!cancelled) setUserPosts([]);
+        });
     } else {
       setProfileUser(user);
       setUserPosts(posts);
@@ -66,10 +80,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setEditBio(user?.bio || '');
       if (user?.id) {
         fetchUserStats(currentToken || null, user.id)
-          .then((s: any) => s && setStats({ followers: s.followers || 0, following: s.following || 0 }))
-          .catch(console.error);
+          .then((data) => {
+            if (cancelled) return;
+            setStats({
+              followers: data.followers_count || 0,
+              following: data.following_count || 0,
+            });
+          })
+          .catch(() => undefined);
       }
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [viewUserId, user, posts, currentToken, isSelf]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,7 +197,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           ) : (
             <button
               onClick={() => {
-                if (onOpenMessages) onOpenMessages(profileUser);
+                const target = profileUser || { id: viewUserId };
+                if (onOpenMessages) {
+                  onOpenMessages(target);
+                } else if (_onNavigate) {
+                  _onNavigate('messages', { messageUser: target });
+                }
               }}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
             >
@@ -206,7 +235,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <p className="text-xs text-slate-100 truncate">{u.full_name}</p>
                     <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>
                   </div>
-                  <button onClick={() => { if (onOpenMessages) onOpenMessages(u); setShowFollowList(null); }} className="px-2 py-1 text-[10px] text-skyBlue">DM</button>
+                  <button
+                    onClick={() => {
+                      if (onOpenMessages) onOpenMessages(u);
+                      else if (_onNavigate) _onNavigate('messages', { messageUser: u });
+                      setShowFollowList(null);
+                    }}
+                    className="px-2 py-1 text-[10px] text-skyBlue"
+                  >
+                    DM
+                  </button>
                 </div>
               ))}
               {followList.length === 0 && <p className="text-xs text-slate-500">Boş</p>}

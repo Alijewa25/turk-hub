@@ -24,6 +24,235 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* ------------------------------------------------------------------
+   Light theme bridge
+   The UI was originally authored with dark-only utility classes. These
+   overrides map those same utility tokens to a legible light palette so
+   every existing screen (sidebar, cards, modals, chat, dictionary,
+   projects, profile, explore) switches themes without duplication.
+------------------------------------------------------------------- */
+[data-theme='light'] body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-theme='light'] [class~='bg-black'],
+[data-theme='light'] [class~='bg-neutral-950'],
+[data-theme='light'] [class~='bg-neutral-900'] {
+  background-color: #f8fafc !important;
+}
+
+[data-theme='light'] [class~='bg-neutral-900/80'],
+[data-theme='light'] [class~='bg-neutral-900/70'],
+[data-theme='light'] [class~='bg-neutral-900/60'] {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+}
+
+[data-theme='light'] [class~='bg-neutral-900/50'],
+[data-theme='light'] [class~='bg-neutral-900/40'] {
+  background-color: rgba(255, 255, 255, 0.68) !important;
+}
+
+[data-theme='light'] [class~='bg-neutral-800'] {
+  background-color: #e2e8f0 !important;
+}
+
+[data-theme='light'] [class~='bg-black/95'],
+[data-theme='light'] [class~='bg-black/90'] {
+  background-color: rgba(248, 250, 252, 0.96) !important;
+}
+
+[data-theme='light'] [class~='bg-black/80'],
+[data-theme='light'] [class~='bg-black/70'] {
+  background-color: rgba(15, 23, 42, 0.55) !important;
+}
+
+[data-theme='light'] [class~='bg-black/60'],
+[data-theme='light'] [class~='bg-black/50'],
+[data-theme='light'] [class~='bg-black/40'] {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+}
+
+[data-theme='light'] [class~='text-white'],
+[data-theme='light'] [class~='text-slate-100'] {
+  color: #0f172a !important;
+}
+
+[data-theme='light'] [class~='text-slate-200'] {
+  color: #1e293b !important;
+}
+
+[data-theme='light'] [class~='text-slate-300'] {
+  color: #334155 !important;
+}
+
+[data-theme='light'] [class~='text-slate-400'] {
+  color: #475569 !important;
+}
+
+[data-theme='light'] [class~='text-slate-500'],
+[data-theme='light'] [class~='text-slate-600'],
+[data-theme='light'] [class~='text-neutral-500'],
+[data-theme='light'] [class~='text-neutral-600'] {
+  color: #64748b !important;
+}
+
+[data-theme='light'] [class~='border-neutral-900'],
+[data-theme='light'] [class~='border-neutral-800'],
+[data-theme='light'] [class~='border-neutral-800/80'],
+[data-theme='light'] [class~='border-neutral-800/60'] {
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme='light'] [class~='border-neutral-700'] {
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme='light'] [class~='hover:bg-neutral-900/70']:hover,
+[data-theme='light'] [class~='hover:bg-neutral-900']:hover {
+  background-color: #eef2f7 !important;
+}
+
+[data-theme='light'] [class~='hover:bg-neutral-800']:hover {
+  background-color: #e2e8f0 !important;
+}
+
+[data-theme='light'] [class~='hover:text-slate-100']:hover,
+[data-theme='light'] [class~='hover:text-white']:hover {
+  color: #0f172a !important;
+}
+
+[data-theme='light'] [class~='from-neutral-900'] {
+  --tw-gradient-from: #ffffff var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+[data-theme='light'] [class~='via-neutral-900'] {
+  --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #f8fafc var(--tw-gradient-via-position),
+    var(--tw-gradient-to);
+}
+
+[data-theme='light'] [class~='to-neutral-900'] {
+  --tw-gradient-to: #f8fafc var(--tw-gradient-to-position);
+}
+
+/* Deeper Göktürk cyan accents for light mode (WCAG-friendly contrast). */
+[data-theme='light'] [class~='text-skyBlue'],
+[data-theme='light'] [class~='hover:text-skyBlue']:hover,
+[data-theme='light'] [class~='text-sky-400'],
+[data-theme='light'] [class~='hover:text-sky-400']:hover {
+  color: #0e7490 !important;
+}
+
+[data-theme='light'] [class~='bg-neutral-900'][class~='text-skyBlue'] {
+  background-color: #ecfeff !important;
+}
+
+[data-theme='light'] [class~='text-skyBlue/60'] {
+  color: rgba(14, 116, 144, 0.68) !important;
+}
+
+[data-theme='light'] [class~='text-skyBlue/50'] {
+  color: rgba(14, 116, 144, 0.56) !important;
+}
+
+[data-theme='light'] [class~='bg-skyBlue'],
+[data-theme='light'] [class~='bg-sky-500'] {
+  background-color: #0891b2 !important;
+  color: #ffffff !important;
+}
+
+[data-theme='light'] [class~='hover:bg-skyBlue-hover']:hover {
+  background-color: #0e7490 !important;
+  color: #ffffff !important;
+}
+
+[data-theme='light'] [class~='bg-skyBlue/10'],
+[data-theme='light'] [class~='hover:bg-skyBlue/10']:hover {
+  background-color: #ecfeff !important;
+}
+
+[data-theme='light'] [class~='bg-skyBlue/15'],
+[data-theme='light'] [class~='bg-skyBlue/20'],
+[data-theme='light'] [class~='hover:bg-skyBlue/20']:hover {
+  background-color: #cffafe !important;
+}
+
+[data-theme='light'] [class~='border-skyBlue'],
+[data-theme='light'] [class~='border-sky-500'] {
+  border-color: #0891b2 !important;
+}
+
+[data-theme='light'] [class~='border-skyBlue/20'] {
+  border-color: rgba(8, 145, 178, 0.35) !important;
+}
+
+[data-theme='light'] [class~='border-skyBlue/30'] {
+  border-color: rgba(8, 145, 178, 0.4) !important;
+}
+
+[data-theme='light'] [class~='border-skyBlue/40'],
+[data-theme='light'] [class~='hover:border-skyBlue/40']:hover {
+  border-color: rgba(8, 145, 178, 0.48) !important;
+}
+
+[data-theme='light'] [class~='border-skyBlue/50'],
+[data-theme='light'] [class~='hover:border-skyBlue/50']:hover {
+  border-color: rgba(8, 145, 178, 0.55) !important;
+}
+
+[data-theme='light'] [class~='border-skyBlue/60'],
+[data-theme='light'] [class~='hover:border-skyBlue/60']:hover {
+  border-color: rgba(8, 145, 178, 0.62) !important;
+}
+
+[data-theme='light'] [class~='focus:border-skyBlue']:focus {
+  border-color: #0891b2 !important;
+}
+
+[data-theme='light'] [class~='focus:ring-skyBlue/20']:focus {
+  --tw-ring-color: rgba(8, 145, 178, 0.3) !important;
+}
+
+[data-theme='light'] [class~='ring-skyBlue/40'] {
+  --tw-ring-color: rgba(8, 145, 178, 0.45) !important;
+}
+
+[data-theme='light'] [class~='shadow-skyBlue/10'],
+[data-theme='light'] [class~='shadow-skyBlue/20'],
+[data-theme='light'] [class~='shadow-skyBlue/25'] {
+  --tw-shadow-color: rgba(8, 145, 178, 0.25) !important;
+}
+
+[data-theme='light'] [class~='from-skyBlue'] {
+  --tw-gradient-from: #0891b2 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(8 145 178 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+[data-theme='light'] [class~='via-cyan-300'],
+[data-theme='light'] [class~='via-cyan-400'] {
+  --tw-gradient-to: rgb(14 116 144 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #0e7490 var(--tw-gradient-via-position),
+    var(--tw-gradient-to);
+}
+
+[data-theme='light'] [class~='to-skyBlue-hover'],
+[data-theme='light'] [class~='to-cyan-300'] {
+  --tw-gradient-to: #0e7490 var(--tw-gradient-to-position);
+}
+
+[data-theme='light'] [class~='text-black'] {
+  color: #ffffff !important;
+}
+
+[data-theme='light'] input,
+[data-theme='light'] textarea {
+  color-scheme: light;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

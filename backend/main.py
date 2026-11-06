@@ -32,10 +32,16 @@ CORS_ORIGINS = [
     o.strip()
     for o in os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,"
+        "http://127.0.0.1:4173,http://localhost:3000,http://127.0.0.1:3000",
     ).split(",")
     if o.strip()
 ]
+
+# Always allow the wildcard so deployed/preview frontends can reach the API.
+# Bearer-token auth (not cookies) is used, so a wildcard origin is safe here.
+if "*" not in CORS_ORIGINS:
+    CORS_ORIGINS.append("*")
 
 app.add_middleware(
     CORSMiddleware,
@@ -60,7 +66,9 @@ def read_root():
 # --- DICTIONARY ENDPOINTS ---
 
 @app.get("/api/dictionary", response_model=List[schemas.DictionaryResponse])
+@app.get("/api/dictionary/search", response_model=List[schemas.DictionaryResponse])
 @app.get("/dictionary", response_model=List[schemas.DictionaryResponse])
+@app.get("/dictionary/search", response_model=List[schemas.DictionaryResponse])
 def search_dictionary(
     q: Optional[str] = Query(None, description="Axtarış sözü"),
     dialect: Optional[str] = Query(None),
@@ -264,6 +272,28 @@ def list_users(
     return result
 
 
+@app.get("/api/users/profile", response_model=schemas.UserResponse)
+@app.get("/users/profile", response_model=schemas.UserResponse)
+def get_profile(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+
+@app.get("/api/users/by-username/{username}", response_model=schemas.UserFollowInfo)
+@app.get("/users/by-username/{username}", response_model=schemas.UserFollowInfo)
+@app.get("/api/users/username/{username}", response_model=schemas.UserFollowInfo)
+@app.get("/users/username/{username}", response_model=schemas.UserFollowInfo)
+def get_user_by_username(
+    username: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    clean = username.strip().lstrip("@").lower()
+    user = db.query(models.User).filter(models.User.username == clean).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="İstifadəçi tapılmadı")
+    return _follow_info(user, current_user, db)
+
+
 @app.get("/api/users/{user_id}", response_model=schemas.UserFollowInfo)
 @app.get("/users/{user_id}", response_model=schemas.UserFollowInfo)
 def get_user(
@@ -275,12 +305,6 @@ def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="İstifadəçi tapılmadı")
     return _follow_info(user, current_user, db)
-
-
-@app.get("/api/users/profile", response_model=schemas.UserResponse)
-@app.get("/users/profile", response_model=schemas.UserResponse)
-def get_profile(current_user: models.User = Depends(get_current_user)):
-    return current_user
 
 
 @app.put("/api/users/profile", response_model=schemas.UserResponse)
