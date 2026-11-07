@@ -77,20 +77,62 @@ function headers(token: string | null): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+axios.defaults.timeout = 15000;
+
+function logApiFailure(label: string, error: any) {
+  console.warn(`[api] ${label} failed`, error?.message || error);
+}
+
+function friendlyError(error: any, fallback: string): Error {
+  const detail = error?.response?.data?.detail;
+  const message = typeof detail === 'string' && detail.trim() ? detail : fallback;
+  const normalized = new Error(message);
+  (normalized as Error & { status?: number }).status = error?.response?.status;
+  return normalized;
+}
+
+async function safeGet<T>(
+  label: string,
+  path: string,
+  token: string | null,
+  fallback: T
+): Promise<T> {
+  try {
+    const res = await axios.get(`${API_URL}${path}`, { headers: headers(token) });
+    return res.data as T;
+  } catch (error) {
+    logApiFailure(label, error);
+    return fallback;
+  }
+}
+
 export async function fetchCurrentUser(token: string | null): Promise<StoryAuthor> {
   try {
     const res = await axios.get(`${API_URL}/api/auth/me`, { headers: headers(token) });
     return res.data;
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.get(`${API_URL}/me`, { headers: headers(token) });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('fetchCurrentUser', err);
+      throw friendlyError(err, 'İstifadəçi məlumatı yüklənə bilmədi.');
+    }
+    try {
+      const res = await axios.get(`${API_URL}/me`, { headers: headers(token) });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('fetchCurrentUser fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'İstifadəçi məlumatı yüklənə bilmədi.');
+    }
   }
 }
 
 export async function fetchUserStats(token: string | null, userId: number): Promise<FollowUser> {
-  const res = await axios.get(`${API_URL}/api/users/${userId}`, { headers: headers(token) });
-  return res.data;
+  try {
+    const res = await axios.get(`${API_URL}/api/users/${userId}`, { headers: headers(token) });
+    return res.data;
+  } catch (err) {
+    logApiFailure('fetchUserStats', err);
+    throw friendlyError(err, 'İstifadəçi statistikası yüklənə bilmədi.');
+  }
 }
 
 export async function fetchUserByUsername(
@@ -98,21 +140,34 @@ export async function fetchUserByUsername(
   username: string
 ): Promise<FollowUser> {
   const clean = username.trim().replace(/^@/, '');
-  const res = await axios.get(
-    `${API_URL}/api/users/by-username/${encodeURIComponent(clean)}`,
-    { headers: headers(token) }
-  );
-  return res.data;
+  try {
+    const res = await axios.get(
+      `${API_URL}/api/users/by-username/${encodeURIComponent(clean)}`,
+      { headers: headers(token) }
+    );
+    return res.data;
+  } catch (err) {
+    logApiFailure('fetchUserByUsername', err);
+    throw friendlyError(err, 'İstifadəçi tapıla bilmədi.');
+  }
 }
 
 export async function fetchProjects(token: string | null = null): Promise<ProjectItem[]> {
   try {
     const res = await axios.get(`${API_URL}/api/projects`, { headers: headers(token) });
-    return res.data;
+    return Array.isArray(res.data) ? res.data : [];
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.get(`${API_URL}/projects`, { headers: headers(token) });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('fetchProjects', err);
+      return [];
+    }
+    try {
+      const res = await axios.get(`${API_URL}/projects`, { headers: headers(token) });
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (fallbackErr) {
+      logApiFailure('fetchProjects fallback', fallbackErr);
+      return [];
+    }
   }
 }
 
@@ -124,19 +179,33 @@ export async function createProject(
     const res = await axios.post(`${API_URL}/api/projects`, draft, { headers: headers(token) });
     return res.data;
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.post(`${API_URL}/projects`, draft, { headers: headers(token) });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('createProject', err);
+      throw friendlyError(err, 'Layihə yaradıla bilmədi.');
+    }
+    try {
+      const res = await axios.post(`${API_URL}/projects`, draft, { headers: headers(token) });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('createProject fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'Layihə yaradıla bilmədi.');
+    }
   }
 }
 
 export async function fetchStories(token: string | null): Promise<StoryItem[]> {
   try {
     const res = await axios.get(`${API_URL}/api/stories/feed`, { headers: headers(token) });
-    return res.data;
-  } catch {
-    const res = await axios.get(`${API_URL}/stories/feed`, { headers: headers(token) });
-    return res.data;
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    logApiFailure('fetchStories', err);
+    try {
+      const res = await axios.get(`${API_URL}/stories/feed`, { headers: headers(token) });
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (fallbackErr) {
+      logApiFailure('fetchStories fallback', fallbackErr);
+      return [];
+    }
   }
 }
 
@@ -155,22 +224,33 @@ export async function publishStory(
     const res = await axios.post(`${API_URL}/api/stories`, payload, { headers: headers(token) });
     return res.data;
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.post(`${API_URL}/stories`, payload, { headers: headers(token) });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('publishStory', err);
+      throw friendlyError(err, 'Story paylaşıla bilmədi.');
+    }
+    try {
+      const res = await axios.post(`${API_URL}/stories`, payload, { headers: headers(token) });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('publishStory fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'Story paylaşıla bilmədi.');
+    }
   }
 }
 
 export async function fetchPosts(token: string | null): Promise<ApiPost[]> {
-  const res = await axios.get(`${API_URL}/api/posts`, { headers: headers(token) });
-  return res.data;
+  const posts = await safeGet<ApiPost[]>('fetchPosts', '/api/posts', token, []);
+  return Array.isArray(posts) ? posts : [];
 }
 
 export async function fetchUserPosts(userId: number, token: string | null = null): Promise<ApiPost[]> {
-  const res = await axios.get(`${API_URL}/api/users/${userId}/posts`, {
-    headers: token ? headers(token) : undefined,
-  });
-  return res.data;
+  const posts = await safeGet<ApiPost[]>(
+    'fetchUserPosts',
+    `/api/users/${userId}/posts`,
+    token,
+    []
+  );
+  return Array.isArray(posts) ? posts : [];
 }
 
 export async function likePost(token: string | null, postId: number | string) {
@@ -178,9 +258,17 @@ export async function likePost(token: string | null, postId: number | string) {
     const res = await axios.post(`${API_URL}/api/posts/${postId}/like`, {}, { headers: headers(token) });
     return res.data;
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.post(`${API_URL}/posts/${postId}/like`, {}, { headers: headers(token) });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('likePost', err);
+      throw friendlyError(err, 'Bəyənmə əməliyyatı alınmadı.');
+    }
+    try {
+      const res = await axios.post(`${API_URL}/posts/${postId}/like`, {}, { headers: headers(token) });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('likePost fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'Bəyənmə əməliyyatı alınmadı.');
+    }
   }
 }
 
@@ -189,9 +277,17 @@ export async function commentPost(token: string | null, postId: number | string,
     const res = await axios.post(`${API_URL}/api/posts/${postId}/comment`, { text }, { headers: headers(token) });
     return res.data;
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.post(`${API_URL}/posts/${postId}/comment`, { text }, { headers: headers(token) });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('commentPost', err);
+      throw friendlyError(err, 'Şərh göndərilə bilmədi.');
+    }
+    try {
+      const res = await axios.post(`${API_URL}/posts/${postId}/comment`, { text }, { headers: headers(token) });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('commentPost fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'Şərh göndərilə bilmədi.');
+    }
   }
 }
 
@@ -200,26 +296,38 @@ export async function fetchSuggestions(token: string | null, q?: string): Promis
   const apiPath = term
     ? `/api/users/search?q=${encodeURIComponent(term)}`
     : '/api/users';
-  try {
-    const res = await axios.get(`${API_URL}${apiPath}`, { headers: headers(token) });
-    return res.data;
-  } catch {
-    const fallbackPath = term
-      ? `/users/search?q=${encodeURIComponent(term)}`
-      : '/users';
-    const res = await axios.get(`${API_URL}${fallbackPath}`, { headers: headers(token) });
-    return res.data;
-  }
+  const users = await safeGet<FollowUser[]>('fetchSuggestions', apiPath, token, []);
+  if (Array.isArray(users) && users.length > 0) return users;
+  const fallbackPath = term
+    ? `/users/search?q=${encodeURIComponent(term)}`
+    : '/users';
+  const fallbackUsers = await safeGet<FollowUser[]>(
+    'fetchSuggestions fallback',
+    fallbackPath,
+    token,
+    []
+  );
+  return Array.isArray(fallbackUsers) ? fallbackUsers : [];
 }
 
 export async function followUser(token: string | null, userId: number) {
-  const res = await axios.post(`${API_URL}/api/users/${userId}/follow`, {}, { headers: headers(token) });
-  return res.data;
+  try {
+    const res = await axios.post(`${API_URL}/api/users/${userId}/follow`, {}, { headers: headers(token) });
+    return res.data;
+  } catch (err) {
+    logApiFailure('followUser', err);
+    throw friendlyError(err, 'İstifadəçini izləmək alınmadı.');
+  }
 }
 
 export async function unfollowUser(token: string | null, userId: number) {
-  const res = await axios.delete(`${API_URL}/api/users/${userId}/follow`, { headers: headers(token) });
-  return res.data;
+  try {
+    const res = await axios.delete(`${API_URL}/api/users/${userId}/follow`, { headers: headers(token) });
+    return res.data;
+  } catch (err) {
+    logApiFailure('unfollowUser', err);
+    throw friendlyError(err, 'İzləmədən çıxmaq alınmadı.');
+  }
 }
 
 export async function uploadAvatar(token: string | null, formData: FormData) {
@@ -232,14 +340,22 @@ export async function uploadAvatar(token: string | null, formData: FormData) {
     });
     return res.data;
   } catch (err: any) {
-    if (err?.response?.status !== 404) throw err;
-    const res = await axios.post(`${API_URL}/users/upload-avatar`, formData, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : '',
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return res.data;
+    if (err?.response?.status !== 404) {
+      logApiFailure('uploadAvatar', err);
+      throw friendlyError(err, 'Profil şəkli yüklənə bilmədi.');
+    }
+    try {
+      const res = await axios.post(`${API_URL}/users/upload-avatar`, formData, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('uploadAvatar fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'Profil şəkli yüklənə bilmədi.');
+    }
   }
 }
 

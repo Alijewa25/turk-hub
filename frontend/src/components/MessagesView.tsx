@@ -26,7 +26,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
       });
       if (res.ok) {
         const data = await res.json();
-        setConversations(data);
+        setConversations(Array.isArray(data) ? data : []);
       }
     } catch {
       // ignore transient network errors while polling
@@ -41,7 +41,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
       });
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        setMessages(Array.isArray(data) ? data : []);
       }
     } catch {
       // ignore

@@ -26,7 +26,7 @@
   --border: #e2e8f0;
   --input-bg: #ffffff;
   --input-text: #0f172a;
-  --primary: #0891b2;
+  --primary: #0c4a5e;
   --primary-contrast: #ffffff;
 }
 
@@ -163,29 +163,26 @@ body {
 [data-theme='light'] [class~='hover:text-skyBlue']:hover,
 [data-theme='light'] [class~='text-sky-400'],
 [data-theme='light'] [class~='hover:text-sky-400']:hover {
-  color: #0e7490 !important;
+  color: #0c4a5e !important;
 }
 
 [data-theme='light'] [class~='bg-neutral-900'][class~='text-skyBlue'] {
   background-color: #ecfeff !important;
 }
 
-[data-theme='light'] [class~='text-skyBlue/60'] {
-  color: rgba(14, 116, 144, 0.68) !important;
-}
-
+[data-theme='light'] [class~='text-skyBlue/60'],
 [data-theme='light'] [class~='text-skyBlue/50'] {
-  color: rgba(14, 116, 144, 0.56) !important;
+  color: #0c4a5e !important;
 }
 
 [data-theme='light'] [class~='bg-skyBlue'],
 [data-theme='light'] [class~='bg-sky-500'] {
-  background-color: #0891b2 !important;
+  background-color: #0c4a5e !important;
   color: #ffffff !important;
 }
 
 [data-theme='light'] [class~='hover:bg-skyBlue-hover']:hover {
-  background-color: #0e7490 !important;
+  background-color: #083344 !important;
   color: #ffffff !important;
 }
 
@@ -202,7 +199,7 @@ body {
 
 [data-theme='light'] [class~='border-skyBlue'],
 [data-theme='light'] [class~='border-sky-500'] {
-  border-color: #0891b2 !important;
+  border-color: #0c4a5e !important;
 }
 
 [data-theme='light'] [class~='border-skyBlue/20'] {
@@ -229,7 +226,7 @@ body {
 }
 
 [data-theme='light'] [class~='focus:border-skyBlue']:focus {
-  border-color: #0891b2 !important;
+  border-color: #0c4a5e !important;
 }
 
 [data-theme='light'] [class~='focus:ring-skyBlue/20']:focus {
@@ -247,8 +244,8 @@ body {
 }
 
 [data-theme='light'] [class~='from-skyBlue'] {
-  --tw-gradient-from: #0891b2 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(8 145 178 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: #0c4a5e var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(12 74 94 / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
@@ -261,11 +258,25 @@ body {
 
 [data-theme='light'] [class~='to-skyBlue-hover'],
 [data-theme='light'] [class~='to-cyan-300'] {
-  --tw-gradient-to: #0e7490 var(--tw-gradient-to-position);
+  --tw-gradient-to: #083344 var(--tw-gradient-to-position);
 }
 
 [data-theme='light'] [class~='text-black'] {
   color: #ffffff !important;
+}
+
+[data-theme='light'] [class~='text-red-300'],
+[data-theme='light'] [class~='text-red-400'],
+[data-theme='light'] [class~='text-red-500'] {
+  color: #7f1d1d !important;
+}
+
+[data-theme='light'] [class~='text-emerald-400'] {
+  color: #064e3b !important;
+}
+
+[data-theme='light'] [class~='text-amber-400'] {
+  color: #78350f !important;
 }
 
 [data-theme='light'] input,

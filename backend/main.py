@@ -5,13 +5,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
-import os, uuid, logging
+import asyncio, json, os, uuid, logging
 
 from jose import JWTError, jwt
 
@@ -35,112 +35,108 @@ logger = logging.getLogger("turk_hub")
 
 
 def sync_db_schema(engine) -> None:
-    """Add missing columns to older PostgreSQL deployments."""
+    """Safely add missing columns to older PostgreSQL deployments."""
     if engine.dialect.name != "postgresql":
         return
 
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'username'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN username VARCHAR(100) UNIQUE;
-                    END IF;
+    try:
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+    except Exception:
+        logger.exception("Unable to inspect database schema; skipping column sync")
+        return
 
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'avatar_url'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255);
-                    END IF;
+    preparer = engine.dialect.identifier_preparer
 
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'bio'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN bio TEXT;
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'country'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN country VARCHAR(100);
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'university'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN university VARCHAR(255);
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'profile_picture'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255);
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'users'
-                          AND column_name = 'created_at'
-                    ) THEN
-                        ALTER TABLE users ADD COLUMN created_at TIMESTAMP;
-                    END IF;
-                END $$;
-                """
+    def add_column(
+        table_name: str,
+        column_name: str,
+        column_type: str,
+        unique: bool = False,
+    ) -> None:
+        quoted_table = preparer.quote(table_name)
+        quoted_column = preparer.quote(column_name)
+        suffix = " UNIQUE" if unique else ""
+        statement = (
+            f"ALTER TABLE IF EXISTS {quoted_table} "
+            f"ADD COLUMN IF NOT EXISTS {quoted_column} {column_type}{suffix}"
+        )
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(statement))
+        except Exception:
+            logger.warning(
+                "Could not add column %s.%s during schema sync",
+                table_name,
+                column_name,
+                exc_info=True,
             )
-        )
-
-        preparer = engine.dialect.identifier_preparer
-        model_tables = (
-            models.User.__table__,
-            models.Project.__table__,
-            models.Post.__table__,
-            models.Message.__table__,
-            models.Dictionary.__table__,
-            models.Comment.__table__,
-        )
-        for table in model_tables:
-            table_name = preparer.quote(table.name)
-            for column in table.columns:
-                if column.primary_key:
-                    continue
-                if (
-                    not column.nullable
-                    and column.default is None
-                    and column.server_default is None
-                ):
-                    continue
-                column_name = preparer.quote(column.name)
-                column_type = column.type.compile(dialect=engine.dialect)
-                unique = " UNIQUE" if column.unique else ""
-                conn.execute(
-                    text(
-                        f"ALTER TABLE IF EXISTS {table_name} "
-                        f"ADD COLUMN IF NOT EXISTS {column_name} {column_type}{unique}"
+            if unique:
+                try:
+                    with engine.begin() as conn:
+                        conn.execute(
+                            text(
+                                f"ALTER TABLE IF EXISTS {quoted_table} "
+                                f"ADD COLUMN IF NOT EXISTS {quoted_column} {column_type}"
+                            )
+                        )
+                except Exception:
+                    logger.warning(
+                        "Could not add fallback column %s.%s",
+                        table_name,
+                        column_name,
+                        exc_info=True,
                     )
-                )
+
+    for table in models.Base.metadata.sorted_tables:
+        if table.name not in existing_tables:
+            continue
+        try:
+            existing_columns = {
+                column["name"] for column in inspector.get_columns(table.name)
+            }
+        except Exception:
+            logger.warning(
+                "Could not inspect columns for table %s",
+                table.name,
+                exc_info=True,
+            )
+            continue
+
+        for column in table.columns:
+            if column.name in existing_columns or column.primary_key:
+                continue
+            if (
+                not column.nullable
+                and column.default is None
+                and column.server_default is None
+            ):
+                continue
+            try:
+                column_type = column.type.compile(dialect=engine.dialect)
+            except Exception:
+                column_type = "TEXT"
+            add_column(table.name, column.name, column_type, bool(column.unique))
+
+    legacy_user_columns = {
+        "username": ("VARCHAR(100)", True),
+        "avatar_url": ("VARCHAR(255)", False),
+        "bio": ("TEXT", False),
+        "country": ("VARCHAR(100)", False),
+        "university": ("VARCHAR(255)", False),
+        "profile_picture": ("VARCHAR(255)", False),
+        "created_at": ("TIMESTAMP", False),
+    }
+    if "users" in existing_tables:
+        try:
+            existing_user_columns = {
+                column["name"] for column in inspector.get_columns("users")
+            }
+        except Exception:
+            existing_user_columns = set()
+        for name, (column_type, unique) in legacy_user_columns.items():
+            if name not in existing_user_columns:
+                add_column("users", name, column_type, unique)
 
 
 def init_db() -> bool:
@@ -247,6 +243,24 @@ async def request_validation_exception_handler(
     )
 
 
+SAFE_LIST_GET_PREFIXES = (
+    "/api/projects",
+    "/projects",
+    "/api/posts",
+    "/posts",
+    "/api/dictionary",
+    "/dictionary",
+    "/api/messages",
+    "/messages",
+    "/api/notifications",
+    "/notifications",
+    "/api/stories",
+    "/stories",
+    "/api/users",
+    "/users",
+)
+
+
 @app.exception_handler(Exception)
 async def catch_all_exception_handler(
     request: Request,
@@ -258,6 +272,11 @@ async def catch_all_exception_handler(
         request.url.path,
         exc_info=(type(exc), exc, exc.__traceback__),
     )
+    if request.method == "GET" and any(
+        request.url.path == prefix or request.url.path.startswith(f"{prefix}/")
+        for prefix in SAFE_LIST_GET_PREFIXES
+    ):
+        return _cors_error_response(request, status.HTTP_200_OK, [])
     return _cors_error_response(
         request,
         status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -301,7 +320,7 @@ def search_dictionary(
             (models.Dictionary.ky_val.ilike(search_pattern)) |
             (models.Dictionary.tm_val.ilike(search_pattern))
         )
-    results = query.all()
+    results = _safe_list_query(lambda: query.all(), db, "dictionary")
     return results
 
 
@@ -311,15 +330,19 @@ def dictionary_compare(
     db: Session = Depends(get_db)
 ):
     search_pattern = f"%{q}%"
-    items = db.query(models.Dictionary).filter(
-        (models.Dictionary.root_concept.ilike(search_pattern)) |
-        (models.Dictionary.az_val.ilike(search_pattern)) |
-        (models.Dictionary.tr_val.ilike(search_pattern)) |
-        (models.Dictionary.kk_val.ilike(search_pattern)) |
-        (models.Dictionary.uz_val.ilike(search_pattern)) |
-        (models.Dictionary.ky_val.ilike(search_pattern)) |
-        (models.Dictionary.tm_val.ilike(search_pattern))
-    ).all()
+    items = _safe_list_query(
+        lambda: db.query(models.Dictionary).filter(
+            (models.Dictionary.root_concept.ilike(search_pattern)) |
+            (models.Dictionary.az_val.ilike(search_pattern)) |
+            (models.Dictionary.tr_val.ilike(search_pattern)) |
+            (models.Dictionary.kk_val.ilike(search_pattern)) |
+            (models.Dictionary.uz_val.ilike(search_pattern)) |
+            (models.Dictionary.ky_val.ilike(search_pattern)) |
+            (models.Dictionary.tm_val.ilike(search_pattern))
+        ).all(),
+        db,
+        "dictionary compare",
+    )
     comparison = []
     for item in items:
         comparison.append({
@@ -536,7 +559,7 @@ def get_me(current_user: models.User = Depends(get_current_user)):
 def _safe_list_query(operation, db: Session, label: str):
     try:
         return operation()
-    except SQLAlchemyError:
+    except Exception:
         db.rollback()
         logger.exception("%s query failed; attempting schema repair", label)
 
@@ -545,10 +568,19 @@ def _safe_list_query(operation, db: Session, label: str):
 
     try:
         return operation()
-    except SQLAlchemyError:
+    except Exception:
         db.rollback()
         logger.exception("%s query failed after schema repair", label)
         return []
+
+
+def _safe_first_query(operation, db: Session, label: str):
+    try:
+        return operation()
+    except Exception:
+        db.rollback()
+        logger.exception("%s query failed", label)
+        return None
 
 
 # --- PROJECT HUB ENDPOINTS ---
@@ -608,11 +640,14 @@ def list_users(
             (models.User.username.ilike(pattern)) |
             (models.User.email.ilike(pattern))
         )
-    users = db_query.all()
+    users = _safe_list_query(lambda: db_query.all(), db, "users")
 
     result = []
     for u in users:
-        result.append(_follow_info(u, current_user, db))
+        try:
+            result.append(_follow_info(u, current_user, db))
+        except Exception:
+            logger.warning("Could not serialize user %s", getattr(u, "id", "?"), exc_info=True)
     return result
 
 
@@ -764,12 +799,23 @@ def list_followers(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    follows = db.query(models.Follow).filter(models.Follow.followed_id == user_id).all()
+    follows = _safe_list_query(
+        lambda: db.query(models.Follow).filter(models.Follow.followed_id == user_id).all(),
+        db,
+        "followers",
+    )
     users = []
     for f in follows:
-        u = db.query(models.User).filter(models.User.id == f.follower_id).first()
+        u = _safe_first_query(
+            lambda: db.query(models.User).filter(models.User.id == f.follower_id).first(),
+            db,
+            "follower user",
+        )
         if u:
-            users.append(_follow_info(u, current_user, db))
+            try:
+                users.append(_follow_info(u, current_user, db))
+            except Exception:
+                logger.warning("Could not serialize follower %s", getattr(u, "id", "?"), exc_info=True)
     return users
 
 
@@ -779,12 +825,23 @@ def list_following(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    follows = db.query(models.Follow).filter(models.Follow.follower_id == user_id).all()
+    follows = _safe_list_query(
+        lambda: db.query(models.Follow).filter(models.Follow.follower_id == user_id).all(),
+        db,
+        "following",
+    )
     users = []
     for f in follows:
-        u = db.query(models.User).filter(models.User.id == f.followed_id).first()
+        u = _safe_first_query(
+            lambda: db.query(models.User).filter(models.User.id == f.followed_id).first(),
+            db,
+            "following user",
+        )
         if u:
-            users.append(_follow_info(u, current_user, db))
+            try:
+                users.append(_follow_info(u, current_user, db))
+            except Exception:
+                logger.warning("Could not serialize following %s", getattr(u, "id", "?"), exc_info=True)
     return users
 
 
@@ -851,18 +908,21 @@ def list_posts(
     )
     result = []
     for p in posts:
-        result.append(schemas.PostResponse(
-            id=p.id,
-            user_id=p.user_id,
-            body=p.body,
-            image_url=p.image_url,
-            file_url=p.file_url,
-            file_name=p.file_name,
-            likes_count=p.likes_count or 0,
-            comments_count=p.comments_count or 0,
-            created_at=p.created_at,
-            author=schemas.UserResponse.model_validate(p.author) if p.author else None,
-        ))
+        try:
+            result.append(schemas.PostResponse(
+                id=p.id,
+                user_id=p.user_id,
+                body=p.body,
+                image_url=p.image_url,
+                file_url=p.file_url,
+                file_name=p.file_name,
+                likes_count=p.likes_count or 0,
+                comments_count=p.comments_count or 0,
+                created_at=p.created_at,
+                author=schemas.UserResponse.model_validate(p.author) if p.author else None,
+            ))
+        except Exception:
+            logger.warning("Could not serialize post %s", getattr(p, "id", "?"), exc_info=True)
     return result
 
 
@@ -902,21 +962,28 @@ def create_post(
 @app.get("/api/users/{user_id}/posts", response_model=List[schemas.PostResponse])
 @app.get("/users/{user_id}/posts", response_model=List[schemas.PostResponse])
 def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    posts = db.query(models.Post).filter(models.Post.user_id == user_id).order_by(models.Post.created_at.desc()).all()
+    posts = _safe_list_query(
+        lambda: db.query(models.Post).filter(models.Post.user_id == user_id).order_by(models.Post.created_at.desc()).all(),
+        db,
+        "user posts",
+    )
     result = []
     for p in posts:
-        result.append(schemas.PostResponse(
-            id=p.id,
-            user_id=p.user_id,
-            body=p.body,
-            image_url=p.image_url,
-            file_url=p.file_url,
-            file_name=p.file_name,
-            likes_count=p.likes_count or 0,
-            comments_count=p.comments_count or 0,
-            created_at=p.created_at,
-            author=schemas.UserResponse.model_validate(p.author) if p.author else None,
-        ))
+        try:
+            result.append(schemas.PostResponse(
+                id=p.id,
+                user_id=p.user_id,
+                body=p.body,
+                image_url=p.image_url,
+                file_url=p.file_url,
+                file_name=p.file_name,
+                likes_count=p.likes_count or 0,
+                comments_count=p.comments_count or 0,
+                created_at=p.created_at,
+                author=schemas.UserResponse.model_validate(p.author) if p.author else None,
+            ))
+        except Exception:
+            logger.warning("Could not serialize post %s", getattr(p, "id", "?"), exc_info=True)
     return result
 
 
@@ -958,36 +1025,64 @@ def comment_post(post_id: int, payload: dict, current_user: models.User = Depend
 @app.get("/api/messages/conversations")
 @app.get("/messages/conversations")
 def conversations(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    sent = db.query(models.Message.receiver_id).filter(models.Message.sender_id == current_user.id).distinct().all()
-    received = db.query(models.Message.sender_id).filter(models.Message.receiver_id == current_user.id).distinct().all()
+    sent = _safe_list_query(
+        lambda: db.query(models.Message.receiver_id).filter(models.Message.sender_id == current_user.id).distinct().all(),
+        db,
+        "sent conversations",
+    )
+    received = _safe_list_query(
+        lambda: db.query(models.Message.sender_id).filter(models.Message.receiver_id == current_user.id).distinct().all(),
+        db,
+        "received conversations",
+    )
     ids = set([s[0] for s in sent] + [r[0] for r in received])
     users = []
     for uid in ids:
-        u = db.query(models.User).filter(models.User.id == uid).first()
+        u = _safe_first_query(
+            lambda: db.query(models.User).filter(models.User.id == uid).first(),
+            db,
+            "conversation user",
+        )
         if u:
-            users.append(_follow_info(u, current_user, db))
+            try:
+                users.append(_follow_info(u, current_user, db))
+            except Exception:
+                logger.warning("Could not serialize conversation user %s", getattr(u, "id", "?"), exc_info=True)
     return users
+
+
+@app.get("/api/messages")
+@app.get("/messages")
+def list_messages(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return conversations(current_user, db)
 
 
 @app.get("/api/messages/{user_id}", response_model=List[schemas.MessageResponse])
 @app.get("/messages/{user_id}", response_model=List[schemas.MessageResponse])
 def get_messages(user_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    msgs = db.query(models.Message).filter(
-        ((models.Message.sender_id == current_user.id) & (models.Message.receiver_id == user_id)) |
-        ((models.Message.sender_id == user_id) & (models.Message.receiver_id == current_user.id))
-    ).order_by(models.Message.created_at.asc()).all()
+    msgs = _safe_list_query(
+        lambda: db.query(models.Message).filter(
+            ((models.Message.sender_id == current_user.id) & (models.Message.receiver_id == user_id)) |
+            ((models.Message.sender_id == user_id) & (models.Message.receiver_id == current_user.id))
+        ).order_by(models.Message.created_at.asc()).all(),
+        db,
+        "messages",
+    )
     result = []
     for m in msgs:
-        result.append(schemas.MessageResponse(
-            id=m.id,
-            sender_id=m.sender_id,
-            receiver_id=m.receiver_id,
-            content=m.content,
-            read=m.read,
-            created_at=m.created_at,
-            sender=schemas.UserResponse.model_validate(m.sender) if m.sender else None,
-            receiver=schemas.UserResponse.model_validate(m.receiver) if m.receiver else None,
-        ))
+        try:
+            result.append(schemas.MessageResponse(
+                id=m.id,
+                sender_id=m.sender_id,
+                receiver_id=m.receiver_id,
+                content=m.content,
+                read=m.read,
+                created_at=m.created_at,
+                sender=schemas.UserResponse.model_validate(m.sender) if m.sender else None,
+                receiver=schemas.UserResponse.model_validate(m.receiver) if m.receiver else None,
+            ))
+        except Exception:
+            logger.warning("Could not serialize message %s", getattr(m, "id", "?"), exc_info=True)
     return result
 
 
@@ -1028,10 +1123,20 @@ def story_feed(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    stories = db.query(models.Story).order_by(
-        models.Story.created_at.desc()
-    ).limit(limit).all()
-    return [_story_response(s) for s in stories]
+    stories = _safe_list_query(
+        lambda: db.query(models.Story).order_by(
+            models.Story.created_at.desc()
+        ).limit(limit).all(),
+        db,
+        "stories",
+    )
+    result = []
+    for story in stories:
+        try:
+            result.append(_story_response(story))
+        except Exception:
+            logger.warning("Could not serialize story %s", getattr(story, "id", "?"), exc_info=True)
+    return result
 
 
 @app.post("/api/stories", response_model=schemas.StoryResponse)
@@ -1051,6 +1156,14 @@ def create_story(
     db.commit()
     db.refresh(story)
     return _story_response(story)
+
+
+# --- NOTIFICATIONS ---
+
+@app.get("/api/notifications")
+@app.get("/notifications")
+def list_notifications():
+    return []
 
 
 # --- WEBSOCKET REAL-TIME CHAT ---
@@ -1103,6 +1216,24 @@ def _ws_display_name(token: Optional[str], client_id: str, db: Session) -> str:
     return f"İstifadəçi #{client_id}"
 
 
+HEARTBEAT_INTERVAL = 25.0
+HEARTBEAT_PING = '{"type":"ping"}'
+HEARTBEAT_PONG = '{"type":"pong"}'
+
+
+def _heartbeat_kind(raw: str) -> Optional[str]:
+    text = raw.strip().lower()
+    if text in {"ping", "pong"}:
+        return text
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if isinstance(payload, dict) and payload.get("type") in {"ping", "pong"}:
+        return payload["type"]
+    return None
+
+
 async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: Optional[str] = None):
     from database import SessionLocal
     db = SessionLocal()
@@ -1115,11 +1246,36 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
     await manager.broadcast(room_id, f"{display} söhbətə qoşuldu 🐺")
     try:
         while True:
-            data = await websocket.receive_text()
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=HEARTBEAT_INTERVAL,
+                )
+            except asyncio.TimeoutError:
+                try:
+                    await websocket.send_text(HEARTBEAT_PING)
+                except Exception:
+                    break
+                continue
+
+            kind = _heartbeat_kind(data)
+            if kind == "ping":
+                await websocket.send_text(HEARTBEAT_PONG)
+                continue
+            if kind == "pong":
+                continue
+
             await manager.broadcast(room_id, f"{display}: {data}")
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("WebSocket chat loop failed for room %s", room_id)
+    finally:
         manager.disconnect(websocket, room_id)
-        await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
+        try:
+            await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
+        except Exception:
+            logger.warning("Could not broadcast disconnect for room %s", room_id, exc_info=True)
 
 
 @app.websocket("/api/ws/chat/global/{client_id}")

@@ -37,24 +37,84 @@ export const RoomsView: React.FC = () => {
     socketUrl.search = '';
     if (token) socketUrl.searchParams.set('token', token);
 
-    const socket = new WebSocket(socketUrl.toString());
-    socketRef.current = socket;
+    let disposed = false;
+    let attempt = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let socket: WebSocket | null = null;
 
-    socket.onopen = () => setStatus('open');
-    socket.onmessage = (event) => setMessages((prev) => [...prev, String(event.data)]);
-    socket.onerror = () => {
+    const scheduleReconnect = () => {
+      if (disposed) return;
+      attempt += 1;
+      const backoff = Math.min(30000, 1000 * 2 ** Math.min(attempt, 5));
+      const delay = backoff + Math.floor(Math.random() * 500);
       setStatus('error');
-      setMessages((prev) => [...prev, 'Bağlantı xətası: live server əlçatan deyil.']);
+      setMessages((prev) => [
+        ...prev,
+        `Bağlantı kəsildi. ${Math.max(1, Math.round(delay / 1000))} saniyə sonra yenidən qoşulur...`,
+      ]);
+      reconnectTimer = setTimeout(connect, delay);
     };
-    socket.onclose = () => {
-      if (socketRef.current === socket) setStatus((s) => (s === 'error' ? s : 'error'));
+
+    const connect = () => {
+      if (disposed) return;
+      setStatus('connecting');
+      let current: WebSocket;
+      try {
+        current = new WebSocket(socketUrl.toString());
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      socket = current;
+      socketRef.current = current;
+
+      current.onopen = () => {
+        attempt = 0;
+        setStatus('open');
+      };
+      current.onmessage = (event) => {
+        const raw = String(event.data);
+        try {
+          const payload = JSON.parse(raw);
+          if (payload?.type === 'ping') {
+            if (current.readyState === WebSocket.OPEN) {
+              current.send(JSON.stringify({ type: 'pong' }));
+            }
+            return;
+          }
+          if (payload?.type === 'pong') return;
+        } catch {
+        }
+        setMessages((prev) => [...prev, raw]);
+      };
+      current.onerror = () => {
+        try {
+          current.close();
+        } catch {
+          scheduleReconnect();
+        }
+      };
+      current.onclose = () => {
+        if (socketRef.current === current) socketRef.current = null;
+        if (current === socket) socket = null;
+        scheduleReconnect();
+      };
     };
+
+    connect();
 
     return () => {
-      socket.close();
-      if (socketRef.current === socket) socketRef.current = null;
+      disposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (socket) {
+        socket.onclose = null;
+        socket.onerror = null;
+        socket.close();
+      }
+      socket = null;
+      socketRef.current = null;
     };
-  }, [activeRoom.id, activeRoom.name]);
+  }, [activeRoom]);
 
   const handleSend = () => {
     const text = input.trim();

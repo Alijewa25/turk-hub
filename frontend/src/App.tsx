@@ -11,6 +11,7 @@ import { StoryViewer } from './components/StoryViewer';
 import { PostCard, PostData } from './components/PostCard';
 import { CreatePostModal } from './components/CreatePostModal';
 import { Dictionary } from './components/Dictionary';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ExploreView } from './components/ExploreView';
 import { ProfileView } from './components/ProfileView';
 import { ProjectHub } from './components/ProjectHub';
@@ -482,114 +483,132 @@ export function App() {
           )}
 
           {activeTab === 'explore' && (
-            <ExploreView
-              token={token}
-              onNavigate={(tab, payload) => {
-                if (tab === 'profile' && payload?.viewUserId) {
-                  setProfileViewUserId(payload.viewUserId);
-                }
-                if (tab === 'messages' && payload?.messageUser) {
-                  setMessagesTarget(payload.messageUser);
-                }
-                setActiveTab(tab);
-              }}
-              onViewProfile={(id) => {
-                setProfileViewUserId(id);
-                setActiveTab('profile');
-              }}
-              onOpenMessages={(target) => {
-                setMessagesTarget(target);
-                setActiveTab('messages');
-              }}
-            />
+            <ErrorBoundary title="Kəşf bölməsi yüklənə bilmədi">
+              <ExploreView
+                token={token}
+                onNavigate={(tab, payload) => {
+                  if (tab === 'profile' && payload?.viewUserId) {
+                    setProfileViewUserId(payload.viewUserId);
+                  }
+                  if (tab === 'messages' && payload?.messageUser) {
+                    setMessagesTarget(payload.messageUser);
+                  }
+                  setActiveTab(tab);
+                }}
+                onViewProfile={(id) => {
+                  setProfileViewUserId(id);
+                  setActiveTab('profile');
+                }}
+                onOpenMessages={(target) => {
+                  setMessagesTarget(target);
+                  setActiveTab('messages');
+                }}
+              />
+            </ErrorBoundary>
           )}
 
-          {activeTab === 'rooms' && <RoomsView />}
+          {activeTab === 'rooms' && (
+            <ErrorBoundary title="Canlı otaqlar yüklənə bilmədi">
+              <RoomsView />
+            </ErrorBoundary>
+          )}
 
           {activeTab === 'messages' && (
-            <MessagesView
-              token={token}
-              currentUser={user}
-              initialTarget={messagesTarget}
-              onClose={() => setMessagesTarget(null)}
-            />
+            <ErrorBoundary title="Mesajlar bölməsi yüklənə bilmədi">
+              <MessagesView
+                token={token}
+                currentUser={user}
+                initialTarget={messagesTarget}
+                onClose={() => setMessagesTarget(null)}
+              />
+            </ErrorBoundary>
           )}
 
-          {activeTab === 'dictionary' && <Dictionary />}
+          {activeTab === 'dictionary' && (
+            <ErrorBoundary title="Lüğət bölməsi yüklənə bilmədi">
+              <Dictionary />
+            </ErrorBoundary>
+          )}
 
           {activeTab === 'projects' && (
-            <ProjectHub
-              projects={projects}
-              joinedIds={joinedProjectIds}
-              loading={projectsLoading}
-              error={projectsError}
-              onRetry={() => void loadProjects()}
-              onJoin={toggleProjectJoin}
-              onCreate={handleCreateProject}
-              user={user}
-              onContactFounder={(ownerId) => {
-                setMessagesTarget({ id: ownerId });
-                setActiveTab('messages');
-              }}
-            />
+            <ErrorBoundary title="Layihələr bölməsi yüklənə bilmədi">
+              <ProjectHub
+                projects={projects}
+                joinedIds={joinedProjectIds}
+                loading={projectsLoading}
+                error={projectsError}
+                onRetry={() => void loadProjects()}
+                onJoin={toggleProjectJoin}
+                onCreate={handleCreateProject}
+                user={user}
+                onContactFounder={(ownerId) => {
+                  setMessagesTarget({ id: ownerId });
+                  setActiveTab('messages');
+                }}
+              />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'notifications' && (
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Bell className="w-5 h-5 text-skyBlue" />
-                <h2 className="text-base font-bold text-slate-100">{t('navNotifications')}</h2>
-              </div>
-              <ul className="space-y-2">
-                {NOTIFICATIONS.map((n, i) => {
-                  const Icon = n.icon;
-                  return (
-                    <li
-                      key={i}
-                      className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-3 hover:border-neutral-700 transition-colors cursor-pointer"
-                    >
-                      <span className={`w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center ${n.color}`}>
-                        <Icon className="w-4 h-4" />
-                      </span>
-                      <span className="min-w-0 flex-1 text-xs text-slate-300">{n.text}</span>
-                      <span className="text-[10px] text-slate-600 shrink-0">{n.time}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+            <ErrorBoundary title="Bildirişlər yüklənə bilmədi">
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Bell className="w-5 h-5 text-skyBlue" />
+                  <h2 className="text-base font-bold text-slate-100">{t('navNotifications')}</h2>
+                </div>
+                <ul className="space-y-2">
+                  {NOTIFICATIONS.map((n, i) => {
+                    const Icon = n.icon;
+                    return (
+                      <li
+                        key={i}
+                        className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-3 hover:border-neutral-700 transition-colors cursor-pointer"
+                      >
+                        <span className={`w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center ${n.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        <span className="min-w-0 flex-1 text-xs text-slate-300">{n.text}</span>
+                        <span className="text-[10px] text-slate-600 shrink-0">{n.time}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </ErrorBoundary>
           )}
 
           {activeTab === 'profile' && (
-            <ProfileView
-              user={user}
-              posts={ownPosts}
-              projects={joinedProjects}
-              stats={stats}
-              onLogout={handleLogout}
-              onNavigate={(tab, payload) => {
-                if (payload?.viewUserId) {
-                  setProfileViewUserId(payload.viewUserId);
-                }
-                if (payload?.messageUser) {
-                  setMessagesTarget(payload.messageUser);
+            <ErrorBoundary title="Profil bölməsi yüklənə bilmədi">
+              <ProfileView
+                user={user}
+                posts={ownPosts}
+                projects={joinedProjects}
+                stats={stats}
+                onLogout={handleLogout}
+                onNavigate={(tab, payload) => {
+                  if (payload?.viewUserId) {
+                    setProfileViewUserId(payload.viewUserId);
+                  }
+                  if (payload?.messageUser) {
+                    setMessagesTarget(payload.messageUser);
+                    setActiveTab('messages');
+                    return;
+                  }
+                  setActiveTab(tab);
+                }}
+                viewUserId={profileViewUserId}
+                onClearView={() => setProfileViewUserId(null)}
+                onOpenMessages={(target) => {
+                  setMessagesTarget(target);
                   setActiveTab('messages');
-                  return;
-                }
-                setActiveTab(tab);
-              }}
-              viewUserId={profileViewUserId}
-              onClearView={() => setProfileViewUserId(null)}
-              onOpenMessages={(target) => {
-                setMessagesTarget(target);
-                setActiveTab('messages');
-              }}
-              onUserUpdated={(updatedUser) => {
-                setUser(updatedUser);
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-              }}
-              token={token}
-            />
+                }}
+                onUserUpdated={(updatedUser) => {
+                  setUser(updatedUser);
+                  localStorage.setItem('user', JSON.stringify(updatedUser));
+                }}
+                token={token}
+              />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'home' && (
