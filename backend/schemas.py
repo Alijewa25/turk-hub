@@ -1,5 +1,5 @@
-from pydantic import BaseModel, computed_field
-from typing import Optional, Dict
+from pydantic import BaseModel, computed_field, model_validator
+from typing import Any, Optional, Dict
 from datetime import datetime
 
 
@@ -114,8 +114,47 @@ class PostResponse(BaseModel):
 
 
 class MessageCreate(BaseModel):
-    receiver_id: int
-    content: str
+    receiver_id: Optional[int] = None
+    content: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_field_names(cls, data: Any):
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+
+        receiver = data.get("receiver_id")
+        if receiver in (None, ""):
+            for key in (
+                "recipient_id",
+                "recipientId",
+                "receiverId",
+                "to_user_id",
+                "to",
+                "user_id",
+            ):
+                if data.get(key) not in (None, ""):
+                    receiver = data[key]
+                    break
+        if receiver not in (None, ""):
+            if isinstance(receiver, str):
+                receiver = receiver.strip()
+            try:
+                data["receiver_id"] = int(receiver)
+            except (TypeError, ValueError):
+                data["receiver_id"] = receiver
+
+        content = data.get("content")
+        if content in (None, ""):
+            for key in ("body", "text", "message"):
+                if data.get(key) not in (None, ""):
+                    content = data[key]
+                    break
+        if content is not None:
+            data["content"] = content
+
+        return data
 
 
 class MessageResponse(BaseModel):

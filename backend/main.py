@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, HTTPException, Request, status
+from fastapi import Body, FastAPI, Depends, Query, WebSocket, WebSocketDisconnect, File, UploadFile, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Any, List, Optional
 import os, uuid, logging
 
 from jose import JWTError, jwt
@@ -921,8 +921,19 @@ def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models
 
 
 @app.post("/api/posts/{post_id}/like")
-def like_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+@app.post("/posts/{post_id}/like")
+def like_post(
+    post_id: str,
+    payload: Optional[Any] = Body(default=None),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        numeric_post_id = int(post_id)
+    except (TypeError, ValueError):
+        return {"status": "ok", "persisted": False}
+
+    post = db.query(models.Post).filter(models.Post.id == numeric_post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post tapılmadı")
     post.likes_count = (post.likes_count or 0) + 1
@@ -983,13 +994,15 @@ def get_messages(user_id: int, current_user: models.User = Depends(get_current_u
 @app.post("/api/messages", response_model=schemas.MessageResponse)
 @app.post("/messages", response_model=schemas.MessageResponse)
 def send_message(payload: schemas.MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.receiver_id is None:
+        raise HTTPException(status_code=400, detail="Alıcı ID tələb olunur")
+    if not (payload.content or "").strip():
+        raise HTTPException(status_code=400, detail="Mesaj boş ola bilməz")
     if payload.receiver_id == current_user.id:
         raise HTTPException(status_code=400, detail="Özünüzə mesaj göndərə bilməzsiniz")
     receiver = db.query(models.User).filter(models.User.id == payload.receiver_id).first()
     if not receiver:
         raise HTTPException(status_code=404, detail="Alıcı tapılmadı")
-    if not (payload.content or "").strip():
-        raise HTTPException(status_code=400, detail="Mesaj boş ola bilməz")
     msg = models.Message(sender_id=current_user.id, receiver_id=payload.receiver_id, content=payload.content.strip())
     db.add(msg)
     db.commit()
@@ -1109,17 +1122,6 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
         await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
 
 
-@app.websocket("/api/ws/chat/{room_id}/{client_id}")
-@app.websocket("/ws/chat/{room_id}/{client_id}")
-async def websocket_room_endpoint(
-    websocket: WebSocket,
-    room_id: str,
-    client_id: str,
-    token: Optional[str] = Query(None),
-):
-    await _chat_loop(websocket, room_id, client_id, token)
-
-
 @app.websocket("/api/ws/chat/global/{client_id}")
 @app.websocket("/ws/chat/global/{client_id}")
 async def websocket_global_endpoint(
@@ -1130,20 +1132,27 @@ async def websocket_global_endpoint(
     await _chat_loop(websocket, "global", client_id, token)
 
 
+@app.websocket("/api/ws/chat/{room_id}/{client_id}")
+@app.websocket("/ws/chat/{room_id}/{client_id}")
 @app.websocket("/api/ws/chat/{room_id}")
 @app.websocket("/ws/chat/{room_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
     room_id: str,
+    client_id: str = "guest",
     token: Optional[str] = Query(None),
 ):
     known_rooms = {"az", "tr", "kk", "uz", "tm", "ky", "global"}
-    if room_id in known_rooms:
-        client_id = f"web-{uuid.uuid4().hex[:8]}"
-        target_room = room_id
-    else:
-        client_id = room_id
-        target_room = "global"
+    has_client_path = "client_id" in websocket.path_params
+    target_room = room_id
+
+    if not has_client_path:
+        if room_id in known_rooms:
+            client_id = f"web-{uuid.uuid4().hex[:8]}"
+        else:
+            client_id = room_id or "guest"
+            target_room = "global"
+
     await _chat_loop(websocket, target_room, client_id, token)
 
 

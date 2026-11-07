@@ -27,11 +27,14 @@ export const RoomsView: React.FC = () => {
     const token = localStorage.getItem('token');
     const apiBase = new URL(API_URL, window.location.origin);
     const wsProtocol = apiBase.protocol === 'https:' ? 'wss:' : 'ws:';
-    const basePath = apiBase.pathname.replace(/\/$/, '');
+    const basePath = apiBase.pathname
+      .replace(/\/+$/, '')
+      .replace(/\/(?:api\/)?ws(?:\/chat)?$/i, '');
     const socketUrl = new URL(
       `${basePath}/ws/chat/${encodeURIComponent(activeRoom.id)}/${encodeURIComponent(clientId)}`,
       `${wsProtocol}//${apiBase.host}`
     );
+    socketUrl.search = '';
     if (token) socketUrl.searchParams.set('token', token);
 
     const socket = new WebSocket(socketUrl.toString());
