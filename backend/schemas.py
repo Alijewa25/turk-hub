@@ -185,23 +185,27 @@ class MessageResponse(BaseModel):
         from_attributes = True
 class DictionaryBase(BaseModel):
     root_concept: str
+    proto_root: Optional[str] = None
     az_val: Optional[str] = None
     tr_val: Optional[str] = None
     kk_val: Optional[str] = None
     uz_val: Optional[str] = None
     ky_val: Optional[str] = None
     tm_val: Optional[str] = None
+    ug_val: Optional[str] = None
     etymology_note: Optional[str] = None
 
 
 class DictionaryCreate(BaseModel):
     root_concept: str
+    proto_root: Optional[str] = None
     az_val: Optional[str] = None
     tr_val: Optional[str] = None
     kk_val: Optional[str] = None
     uz_val: Optional[str] = None
     ky_val: Optional[str] = None
     tm_val: Optional[str] = None
+    ug_val: Optional[str] = None
     etymology_note: Optional[str] = None
 
 
@@ -219,6 +223,7 @@ class DictionaryResponse(DictionaryBase):
             "uzb": self.uz_val,
             "kyg": self.ky_val,
             "tkm": self.tm_val,
+            "uig": self.ug_val,
         }
 
     class Config:
