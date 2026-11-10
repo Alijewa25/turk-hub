@@ -119,6 +119,37 @@ export async function translateText(
   }
 }
 
+const translationCache = new Map<string, TranslationResult>();
+
+export async function translateCached(
+  token: string | null,
+  text: string,
+  targetLang: string,
+  sourceLang?: string
+): Promise<TranslationResult> {
+  const clean = (text || '').trim();
+  if (!clean) {
+    return {
+      original_text: text,
+      translated_text: text,
+      source_lang: sourceLang || '',
+      target_lang: targetLang,
+      provider: 'original',
+    };
+  }
+  const cacheKey = `${targetLang}:${sourceLang || 'auto'}:${clean}`;
+  const cached = translationCache.get(cacheKey);
+  if (cached) return cached;
+  const result = await translateText(token, clean, targetLang, sourceLang);
+  if (result?.translated_text?.trim()) translationCache.set(cacheKey, result);
+  return result;
+}
+
+export function translationChanged(result: TranslationResult, original: string): boolean {
+  const translated = (result?.translated_text || '').trim();
+  return Boolean(translated) && translated !== (original || '').trim() && result.source_lang !== result.target_lang;
+}
+
 export interface ProjectDraft {
   title: string;
   description: string;
