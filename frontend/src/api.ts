@@ -1,10 +1,29 @@
 import axios from 'axios';
 
-export const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8000'
-).replace(/\/$/, '');
+const PRODUCTION_API_URL = 'https://turk-hub.onrender.com';
+const LOCAL_API_URL = 'http://localhost:8000';
+const LOCALHOST_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i;
+
+function resolveApiUrl(): string {
+  const configured = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    ''
+  ).trim();
+
+  const pageIsLocal =
+    typeof window !== 'undefined' &&
+    /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+
+  // Never let a localhost API URL leak into a deployed build.
+  if (configured && !(LOCALHOST_PATTERN.test(configured) && !pageIsLocal)) {
+    return configured.replace(/\/$/, '');
+  }
+
+  return import.meta.env.PROD ? PRODUCTION_API_URL : LOCAL_API_URL;
+}
+
+export const API_URL = resolveApiUrl();
 
 /** Resolve relative upload paths against the API host. */
 export function mediaUrl(path?: string | null): string {
