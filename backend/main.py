@@ -34,6 +34,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("turk_hub")
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+
+def ensure_upload_dir() -> None:
+    """Create backend/uploads regardless of the process working directory."""
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 
 def sync_db_schema(engine) -> None:
     """Safely add missing columns to older PostgreSQL deployments."""
@@ -183,6 +191,7 @@ init_db()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    ensure_upload_dir()
     init_db()
     yield
 
@@ -310,8 +319,7 @@ async def catch_all_exception_handler(
     )
 
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+ensure_upload_dir()
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/")
