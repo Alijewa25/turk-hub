@@ -2,16 +2,11 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { ArrowRight, Check, Loader2, MapPin, Sparkles } from 'lucide-react';
 import { countryToLang, UNION_COUNTRIES, useI18n } from '../i18n';
+import { API_URL } from '../api';
 
 interface CountrySelectionProps {
   onContinue: (updatedUser: any) => void;
 }
-
-const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8000'
-).replace(/\/$/, '');
 
 export const CountrySelection: React.FC<CountrySelectionProps> = ({ onContinue }) => {
   const { setLang, t } = useI18n();

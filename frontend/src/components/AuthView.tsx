@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Check, ChevronDown, Chrome, Github, Globe2, Layers, Sparkles, Users, X } from 'lucide-react';
 import { LANG_META, useI18n } from '../i18n';
+import { API_URL } from '../api';
 
 export interface AuthUser {
   id?: number;
@@ -15,12 +16,6 @@ export interface AuthUser {
 interface AuthViewProps {
   onLoginSuccess: (token: string, user: any, isNewUser: boolean) => void;
 }
-
-const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8000'
-).replace(/\/$/, '');
 
 const BRAND_FLAGS = ['🇦🇿', '🇹🇷', '🇰🇿', '🇺🇿', '🇰🇬', '🇹🇲'];
 
