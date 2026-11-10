@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
-import { commentPost, likePost, mediaUrl } from '../api';
-import { flagOf, useI18n } from '../i18n';
+import { commentPost, likePost, mediaUrl, translateText } from '../api';
+import { flagOf, LANG_TARGET, langDisplayName, useI18n } from '../i18n';
 
 export interface PostMedia {
   title?: string;
@@ -25,6 +25,16 @@ export interface PostData {
   comments: number;
 }
 
+interface PostComment {
+  id: string;
+  author: string;
+  text: string;
+  translatedText?: string;
+  sourceLang?: string;
+  showTranslated?: boolean;
+  translating?: boolean;
+}
+
 interface PostCardProps {
   post: PostData;
   onJoin?: () => void;
@@ -34,14 +44,26 @@ interface PostCardProps {
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
   const [likeCount, setLikeCount] = useState(post.likes || 0);
   const [commentCount, setCommentCount] = useState(post.comments || 0);
-  const [comments, setComments] = useState<Array<{ id: string; author: string; text: string }>>([]);
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [translatedBody, setTranslatedBody] = useState('');
+  const [translationSource, setTranslationSource] = useState('');
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState('');
+
+  useEffect(() => {
+    setTranslatedBody('');
+    setTranslationSource('');
+    setShowTranslation(false);
+    setTranslationError('');
+  }, [post.body, lang]);
 
   const pid = postId ?? post.id;
   const flag = flagOf(post.country);
@@ -53,7 +75,55 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       fileHref.toLowerCase().includes('.pdf') ||
       (!post.media?.image && Boolean(post.media?.fileUrl)));
 
-  const currentAuthorName = user?.full_name || user?.username || 'İstifadəçi';
+  const currentAuthorName = user?.full_name || user?.username || t('userGeneric');
+
+  const handleTranslatePost = async () => {
+    if (!post.body) return;
+    if (showTranslation) {
+      setShowTranslation(false);
+      return;
+    }
+    if (translatedBody) {
+      setShowTranslation(true);
+      return;
+    }
+    setTranslating(true);
+    setTranslationError('');
+    try {
+      const result = await translateText(token, post.body, LANG_TARGET[lang]);
+      setTranslatedBody(result.translated_text);
+      setTranslationSource(result.source_lang);
+      setShowTranslation(true);
+    } catch {
+      setTranslationError(t('translationFailed'));
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const handleTranslateComment = async (item: PostComment) => {
+    if (item.showTranslated) {
+      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, showTranslated: false } : c)));
+      return;
+    }
+    if (item.translatedText) {
+      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, showTranslated: true } : c)));
+      return;
+    }
+    setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true } : c)));
+    try {
+      const result = await translateText(token, item.text, LANG_TARGET[lang]);
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === item.id
+            ? { ...c, translatedText: result.translated_text, sourceLang: result.source_lang, showTranslated: true, translating: false }
+            : c
+        )
+      );
+    } catch {
+      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: false } : c)));
+    }
+  };
 
   return (
     <article className="bg-neutral-900/60 border border-neutral-800 rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700">
@@ -69,18 +139,38 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         </div>
         <button
           onClick={() => setSaved((s) => !s)}
-          aria-label="Yadda saxla"
+          aria-label={t('savePost')}
           className={`transition-colors ${saved ? 'text-skyBlue' : 'text-slate-500 hover:text-slate-300'}`}
         >
           <Bookmark className="w-5 h-5" fill={saved ? 'currentColor' : 'none'} />
         </button>
       </div>
 
-      {post.body && <p className="px-3 pb-3 text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{post.body}</p>}
+      {post.body && (
+        <div className="px-3 pb-2">
+          <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+            {showTranslation && translatedBody ? translatedBody : post.body}
+          </p>
+          {showTranslation && translatedBody && (
+            <p className="mt-1 text-[10px] text-skyBlue/80">
+              ({t('translatedFrom').replace('{lang}', langDisplayName(translationSource, lang))})
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleTranslatePost}
+            disabled={translating}
+            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
+          >
+            {translating ? `🌐 ${t('translating')}` : showTranslation ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+          </button>
+          {translationError && <p className="mt-1 text-[10px] text-red-400">{translationError}</p>}
+        </div>
+      )}
 
       {imageSrc && (
         <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-neutral-800">
-          <img src={imageSrc} alt={post.media?.title || 'Post media'} className="w-full max-h-96 object-cover" />
+          <img src={imageSrc} alt={post.media?.title || t('postMedia')} className="w-full max-h-96 object-cover" />
         </div>
       )}
 
@@ -92,7 +182,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           className="mx-3 mb-3 flex items-center gap-2 rounded-xl border border-neutral-800 bg-black/60 px-3 py-2.5 text-xs text-emerald-400 hover:border-emerald-500/40 transition-colors"
         >
           <FileText className="w-4 h-4 shrink-0" />
-          <span className="truncate">{post.media?.fileName || 'PDF sənədi'}</span>
+          <span className="truncate">{post.media?.fileName || t('pdfDocument')}</span>
         </a>
       )}
 
@@ -137,7 +227,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           <MessageCircle className="w-5 h-5" />
           {commentCount}
         </button>
-        <button className="flex items-center gap-1.5 text-xs hover:text-skyBlue transition-colors" aria-label="Paylaş">
+        <button className="flex items-center gap-1.5 text-xs hover:text-skyBlue transition-colors" aria-label={t('sharePost')}>
           <Share2 className="w-5 h-5" />
         </button>
         {onJoin && (
@@ -153,9 +243,27 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       {showComments && (
         <div className="px-3 pb-3 border-t border-neutral-800 pt-3 space-y-2">
           {comments.map((c) => (
-            <p key={c.id} className="text-xs text-slate-400">
-              <span className="text-slate-200 font-semibold">{c.author}:</span> {c.text}
-            </p>
+            <div key={c.id} className="space-y-0.5">
+              <p className="text-xs text-slate-400">
+                <span className="text-slate-200 font-semibold">{c.author}:</span>{' '}
+                {c.showTranslated && c.translatedText ? c.translatedText : c.text}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTranslateComment(c)}
+                  disabled={c.translating}
+                  className="text-[10px] text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
+                >
+                  {c.translating ? `🌐 ${t('translating')}` : c.showTranslated ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+                </button>
+                {c.showTranslated && c.translatedText && (
+                  <span className="text-[9px] text-skyBlue/70">
+                    {t('translatedFrom').replace('{lang}', langDisplayName(c.sourceLang, lang))}
+                  </span>
+                )}
+              </div>
+            </div>
           ))}
           <form
             onSubmit={async (e) => {
