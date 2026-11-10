@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2, MessageCircle, Plus, RefreshCw, Rocket, X } from 'lucide-react';
-import { ProjectDraft, ProjectItem, translateText } from '../api';
+import { ProjectDraft, ProjectItem, translateCached, translationChanged } from '../api';
 import { LANG_TARGET, langDisplayName, useI18n } from '../i18n';
 
 interface ProjectHubProps {
@@ -23,6 +23,8 @@ interface ProjectTranslation {
   show: boolean;
   loading: boolean;
   error: string;
+  targetLang?: string;
+  done?: boolean;
 }
 
 
@@ -80,8 +82,44 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
     }
   };
 
+  useEffect(() => {
+    const target = LANG_TARGET[lang];
+    projects.forEach((project) => {
+      if (!project.description?.trim()) return;
+      const existing = translations[project.id];
+      if (existing?.targetLang === target || existing?.loading) return;
+      setTranslations((prev) => ({
+        ...prev,
+        [project.id]: { text: '', sourceLang: '', show: false, loading: true, error: '', targetLang: target, done: false },
+      }));
+      translateCached(token, project.description, target)
+        .then((result) => {
+          const useful = translationChanged(result, project.description);
+          setTranslations((prev) => ({
+            ...prev,
+            [project.id]: {
+              text: useful ? result.translated_text : '',
+              sourceLang: result.source_lang,
+              show: useful,
+              loading: false,
+              error: '',
+              targetLang: target,
+              done: true,
+            },
+          }));
+        })
+        .catch(() =>
+          setTranslations((prev) => ({
+            ...prev,
+            [project.id]: { text: '', sourceLang: '', show: false, loading: false, error: '', targetLang: target, done: true },
+          }))
+        );
+    });
+  }, [projects, lang, token, translations]);
+
   const handleTranslateProject = async (project: ProjectItem) => {
     const existing = translations[project.id];
+    if (existing?.loading) return;
     if (existing?.show) {
       setTranslations((prev) => ({ ...prev, [project.id]: { ...existing, show: false } }));
       return;
@@ -90,20 +128,29 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
       setTranslations((prev) => ({ ...prev, [project.id]: { ...existing, show: true } }));
       return;
     }
+    const target = LANG_TARGET[lang];
     setTranslations((prev) => ({
       ...prev,
-      [project.id]: { text: '', sourceLang: '', show: false, loading: true, error: '' },
+      [project.id]: { text: '', sourceLang: '', show: false, loading: true, error: '', targetLang: target, done: false },
     }));
     try {
-      const result = await translateText(token, project.description, LANG_TARGET[lang]);
+      const result = await translateCached(token, project.description, target);
       setTranslations((prev) => ({
         ...prev,
-        [project.id]: { text: result.translated_text, sourceLang: result.source_lang, show: true, loading: false, error: '' },
+        [project.id]: {
+          text: result.translated_text,
+          sourceLang: result.source_lang,
+          show: true,
+          loading: false,
+          error: '',
+          targetLang: target,
+          done: true,
+        },
       }));
     } catch {
       setTranslations((prev) => ({
         ...prev,
-        [project.id]: { text: '', sourceLang: '', show: false, loading: false, error: t('translationFailed') },
+        [project.id]: { text: '', sourceLang: '', show: false, loading: false, error: t('translationFailed'), targetLang: target, done: true },
       }));
     }
   };
@@ -141,7 +188,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <Rocket className="w-5 h-5 text-skyBlue" />
-          <h2 className="text-base font-bold text-slate-100">{t('navProjects')} (Project Hub)</h2>
+          <h2 className="text-base font-bold text-slate-100">{t('projectHubTitle')}</h2>
         </div>
         <button
           onClick={() => setOpen(true)}

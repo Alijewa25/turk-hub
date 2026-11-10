@@ -25,13 +25,13 @@ interface DictionaryEntry {
   etymology_note?: string | null;
 }
 
-const DIALECTS: { key: keyof DialectForms; label: string }[] = [
-  { key: 'aze', label: '🇦🇿 Azərbaycan' },
-  { key: 'tur', label: '🇹🇷 Türkiye' },
-  { key: 'kaz', label: '🇰🇿 Qazaxıstan' },
-  { key: 'uzb', label: '🇺🇿 Özbəkistan' },
-  { key: 'kyg', label: '🇰🇬 Qırğızıstan' },
-  { key: 'tkm', label: '🇹🇲 Türkmənistan' },
+const DIALECTS: { key: keyof DialectForms; labelKey: string }[] = [
+  { key: 'aze', labelKey: 'dialectAz' },
+  { key: 'tur', labelKey: 'dialectTr' },
+  { key: 'kaz', labelKey: 'dialectKk' },
+  { key: 'uzb', labelKey: 'dialectUz' },
+  { key: 'kyg', labelKey: 'dialectKy' },
+  { key: 'tkm', labelKey: 'dialectTm' },
 ];
 
 function toDialects(entry: DictionaryEntry): DialectForms {
@@ -138,7 +138,7 @@ export const Dictionary: React.FC = () => {
               const vals = compare.comparison.map((c: any) => c.forms?.[d.key === 'aze' ? 'az' : d.key === 'tur' ? 'tr' : d.key === 'kaz' ? 'kk' : d.key === 'uzb' ? 'uz' : d.key === 'kyg' ? 'ky' : 'tm']).filter(Boolean);
               return (
                 <div key={d.key} className="bg-black/40 border border-neutral-800 rounded-xl p-2.5">
-                  <span className="text-[10px] text-slate-500 block">{d.label}</span>
+                  <span className="text-[10px] text-slate-500 block">{t(d.labelKey)}</span>
                   <span className="text-xs text-slate-200">{vals.slice(0,2).join(' / ') || '—'}</span>
                 </div>
               );
@@ -191,7 +191,7 @@ export const Dictionary: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                   {DIALECTS.map((dialect) => (
                     <div key={dialect.key} className="bg-neutral-950 border border-neutral-800 p-2.5 rounded-xl">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase block">{dialect.label}</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">{t(dialect.labelKey)}</span>
                       <span className="text-xs text-slate-200 font-medium">{dialects[dialect.key] || '—'}</span>
                     </div>
                   ))}
@@ -218,7 +218,7 @@ export const Dictionary: React.FC = () => {
             <input value={form.root_concept} onChange={(e)=>setForm(f=>({...f,root_concept:e.target.value}))} placeholder={t('rootMeaning')} className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-xl text-xs text-slate-100" />
             {DIALECTS.map(d=>{
               const map:any={aze:'az_val',tur:'tr_val',kaz:'kk_val',uzb:'uz_val',kyg:'ky_val',tkm:'tm_val'};
-              return <input key={d.key} value={(form as any)[map[d.key]]} onChange={(e)=>setForm(f=>({...f,[map[d.key]]:e.target.value}))} placeholder={d.label} className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-xl text-xs text-slate-100" />
+              return <input key={d.key} value={(form as any)[map[d.key]]} onChange={(e)=>setForm(f=>({...f,[map[d.key]]:e.target.value}))} placeholder={t(d.labelKey)} className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-xl text-xs text-slate-100" />
             })}
             <textarea value={form.etymology_note} onChange={(e)=>setForm(f=>({...f,etymology_note:e.target.value}))} placeholder={t('etymologyNote')} rows={3} className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-xl text-xs text-slate-100 resize-none" />
             <button

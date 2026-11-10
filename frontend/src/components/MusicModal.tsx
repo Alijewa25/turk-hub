@@ -8,14 +8,14 @@ interface MusicModalProps {
 }
 
 const TRACKS = [
-  { id: 'kopuz', title: 'Kopuz', desc: 'Qədim türk simli aləti - Göktürk musiqisi', freqs: [146.83, 220, 293.66], wave: 'triangle' as OscillatorType },
-  { id: 'dombra', title: 'Dombra', desc: 'Qazax və Qırğız xalq mahnıları', freqs: [196, 293.66, 392], wave: 'triangle' as OscillatorType },
-  { id: 'tar', title: 'Tar', desc: 'Azərbaycan muğam və xalq mahnıları', freqs: [220, 329.63, 440], wave: 'sawtooth' as OscillatorType },
-  { id: 'komuz', title: 'Komuz', desc: 'Qırğız epik mahnıları və küylər', freqs: [164.81, 246.94, 329.63], wave: 'triangle' as OscillatorType },
-  { id: 'dutar', title: 'Dutar', desc: 'Özbək və Türkmən xalq mahnıları', freqs: [174.61, 261.63, 349.23], wave: 'sawtooth' as OscillatorType },
-  { id: 'saz', title: 'Bağlama/Saz', desc: 'Türk Anadolu xalq mahnıları', freqs: [196, 293.66, 440, 523.25], wave: 'triangle' as OscillatorType },
-  { id: 'igil', title: 'İgil', desc: 'Altay-Türk simli aləti', freqs: [130.81, 196, 261.63], wave: 'triangle' as OscillatorType },
-  { id: 'ghijak', title: 'Qobuz/Ghijak', desc: 'Türkmən xalq havaları', freqs: [185, 277, 370], wave: 'sawtooth' as OscillatorType },
+  { id: 'kopuz', title: 'Kopuz', descKey: 'musicKopuzDesc', freqs: [146.83, 220, 293.66], wave: 'triangle' as OscillatorType },
+  { id: 'dombra', title: 'Dombra', descKey: 'musicDombraDesc', freqs: [196, 293.66, 392], wave: 'triangle' as OscillatorType },
+  { id: 'tar', title: 'Tar', descKey: 'musicTarDesc', freqs: [220, 329.63, 440], wave: 'sawtooth' as OscillatorType },
+  { id: 'komuz', title: 'Komuz', descKey: 'musicKomuzDesc', freqs: [164.81, 246.94, 329.63], wave: 'triangle' as OscillatorType },
+  { id: 'dutar', title: 'Dutar', descKey: 'musicDutarDesc', freqs: [174.61, 261.63, 349.23], wave: 'sawtooth' as OscillatorType },
+  { id: 'saz', title: 'Bağlama/Saz', descKey: 'musicSazDesc', freqs: [196, 293.66, 440, 523.25], wave: 'triangle' as OscillatorType },
+  { id: 'igil', title: 'İgil', descKey: 'musicIgilDesc', freqs: [130.81, 196, 261.63], wave: 'triangle' as OscillatorType },
+  { id: 'ghijak', title: 'Qobuz/Ghijak', descKey: 'musicGhijakDesc', freqs: [185, 277, 370], wave: 'sawtooth' as OscillatorType },
 ];
 
 export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
@@ -109,7 +109,7 @@ export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
             >
               <div>
                 <h4 className="text-xs font-bold text-slate-100">{item.title}</h4>
-                <p className="text-[10px] text-slate-400">{item.desc}</p>
+                <p className="text-[10px] text-slate-400">{t(item.descKey)}</p>
               </div>
               <button
                 onClick={() => playEthnicSound(item.id)}

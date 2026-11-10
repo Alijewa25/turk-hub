@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Check, ChevronDown, Chrome, Github, Globe2, Layers, Sparkles, Users, X } from 'lucide-react';
-import { LANG_META, useI18n } from '../i18n';
+import { LANG_META, UNION_COUNTRIES, useI18n } from '../i18n';
 import { API_URL } from '../api';
 
 export interface AuthUser {
@@ -151,7 +151,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
         <div className="relative flex items-center gap-3">
           <img
             src="/logo.jpg"
-            alt="TURK HUB Logo"
+            alt={t('brandLogoAlt')}
             className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
           />
           <div>
@@ -196,7 +196,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               {f}
             </span>
           ))}
-          <span className="ml-2 text-xs text-neutral-500">Azərbaycan • Türkiye • Қазақстан • O'zbekiston • Кыргызстан • Türkmenistan</span>
+          <span className="ml-2 text-xs text-neutral-500">{UNION_COUNTRIES.map((c) => c.name).join(' • ')}</span>
         </div>
       </div>
 
@@ -206,7 +206,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
           <div className="text-center mb-6">
             <img
               src="/logo.jpg"
-              alt="TURK HUB Logo"
+              alt={t('brandLogoAlt')}
               className="md:hidden mx-auto mb-3 w-14 h-14 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
             />
             <h1 className="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-skyBlue via-cyan-300 to-skyBlue-hover bg-clip-text text-transparent">
@@ -282,7 +282,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('labelEmail')}</label>
               <input
                 type="email"
-                placeholder="name@example.com"
+                placeholder={t('emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -294,7 +294,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('labelPassword')}</label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder={t('passwordMask')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -325,7 +325,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 hover:border-skyBlue/50 hover:bg-neutral-800 text-xs font-semibold text-slate-200 transition-all duration-200"
             >
               <Chrome className="w-4 h-4 text-skyBlue" />
-              Google
+              {t('googleLabel')}
             </button>
             <button
               type="button"
@@ -333,7 +333,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 hover:border-skyBlue/50 hover:bg-neutral-800 text-xs font-semibold text-slate-200 transition-all duration-200"
             >
               <Github className="w-4 h-4 text-slate-300" />
-              GitHub
+              {t('githubLabel')}
             </button>
           </div>
 

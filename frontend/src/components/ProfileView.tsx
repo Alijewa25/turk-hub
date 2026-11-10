@@ -168,7 +168,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               {currentAvatar ? (
                 <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
               ) : (
-                profileUser?.full_name?.[0] || 'T'
+                profileUser?.full_name?.[0] || profileUser?.username?.[0] || t('userGeneric')[0]
               )}
             </div>
           </div>
@@ -244,7 +244,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     }}
                     className="px-2 py-1 text-[10px] text-skyBlue"
                   >
-                    DM
+                    {t('dmShort')}
                   </button>
                 </div>
               ))}
@@ -271,7 +271,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-bold">
-                        {editName?.[0] || 'T'}
+                        {editName?.[0] || t('userGeneric')[0]}
                       </div>
                     )}
                   </div>
@@ -287,7 +287,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <input
                 value={editUsername}
                 onChange={(e) => setEditUsername(e.target.value)}
-                placeholder="username"
+                placeholder={t('usernameShort')}
                 className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 focus:outline-none"
               />
               <textarea

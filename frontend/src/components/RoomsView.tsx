@@ -4,18 +4,20 @@ import { API_URL } from '../api';
 import { useI18n } from '../i18n';
 
 const ROOMS = [
-  { id: 'az', name: '🇦🇿 Azərbaycan Türkcəsi', lang: 'Azerbaijan' },
-  { id: 'tr', name: '🇹🇷 Türkiye Türkçesi', lang: 'Turkey' },
-  { id: 'kk', name: '🇰🇿 Қазақ Tілі', lang: 'Kazakhstan' },
-  { id: 'uz', name: '🇺🇿 O‘zbek Tili', lang: 'Uzbekistan' },
-  { id: 'tm', name: '🇹🇲 Türkmençe', lang: 'Turkmenistan' },
-  { id: 'ky', name: '🇰🇬 Кыргызча', lang: 'Kyrgyzstan' },
-  { id: 'global', name: '🌐 Pan-Türk Ümumi Otağı', lang: 'Global' },
+  { id: 'az', nameKey: 'roomAz', lang: 'Azerbaijan' },
+  { id: 'tr', nameKey: 'roomTr', lang: 'Turkey' },
+  { id: 'kk', nameKey: 'roomKk', lang: 'Kazakhstan' },
+  { id: 'uz', nameKey: 'roomUz', lang: 'Uzbekistan' },
+  { id: 'tm', nameKey: 'roomTm', lang: 'Turkmenistan' },
+  { id: 'ky', nameKey: 'roomKy', lang: 'Kyrgyzstan' },
+  { id: 'global', nameKey: 'roomGlobal', lang: 'Global' },
 ];
 
 export const RoomsView: React.FC = () => {
-  const { t } = useI18n();
-  const [activeRoom, setActiveRoom] = useState(ROOMS[0]);
+  const { t, lang } = useI18n();
+  const rooms = ROOMS.map((room) => ({ ...room, name: t(room.nameKey) }));
+  const [activeRoomId, setActiveRoomId] = useState(ROOMS[0].id);
+  const activeRoom = rooms.find((room) => room.id === activeRoomId) || rooms[0];
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState<'connecting' | 'open' | 'error'>('connecting');
@@ -134,7 +136,7 @@ export const RoomsView: React.FC = () => {
       socket = null;
       socketRef.current = null;
     };
-  }, [activeRoom]);
+  }, [activeRoomId, lang]);
 
   const handleSend = () => {
     const text = input.trim();
@@ -150,12 +152,12 @@ export const RoomsView: React.FC = () => {
   return (
     <section className="space-y-4 pb-20">
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {ROOMS.map((room) => (
+        {rooms.map((room) => (
           <button
             key={room.id}
-            onClick={() => setActiveRoom(room)}
+            onClick={() => setActiveRoomId(room.id)}
             className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-              activeRoom.id === room.id
+              activeRoomId === room.id
                 ? 'bg-skyBlue text-black font-bold'
                 : 'bg-neutral-900 border border-neutral-800 text-slate-300 hover:bg-neutral-800'
             }`}

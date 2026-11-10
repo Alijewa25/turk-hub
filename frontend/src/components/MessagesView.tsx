@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Send, User } from 'lucide-react';
-import { API_URL, fetchUserByUsername, fetchUserStats, mediaUrl } from '../api';
-import { useI18n } from '../i18n';
+import { API_URL, fetchUserByUsername, fetchUserStats, mediaUrl, translateCached, translationChanged } from '../api';
+import { LANG_TARGET, langDisplayName, useI18n } from '../i18n';
 
 interface MessagesViewProps {
   token: string | null;
@@ -11,13 +11,16 @@ interface MessagesViewProps {
 }
 
 export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, initialTarget, onClose }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeUser, setActiveUser] = useState<any>(initialTarget || null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
+  const [translations, setTranslations] = useState<
+    Record<number, { text: string; sourceLang: string; show: boolean; loading: boolean; targetLang: string; done: boolean }>
+  >({});
   const pollRef = useRef<number | null>(null);
 
   const fetchConvos = async () => {
@@ -97,6 +100,40 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
     };
   }, [activeUser?.id, token]);
 
+  useEffect(() => {
+    const target = LANG_TARGET[lang];
+    messages.forEach((message) => {
+      if (!message?.content?.trim()) return;
+      const existing = translations[message.id];
+      if (existing?.targetLang === target || existing?.loading) return;
+      setTranslations((prev) => ({
+        ...prev,
+        [message.id]: { text: '', sourceLang: '', show: false, loading: true, targetLang: target, done: false },
+      }));
+      translateCached(token, message.content, target)
+        .then((result) => {
+          const useful = translationChanged(result, message.content);
+          setTranslations((prev) => ({
+            ...prev,
+            [message.id]: {
+              text: useful ? result.translated_text : '',
+              sourceLang: result.source_lang,
+              show: useful,
+              loading: false,
+              targetLang: target,
+              done: true,
+            },
+          }));
+        })
+        .catch(() =>
+          setTranslations((prev) => ({
+            ...prev,
+            [message.id]: { text: '', sourceLang: '', show: false, loading: false, targetLang: target, done: true },
+          }))
+        );
+    });
+  }, [messages, lang, token, translations]);
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
@@ -155,6 +192,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
         <div className="h-[460px] overflow-y-auto rounded-xl border border-neutral-800 bg-black/60 p-3 space-y-2 mb-3">
           {messages.map((m) => {
             const mine = m.sender_id === currentUser?.id;
+            const tr = translations[m.id];
+            const display = tr?.show && tr.text ? tr.text : m.content;
             return (
               <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div
@@ -162,7 +201,28 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
                     mine ? 'bg-skyBlue text-black' : 'bg-neutral-900 text-slate-200 border border-neutral-800'
                   }`}
                 >
-                  {m.content}
+                  <p className="whitespace-pre-wrap break-words">{display}</p>
+                  {tr?.text && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTranslations((prev) => ({
+                          ...prev,
+                          [m.id]: { ...prev[m.id], show: !prev[m.id]?.show },
+                        }))
+                      }
+                      className={`mt-1 block text-[9px] font-medium transition-colors ${
+                        mine ? 'text-black/60 hover:text-black' : 'text-slate-500 hover:text-skyBlue'
+                      }`}
+                    >
+                      {tr.show ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+                    </button>
+                  )}
+                  {tr?.show && tr.text && (
+                    <p className={`mt-0.5 text-[8px] ${mine ? 'text-black/50' : 'text-skyBlue/70'}`}>
+                      {t('translatedFrom').replace('{lang}', langDisplayName(tr.sourceLang, lang))}
+                    </p>
+                  )}
                 </div>
               </div>
             );

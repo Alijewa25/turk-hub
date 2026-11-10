@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
-import { commentPost, likePost, mediaUrl, translateText } from '../api';
+import { commentPost, likePost, mediaUrl, translateCached, translationChanged } from '../api';
 import { flagOf, LANG_TARGET, langDisplayName, useI18n } from '../i18n';
 
 export interface PostMedia {
@@ -33,6 +33,7 @@ interface PostComment {
   sourceLang?: string;
   showTranslated?: boolean;
   translating?: boolean;
+  autoTried?: boolean;
 }
 
 interface PostCardProps {
@@ -63,7 +64,66 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     setTranslationSource('');
     setShowTranslation(false);
     setTranslationError('');
+    setComments((prev) =>
+      prev.map((c) => ({
+        ...c,
+        translatedText: undefined,
+        sourceLang: undefined,
+        showTranslated: false,
+        translating: false,
+        autoTried: false,
+      }))
+    );
   }, [post.body, lang]);
+
+  useEffect(() => {
+    const body = post.body?.trim();
+    if (!body) return;
+    let cancelled = false;
+    setTranslating(true);
+    translateCached(token, body, LANG_TARGET[lang])
+      .then((result) => {
+        if (cancelled || !translationChanged(result, body)) return;
+        setTranslatedBody(result.translated_text);
+        setTranslationSource(result.source_lang);
+        setShowTranslation(true);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setTranslating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [post.body, lang, token]);
+
+  useEffect(() => {
+    const target = LANG_TARGET[lang];
+    comments.forEach((item) => {
+      if (!item.text.trim() || item.autoTried || item.translatedText || item.translating) return;
+      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true, autoTried: true } : c)));
+      translateCached(token, item.text, target)
+        .then((result) => {
+          const useful = translationChanged(result, item.text);
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === item.id
+                ? {
+                    ...c,
+                    translatedText: useful ? result.translated_text : undefined,
+                    sourceLang: result.source_lang,
+                    showTranslated: useful,
+                    translating: false,
+                  }
+                : c
+            )
+          );
+        })
+        .catch(() =>
+          setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: false } : c)))
+        );
+    });
+  }, [comments, lang, token]);
 
   const pid = postId ?? post.id;
   const flag = flagOf(post.country);
@@ -90,7 +150,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     setTranslating(true);
     setTranslationError('');
     try {
-      const result = await translateText(token, post.body, LANG_TARGET[lang]);
+      const result = await translateCached(token, post.body, LANG_TARGET[lang]);
       setTranslatedBody(result.translated_text);
       setTranslationSource(result.source_lang);
       setShowTranslation(true);
@@ -110,9 +170,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, showTranslated: true } : c)));
       return;
     }
-    setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true } : c)));
+    setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true, autoTried: true } : c)));
     try {
-      const result = await translateText(token, item.text, LANG_TARGET[lang]);
+      const result = await translateCached(token, item.text, LANG_TARGET[lang]);
       setComments((prev) =>
         prev.map((c) =>
           c.id === item.id

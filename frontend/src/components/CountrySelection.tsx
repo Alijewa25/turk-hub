@@ -75,7 +75,7 @@ export const CountrySelection: React.FC<CountrySelectionProps> = ({ onContinue }
         <div className="text-center mb-7">
           <img
             src="/logo.jpg"
-            alt="TURK HUB Logo"
+            alt={t('brandLogoAlt')}
             className="mx-auto mb-4 w-16 h-16 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
           />
           <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-skyBlue border border-skyBlue/30 bg-skyBlue/10 rounded-full px-3 py-1.5 mb-4">
