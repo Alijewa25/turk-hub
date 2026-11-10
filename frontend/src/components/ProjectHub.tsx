@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2, MessageCircle, Plus, RefreshCw, Rocket, X } from 'lucide-react';
-import { ProjectDraft, ProjectItem } from '../api';
-import { useI18n } from '../i18n';
+import { ProjectDraft, ProjectItem, translateText } from '../api';
+import { LANG_TARGET, langDisplayName, useI18n } from '../i18n';
 
 interface ProjectHubProps {
   projects: ProjectItem[];
@@ -17,6 +17,13 @@ interface ProjectHubProps {
 
 const EMPTY_DRAFT: ProjectDraft = { title: '', description: '', required_skills: '', target_countries: '', contact_info: '' };
 
+interface ProjectTranslation {
+  text: string;
+  sourceLang: string;
+  show: boolean;
+  loading: boolean;
+  error: string;
+}
 
 
 export const ProjectHub: React.FC<ProjectHubProps> = ({
@@ -30,7 +37,9 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   user,
   onContactFounder,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const token = localStorage.getItem('token');
+  const [translations, setTranslations] = useState<Record<number, ProjectTranslation>>({});
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<ProjectDraft>(EMPTY_DRAFT);
   const [creating, setCreating] = useState(false);
@@ -51,7 +60,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
     try {
       const target = (draft.target_countries || '').split(',').map((s) => s.trim()).filter(Boolean);
       if (target.length < 2) {
-        setFormError('Layihə ən azı 2-3 Türk dövləti üçün nəzərdə tutulmalıdır.');
+        setFormError(t('projectMinCountries'));
         setCreating(false);
         return;
       }
@@ -65,10 +74,63 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
       setOpen(false);
       setDraft(EMPTY_DRAFT);
     } catch (err: any) {
-      setFormError(err?.response?.data?.detail || 'Layihə yaradılarkən xəta baş verdi.');
+      setFormError(err?.response?.data?.detail || t('projectCreateError'));
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleTranslateProject = async (project: ProjectItem) => {
+    const existing = translations[project.id];
+    if (existing?.show) {
+      setTranslations((prev) => ({ ...prev, [project.id]: { ...existing, show: false } }));
+      return;
+    }
+    if (existing?.text) {
+      setTranslations((prev) => ({ ...prev, [project.id]: { ...existing, show: true } }));
+      return;
+    }
+    setTranslations((prev) => ({
+      ...prev,
+      [project.id]: { text: '', sourceLang: '', show: false, loading: true, error: '' },
+    }));
+    try {
+      const result = await translateText(token, project.description, LANG_TARGET[lang]);
+      setTranslations((prev) => ({
+        ...prev,
+        [project.id]: { text: result.translated_text, sourceLang: result.source_lang, show: true, loading: false, error: '' },
+      }));
+    } catch {
+      setTranslations((prev) => ({
+        ...prev,
+        [project.id]: { text: '', sourceLang: '', show: false, loading: false, error: t('translationFailed') },
+      }));
+    }
+  };
+
+  const renderTranslationButton = (project: ProjectItem, stopPropagation = false) => {
+    const item = translations[project.id];
+    return (
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={(event) => {
+            if (stopPropagation) event.stopPropagation();
+            void handleTranslateProject(project);
+          }}
+          disabled={item?.loading}
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
+        >
+          {item?.loading ? `🌐 ${t('translating')}` : item?.show ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+        </button>
+        {item?.show && item.text && (
+          <span className="text-[9px] text-skyBlue/70">
+            {t('translatedFrom').replace('{lang}', langDisplayName(item.sourceLang, lang))}
+          </span>
+        )}
+        {item?.error && <span className="text-[9px] text-red-400">{item.error}</span>}
+      </div>
+    );
   };
 
   const inputClass =
@@ -86,12 +148,12 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold transition-all active:scale-95"
         >
           <Plus className="w-4 h-4" />
-          Yeni Layihə
+          {t('newProject')}
         </button>
       </div>
 
       <p className="mb-4 text-[11px] text-slate-500">
-        {user?.full_name || 'İstifadəçi'}, bacarıqlarına uyğun komanda tap və Pan-Türk layihələrinə qoşul.
+        {t('projectIntro').replace('{name}', user?.full_name || t('userGeneric'))}
       </p>
 
       {error && (
@@ -99,7 +161,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
           <span>{error}</span>
           <button onClick={onRetry} className="inline-flex items-center gap-1 font-semibold hover:underline">
             <RefreshCw className="w-3.5 h-3.5" />
-            Yenilə
+            {t('retry')}
           </button>
         </div>
       )}
@@ -107,11 +169,11 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
       {loading ? (
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 text-center text-xs text-slate-500">
           <Loader2 className="w-4 h-4 mx-auto mb-2 animate-spin text-skyBlue" />
-          Layihələr yüklənir...
+          {t('loadingProjects')}
         </div>
       ) : projects.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-6 text-center text-xs text-slate-500">
-          Hələ layihə yoxdur. İlk Pan-Türk layihəsini yarat.
+          {t('noProjects')}
         </div>
       ) : (
         <div className="space-y-3">
@@ -131,7 +193,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold text-slate-100 truncate">{project.title}</h3>
                     <p className="text-[11px] text-slate-500">
-                      #{project.id} • {joined ? 'Komanda üzvüsən' : 'Komanda axtarır'}
+                      #{project.id} • {joined ? t('teamMember') : t('seekingTeam')}
                     </p>
                   </div>
                   <button
@@ -145,10 +207,15 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                         : 'bg-skyBlue hover:bg-skyBlue-hover text-black'
                     }`}
                   >
-                    {joined ? 'Qoşulub' : 'Qoşul'}
+                    {joined ? t('joined') : t('joinAction')}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-slate-400 leading-relaxed line-clamp-2">{project.description}</p>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed line-clamp-2">
+                  {translations[project.id]?.show && translations[project.id]?.text
+                    ? translations[project.id].text
+                    : project.description}
+                </p>
+                {renderTranslationButton(project, true)}
                 {targets.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {targets.map((c) => (
@@ -187,7 +254,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
             className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-slate-100">Yeni Pan-Türk Layihəsi</h2>
+              <h2 className="text-sm font-bold text-slate-100">{t('newPanTurkProject')}</h2>
               <button type="button" onClick={closeModal} className="text-slate-500 hover:text-slate-200 transition-colors">
                 <X className="w-5 h-5" />
               </button>
@@ -203,7 +270,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
               <input
                 value={draft.title}
                 onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="Layihə adı"
+                placeholder={t('projectName')}
                 required
                 minLength={3}
                 className={inputClass}
@@ -211,7 +278,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
               <textarea
                 value={draft.description}
                 onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Layihə haqqında qısa məlumat"
+                placeholder={t('projectAbout')}
                 rows={4}
                 required
                 minLength={10}
@@ -220,19 +287,19 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
               <input
                 value={draft.required_skills}
                 onChange={(e) => setDraft((prev) => ({ ...prev, required_skills: e.target.value }))}
-                placeholder="Tələb olunan bacarıqlar (React, Python, UI/UX)"
+                placeholder={t('requiredSkillsPlaceholder')}
                 className={inputClass}
               />
               <input
                 value={draft.target_countries}
                 onChange={(e) => setDraft((prev) => ({ ...prev, target_countries: e.target.value }))}
-                placeholder="Hədəf ölkələr (min 2-3, vergüllə ayırın)"
+                placeholder={t('targetCountriesPlaceholder')}
                 className={inputClass}
               />
               <input
                 value={draft.contact_info}
                 onChange={(e) => setDraft((prev) => ({ ...prev, contact_info: e.target.value }))}
-                placeholder="Əlaqə (isteğe bağlı)"
+                placeholder={t('contactOptional')}
                 className={inputClass}
               />
             </div>
@@ -250,7 +317,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                 disabled={creating}
                 className="flex-1 py-2.5 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98]"
               >
-                {creating ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : 'Yarat'}
+                {creating ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : t('create')}
               </button>
             </div>
           </form>
@@ -276,11 +343,16 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
               </button>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Təsvir</p>
-              <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{selected.description}</p>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">{t('projectDescription')}</p>
+              <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                {translations[selected.id]?.show && translations[selected.id]?.text
+                  ? translations[selected.id].text
+                  : selected.description}
+              </p>
+              {renderTranslationButton(selected)}
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Hədəf Türk dövləti</p>
+              <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">{t('targetTurkicStates')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {(selected.target_countries || '').split(',').map((c) => c.trim()).filter(Boolean).map((c) => (
                   <span key={c} className="rounded-full border border-skyBlue/30 bg-skyBlue/10 px-2.5 py-1 text-[10px] text-skyBlue">
@@ -291,7 +363,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
             </div>
             {selected.required_skills && (
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Tələb olunan bacarıqlar</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">{t('requiredSkills')}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {selected.required_skills.split(',').map((skill) => (
                     <span key={skill.trim()} className="rounded-full border border-neutral-800 bg-black/60 px-2.5 py-1 text-[10px] text-slate-400">
@@ -311,14 +383,14 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                   className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-xs font-bold"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  Kontakt - DM göndər
+                  {t('contactDm')}
                 </button>
               )}
               <button
                 onClick={() => onJoin(selected.id)}
                 className="flex-1 py-2.5 rounded-xl border border-neutral-800 text-xs font-semibold text-slate-300 hover:bg-neutral-800"
               >
-                {joinedIds.has(selected.id) ? 'Qoşulub' : 'Komandaya qoşul'}
+                {joinedIds.has(selected.id) ? t('joined') : t('joinAction')}
               </button>
             </div>
           </div>
