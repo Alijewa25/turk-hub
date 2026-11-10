@@ -140,11 +140,36 @@ def sync_db_schema(engine) -> None:
                 add_column("users", name, column_type, unique)
 
 
+def _seed_dictionary_if_empty() -> None:
+    """Populate default Pan-Turkic dictionary data when the table is empty."""
+    from database import SessionLocal
+    from seed import seed_dictionary
+
+    db = SessionLocal()
+    try:
+        if db.query(models.Dictionary).count() > 0:
+            return
+        added = seed_dictionary(db)
+        logger.info("Seeded %s Pan-Turkic dictionary entries", added)
+    except Exception:
+        db.rollback()
+        logger.exception("Automatic dictionary seeding failed")
+    finally:
+        db.close()
+
+
 def init_db() -> bool:
     """Create missing tables, reconcile old PostgreSQL schemas, and verify the DB."""
     try:
         models.Base.metadata.create_all(bind=engine)
+        try:
+            from seed import ensure_schema_columns
+
+            ensure_schema_columns(engine)
+        except Exception:
+            logger.exception("Schema column sync failed")
         sync_db_schema(engine)
+        _seed_dictionary_if_empty()
         logger.info("Database schema verified/created successfully")
         return True
     except Exception:
@@ -319,7 +344,10 @@ def search_dictionary(
             (models.Dictionary.kk_val.ilike(search_pattern)) |
             (models.Dictionary.uz_val.ilike(search_pattern)) |
             (models.Dictionary.ky_val.ilike(search_pattern)) |
-            (models.Dictionary.tm_val.ilike(search_pattern))
+            (models.Dictionary.tm_val.ilike(search_pattern)) |
+            (models.Dictionary.ug_val.ilike(search_pattern)) |
+            (models.Dictionary.proto_root.ilike(search_pattern)) |
+            (models.Dictionary.etymology_note.ilike(search_pattern))
         )
     results = _safe_list_query(lambda: query.all(), db, "dictionary")
     return results
@@ -339,7 +367,10 @@ def dictionary_compare(
             (models.Dictionary.kk_val.ilike(search_pattern)) |
             (models.Dictionary.uz_val.ilike(search_pattern)) |
             (models.Dictionary.ky_val.ilike(search_pattern)) |
-            (models.Dictionary.tm_val.ilike(search_pattern))
+            (models.Dictionary.tm_val.ilike(search_pattern)) |
+            (models.Dictionary.ug_val.ilike(search_pattern)) |
+            (models.Dictionary.proto_root.ilike(search_pattern)) |
+            (models.Dictionary.etymology_note.ilike(search_pattern))
         ).all(),
         db,
         "dictionary compare",
@@ -348,6 +379,7 @@ def dictionary_compare(
     for item in items:
         comparison.append({
             "root": item.root_concept,
+            "proto_root": item.proto_root,
             "forms": {
                 "az": item.az_val,
                 "tr": item.tr_val,
@@ -355,6 +387,7 @@ def dictionary_compare(
                 "uz": item.uz_val,
                 "ky": item.ky_val,
                 "tm": item.tm_val,
+                "ug": item.ug_val,
             },
             "etymology": item.etymology_note,
         })
@@ -370,12 +403,14 @@ def submit_dictionary_entry(
 ):
     db_entry = models.Dictionary(
         root_concept=entry.root_concept,
+        proto_root=entry.proto_root,
         az_val=entry.az_val,
         tr_val=entry.tr_val,
         kk_val=entry.kk_val,
         uz_val=entry.uz_val,
         ky_val=entry.ky_val,
         tm_val=entry.tm_val,
+        ug_val=entry.ug_val,
         etymology_note=entry.etymology_note,
         submitted_by=current_user.id,
         approved=1,
