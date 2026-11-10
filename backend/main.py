@@ -1486,7 +1486,7 @@ def _ws_display_name(token: Optional[str], client_id: str, db: Session) -> str:
     return f"İstifadəçi #{client_id}"
 
 
-HEARTBEAT_INTERVAL = 25.0
+HEARTBEAT_INTERVAL = 15.0
 HEARTBEAT_PING = '{"type":"ping"}'
 HEARTBEAT_PONG = '{"type":"pong"}'
 
@@ -1504,6 +1504,19 @@ def _heartbeat_kind(raw: str) -> Optional[str]:
     return None
 
 
+async def _ws_heartbeat(websocket: WebSocket):
+    """Keep Render/proxy idle connections alive with a ping every 15 seconds."""
+    try:
+        while True:
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+            await websocket.send_text(HEARTBEAT_PING)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        # The receive loop owns disconnection cleanup.
+        return
+
+
 async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: Optional[str] = None):
     from database import SessionLocal
     db = SessionLocal()
@@ -1513,26 +1526,18 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
         db.close()
 
     await manager.connect(websocket, room_id)
+    heartbeat_task = asyncio.create_task(_ws_heartbeat(websocket))
     await manager.broadcast(room_id, f"{display} söhbətə qoşuldu 🐺")
     try:
         while True:
-            try:
-                data = await asyncio.wait_for(
-                    websocket.receive_text(),
-                    timeout=HEARTBEAT_INTERVAL,
-                )
-            except asyncio.TimeoutError:
-                try:
-                    await websocket.send_text(HEARTBEAT_PING)
-                except Exception:
-                    break
-                continue
+            data = await websocket.receive_text()
 
             kind = _heartbeat_kind(data)
             if kind == "ping":
                 await websocket.send_text(HEARTBEAT_PONG)
                 continue
             if kind == "pong":
+                # Client acknowledged our heartbeat; connection stays alive.
                 continue
 
             await manager.broadcast(room_id, f"{display}: {data}")
@@ -1541,6 +1546,11 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
     except Exception:
         logger.exception("WebSocket chat loop failed for room %s", room_id)
     finally:
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except (asyncio.CancelledError, Exception):
+            pass
         manager.disconnect(websocket, room_id)
         try:
             await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")

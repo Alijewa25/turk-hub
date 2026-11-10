@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Globe, Send } from 'lucide-react';
 import { API_URL } from '../api';
+import { useI18n } from '../i18n';
 
 const ROOMS = [
   { id: 'az', name: '🇦🇿 Azərbaycan Türkcəsi', lang: 'Azerbaijan' },
@@ -13,6 +14,7 @@ const ROOMS = [
 ];
 
 export const RoomsView: React.FC = () => {
+  const { t } = useI18n();
   const [activeRoom, setActiveRoom] = useState(ROOMS[0]);
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState('');
@@ -20,7 +22,7 @@ export const RoomsView: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    setMessages([`${activeRoom.name} otağına qoşuldun. Canlı ümumi otaq və dil uyğunluğu üçün istifadə oluna bilər.`]);
+    setMessages([t('chatWelcome').replace('{room}', activeRoom.name)]);
     setStatus('connecting');
 
     const clientId = `web-${Math.random().toString(36).slice(2, 8)}`;
@@ -40,17 +42,27 @@ export const RoomsView: React.FC = () => {
     let disposed = false;
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let clientPingTimer: ReturnType<typeof setInterval> | undefined;
     let socket: WebSocket | null = null;
+    const reconnectDelays = [1000, 3000, 5000, 10000];
+
+    const clearClientPing = () => {
+      if (clientPingTimer) {
+        clearInterval(clientPingTimer);
+        clientPingTimer = undefined;
+      }
+    };
 
     const scheduleReconnect = () => {
       if (disposed) return;
+      clearClientPing();
+      const delay = reconnectDelays[Math.min(attempt, reconnectDelays.length - 1)];
       attempt += 1;
-      const backoff = Math.min(30000, 1000 * 2 ** Math.min(attempt, 5));
-      const delay = backoff + Math.floor(Math.random() * 500);
       setStatus('error');
       setMessages((prev) => [
         ...prev,
-        `Bağlantı kəsildi. ${Math.max(1, Math.round(delay / 1000))} saniyə sonra yenidən qoşulur...`,
+        t('connectionLost'),
+        t('reconnectingIn').replace('{sec}', String(Math.max(1, Math.round(delay / 1000)))),
       ]);
       reconnectTimer = setTimeout(connect, delay);
     };
@@ -71,6 +83,12 @@ export const RoomsView: React.FC = () => {
       current.onopen = () => {
         attempt = 0;
         setStatus('open');
+        clearClientPing();
+        clientPingTimer = setInterval(() => {
+          if (current.readyState === WebSocket.OPEN) {
+            current.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 20000);
       };
       current.onmessage = (event) => {
         const raw = String(event.data);
@@ -95,6 +113,7 @@ export const RoomsView: React.FC = () => {
         }
       };
       current.onclose = () => {
+        clearClientPing();
         if (socketRef.current === current) socketRef.current = null;
         if (current === socket) socket = null;
         scheduleReconnect();
@@ -106,6 +125,7 @@ export const RoomsView: React.FC = () => {
     return () => {
       disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearClientPing();
       if (socket) {
         socket.onclose = null;
         socket.onerror = null;
@@ -120,7 +140,7 @@ export const RoomsView: React.FC = () => {
     const text = input.trim();
     if (!text) return;
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
-      setMessages((prev) => [...prev, 'Mesaj göndərilmədi: bağlantı yoxdur.']);
+      setMessages((prev) => [...prev, t('noConnection')]);
       return;
     }
     socketRef.current.send(text);
@@ -160,7 +180,7 @@ export const RoomsView: React.FC = () => {
                 : 'text-red-400 bg-red-500/10'
             }`}
           >
-            {status === 'open' ? 'Canlı' : status === 'connecting' ? 'Qoşulur...' : 'Offline'}
+            {status === 'open' ? t('live') : status === 'connecting' ? t('connecting') : t('offline')}
           </span>
         </div>
 
@@ -177,7 +197,7 @@ export const RoomsView: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`${activeRoom.name} otağına yazın...`}
+            placeholder={t('chatPlaceholder').replace('{room}', activeRoom.name)}
             className="flex-1 px-3 py-2 bg-black border border-neutral-800 rounded-xl text-xs text-slate-100 focus:outline-none"
           />
           <button
