@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bell, Compass, Menu, Plus } from 'lucide-react';
-import { flagOf } from '../../i18n';
+import { flagOf, useI18n } from '../../i18n';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface TopHeaderProps {
   user?: any;
@@ -10,12 +11,13 @@ interface TopHeaderProps {
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({ user, setActiveTab, onCreatePost, onOpenMenu }) => {
+  const { t } = useI18n();
   return (
     <header className="md:hidden sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-neutral-900 bg-black/90 px-3 py-3 backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-2">
         <button
           onClick={onOpenMenu}
-          aria-label="Menyunu aç"
+          aria-label={t('openMenu')}
           className="rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-neutral-900 hover:text-skyBlue"
         >
           <Menu className="h-6 w-6" />
@@ -32,16 +34,17 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ user, setActiveTab, onCrea
       </div>
 
       <div className="flex shrink-0 items-center gap-3 text-slate-300">
-        <button onClick={() => setActiveTab('explore')} className="transition-colors hover:text-skyBlue" aria-label="Kəşf Et">
+        <LanguageSwitcher compact />
+        <button onClick={() => setActiveTab('explore')} className="transition-colors hover:text-skyBlue" aria-label={t('navExplore')}>
           <Compass className="h-5 w-5" />
         </button>
-        <button onClick={onCreatePost} className="transition-colors hover:text-skyBlue" aria-label="Yeni Paylaşım">
+        <button onClick={onCreatePost} className="transition-colors hover:text-skyBlue" aria-label={t('newPost')}>
           <Plus className="h-5 w-5" />
         </button>
         <button
           onClick={() => setActiveTab('notifications')}
           className="relative transition-colors hover:text-skyBlue"
-          aria-label="Bildirişlər"
+          aria-label={t('navNotifications')}
         >
           <Bell className="h-5 w-5" />
           <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-skyBlue px-1 text-[10px] font-bold text-black">

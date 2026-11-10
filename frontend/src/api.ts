@@ -65,6 +65,41 @@ export interface ProjectItem {
   created_at?: string | null;
 }
 
+export interface TranslationResult {
+  original_text: string;
+  translated_text: string;
+  source_lang: string;
+  target_lang: string;
+  provider: string;
+}
+
+export async function translateText(
+  token: string | null,
+  text: string,
+  targetLang: string,
+  sourceLang?: string
+): Promise<TranslationResult> {
+  try {
+    const res = await axios.post(
+      `${API_URL}/api/translate`,
+      { text, target_lang: targetLang, source_lang: sourceLang },
+      { headers: headers(token) }
+    );
+    return res.data as TranslationResult;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      logApiFailure('translateText', err);
+      throw friendlyError(err, 'Tərcümə alınmadı.');
+    }
+    const res = await axios.post(
+      `${API_URL}/translate`,
+      { text, target_lang: targetLang, source_lang: sourceLang },
+      { headers: headers(token) }
+    );
+    return res.data as TranslationResult;
+  }
+}
+
 export interface ProjectDraft {
   title: string;
   description: string;

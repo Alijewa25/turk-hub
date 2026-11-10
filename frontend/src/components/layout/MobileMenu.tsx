@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { flagOf, useI18n } from '../../i18n';
 import { ThemeToggle } from '../ThemeToggle';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface MobileMenuProps {
   open: boolean;
@@ -76,7 +77,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Mobil naviqasiya"
+        aria-label={t('mobileNavigation')}
         className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-neutral-800 bg-black shadow-2xl transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -90,7 +91,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
           </button>
           <button
             onClick={onClose}
-            aria-label="Menyunu bağla"
+            aria-label={t('closeMenu')}
             className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-neutral-900 hover:text-slate-100"
           >
             <X className="h-5 w-5" />
@@ -137,6 +138,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             {t('newPost')}
           </button>
 
+          <LanguageSwitcher placement="up" />
           <ThemeToggle />
 
           <div
@@ -152,7 +154,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-semibold text-slate-100">
-                {user?.full_name || 'İstifadəçi'}
+                {user?.full_name || t('userGeneric')}
               </span>
               <span className="block truncate text-[10px] text-slate-500">
                 @{user?.username || user?.id || 'turkhub'}

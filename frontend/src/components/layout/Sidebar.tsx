@@ -3,6 +3,7 @@ import { Bell, BookOpen, Compass, Home, LogOut, Mail, MessageCircle, Plus, Rocke
 import { fetchSuggestions } from '../../api';
 import { flagOf, useI18n } from '../../i18n';
 import { ThemeToggle } from '../ThemeToggle';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface SidebarProps {
   activeTab: string;
@@ -23,8 +24,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
   const navItems = [
     { id: 'home', label: t('navHome'), icon: Home },
     { id: 'explore', label: t('navExplore'), icon: Compass },
-    { id: 'rooms', label: 'Otaqlar / Canlı Chat', icon: MessageCircle },
-    { id: 'messages', label: 'Mesajlar', icon: Mail },
+    { id: 'rooms', label: t('navRooms'), icon: MessageCircle },
+    { id: 'messages', label: t('navMessages'), icon: Mail },
     { id: 'projects', label: t('navProjects'), icon: Rocket },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },
     { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: 3 },
@@ -55,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
               }
             }}
             onBlur={() => setTimeout(() => setShow(false), 200)}
-            placeholder="İstifadəçi axtar (ad/username)"
+            placeholder={t('searchUsers')}
             className="flex-1 bg-transparent text-xs text-slate-100 placeholder-neutral-600 focus:outline-none"
           />
         </div>
@@ -118,6 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
       </button>
 
       <div className="mt-auto pt-4 space-y-2 border-t border-neutral-900">
+        <LanguageSwitcher placement="up" />
         <ThemeToggle />
         <div
           className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-neutral-900/70 transition-colors cursor-pointer"
@@ -131,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
             )}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold text-slate-100 truncate">{user?.full_name || 'İstifadəçi'}</span>
+            <span className="block text-xs font-semibold text-slate-100 truncate">{user?.full_name || t('userGeneric')}</span>
             <span className="block text-[10px] text-slate-500 truncate">@{user?.username || user?.id || 'turkhub'}</span>
           </span>
           <button
