@@ -23,7 +23,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ user, setActiveTab, onCrea
           <Menu className="h-6 w-6" />
         </button>
         <button onClick={() => setActiveTab('home')} className="flex min-w-0 items-center gap-2">
-          <img src="/logo.jpg" alt="TURK HUB Logo" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+          <img src="/logo.jpg" alt={t('brandLogoAlt')} className="h-8 w-8 shrink-0 rounded-full object-cover" />
           <span className="hidden bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-sm font-black tracking-widest text-transparent sm:inline">
             TURK HUB
           </span>

@@ -19,7 +19,7 @@ export const ThemeToggle: React.FC = () => {
       {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       <span>{nextLabel}</span>
       <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-500">
-        {theme === 'dark' ? 'Dark' : 'Light'}
+        {theme === 'dark' ? t('darkTheme') : t('lightTheme')}
       </span>
     </button>
   );

@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
   return (
     <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col border-r border-neutral-900 bg-black px-3 py-5">
       <button onClick={() => setActiveTab('home')} className="flex items-center gap-2.5 px-3 mb-7 text-left">
-        <img src="/logo.jpg" alt="TURK HUB Logo" className="w-9 h-9 rounded-full object-cover" />
+        <img src="/logo.jpg" alt={t('brandLogoAlt')} className="w-9 h-9 rounded-full object-cover" />
         <span className="text-base font-black tracking-widest bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-transparent">
           TURK HUB
         </span>
