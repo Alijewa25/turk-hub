@@ -113,6 +113,20 @@ class PostResponse(BaseModel):
         from_attributes = True
 
 
+class TranslationRequest(BaseModel):
+    text: str
+    target_lang: str
+    source_lang: Optional[str] = None
+
+
+class TranslationResponse(BaseModel):
+    original_text: str
+    translated_text: str
+    source_lang: str
+    target_lang: str
+    provider: str
+
+
 class MessageCreate(BaseModel):
     receiver_id: Optional[int] = None
     content: Optional[str] = None
