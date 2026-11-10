@@ -15,8 +15,8 @@ interface RightPanelProps {
   setActiveTab: (tab: string) => void;
 }
 
-const FOOTER_LINKS = ['Haqqımızda', 'Yardım', 'Şərtlər', 'Məxfilik', 'Dil: AZ'];
-const TRENDING = ['Etimoloji Lüğət v2', 'Hackathon 2026', 'Startap Akcelerator'];
+const FOOTER_LINK_KEYS = ['aboutUs', 'help', 'terms', 'privacy'];
+const TRENDING_KEYS = ['trendingDictionary', 'trendingHackathon', 'trendingStartup'];
 
 export const RightPanel: React.FC<RightPanelProps> = ({
   user,
@@ -39,13 +39,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             {flagOf(user?.country)}
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-100 truncate">{user?.full_name || 'İstifadəçi'}</p>
+            <p className="text-sm font-semibold text-slate-100 truncate">{user?.full_name || t('userGeneric')}</p>
             <p className="text-xs text-slate-500 truncate">{user?.email || 'turkhub.az'}</p>
           </div>
         </div>
         <p className="mt-3 text-xs text-slate-400 leading-relaxed">
           {user?.country || 'Azerbaijan'} • {user?.university || t('memberRole')} —{' '}
-          <span className="text-skyBlue font-medium">{user?.bio || 'Türk Youth Hub Innovatoru'}</span>
+          <span className="text-skyBlue font-medium">{user?.bio || t('innovatorBio')}</span>
         </p>
         <button
           onClick={() => setActiveTab('profile')}
@@ -72,7 +72,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold text-slate-100 truncate">{u.full_name}</span>
                 <span className="block text-[10px] text-slate-500">
-                  {u.country} • {u.followers_count} izləyici
+                  {u.country} • {u.followers_count} {t('followersSuffix')}
                 </span>
               </span>
               <button
@@ -90,7 +90,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           ))}
           {suggestions.length === 0 && (
             <li className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-3 text-[11px] text-slate-500">
-              API-dan istifadəçilər yüklənir...
+              {t('loadingUsers')}
             </li>
           )}
         </ul>
@@ -115,7 +115,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-semibold text-slate-100 truncate">{project.title}</span>
                   <span className="block text-[10px] text-slate-500 truncate">
-                    {project.required_skills || 'Açıq komanda'}
+                    {project.required_skills || t('openTeam')}
                   </span>
                 </span>
                 <button
@@ -126,14 +126,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                       : 'text-black bg-skyBlue hover:bg-skyBlue-hover'
                   }`}
                 >
-                  {joined ? 'Qoşulub' : 'Qoşul'}
+                  {joined ? t('joined') : t('joinAction')}
                 </button>
               </li>
             );
           })}
           {projects.length === 0 && (
             <li className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-3 text-[11px] text-slate-500">
-              Layihələr yüklənir...
+              {t('loadingProjectsRight')}
             </li>
           )}
         </ul>
@@ -145,13 +145,13 @@ export const RightPanel: React.FC<RightPanelProps> = ({
           <span className="text-xs font-bold uppercase tracking-wider">{t('trendingNow')}</span>
         </div>
         <ul className="mt-3 space-y-2">
-          {TRENDING.map((item, i) => (
-            <li key={i}>
+          {TRENDING_KEYS.map((key) => (
+            <li key={key}>
               <button
                 onClick={() => setActiveTab('explore')}
                 className="group flex w-full items-center justify-between text-xs text-slate-300 hover:text-skyBlue transition-colors"
               >
-                <span className="truncate">{item}</span>
+                <span className="truncate">{t(key)}</span>
                 <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             </li>
@@ -161,9 +161,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 
       <footer className="mt-8 text-[10px] leading-relaxed text-neutral-600">
         <p className="flex flex-wrap gap-x-2 gap-y-1">
-          {FOOTER_LINKS.map((l, i) => (
-            <span key={i} className="hover:text-slate-400 cursor-pointer transition-colors">
-              {l}
+          {FOOTER_LINK_KEYS.map((key) => (
+            <span key={key} className="hover:text-slate-400 cursor-pointer transition-colors">
+              {t(key)}
             </span>
           ))}
         </p>

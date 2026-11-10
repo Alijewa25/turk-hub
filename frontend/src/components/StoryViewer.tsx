@@ -79,7 +79,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, index, onClos
               <p className="text-sm font-semibold text-slate-100 truncate">{story.user.full_name}</p>
               <p className="text-[10px] text-slate-500">{story.user.country} • {t('storyOf')}</p>
             </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label="Bağla">
+            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label={t('close')}>
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -104,7 +104,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, index, onClos
             }}
             disabled={index === 0}
             className="p-2 rounded-full bg-neutral-900 border border-neutral-800 text-slate-300 hover:text-skyBlue disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Əvvəlki"
+            aria-label={t('previous')}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -117,7 +117,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ stories, index, onClos
               next();
             }}
             className="p-2 rounded-full bg-neutral-900 border border-neutral-800 text-slate-300 hover:text-skyBlue transition-colors"
-            aria-label="Növbəti"
+            aria-label={t('next')}
           >
             <ChevronRight className="w-5 h-5" />
           </button>

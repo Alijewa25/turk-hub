@@ -21,7 +21,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
 
   const upload = async (file: File) => {
     if (!token) {
-      setError('Giriş tələb olunur.');
+      setError(t('loginRequired'));
       return;
     }
     setUploading(true);
@@ -46,7 +46,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
 
       if (!res.ok) {
         const detail = await res.json().catch(() => null);
-        throw new Error(detail?.detail || 'Yükləmə uğursuz oldu.');
+        throw new Error(detail?.detail || t('uploadFailed'));
       }
 
       const data = await res.json();
@@ -61,7 +61,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
         file_name: data.filename || file.name,
       });
     } catch (err: any) {
-      setError(err?.message || 'Yükləmə xətası.');
+      setError(err?.message || t('uploadError'));
       setMedia(null);
     } finally {
       setUploading(false);
@@ -85,7 +85,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-slate-100">{isStory ? t('myStory') : t('newPost')}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors" aria-label="Bağla">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors" aria-label={t('close')}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -102,7 +102,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
         <div className="mt-3 flex items-center gap-2 text-slate-500 flex-wrap">
           <label className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-skyBlue transition-colors cursor-pointer">
             <Image className="w-4 h-4" />
-            Şəkil/PDF
+            {t('imagePdf')}
             <input
               type="file"
               accept="image/*,.pdf"
@@ -143,7 +143,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ open, mode, on
                 setBody('');
                 setMedia(null);
               } catch (err: any) {
-                setError(err?.message || 'Paylaşım uğursuz oldu.');
+                setError(err?.message || t('publishFailed'));
               } finally {
                 setPublishing(false);
               }

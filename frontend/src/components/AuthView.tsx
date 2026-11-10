@@ -110,11 +110,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
-        setError(t('loginError') || 'E-poçt və ya şifrə yanlışdır.');
+        setError(t('loginInvalid'));
       } else if (err.response?.status === 400) {
-        setError(err.response?.data?.detail || 'Qeydiyyat xətası.');
+        setError(err.response?.data?.detail || t('registerError'));
       } else {
-        setError(err.response?.data?.detail || 'Giriş zamanı xəta baş verdi.');
+        setError(err.response?.data?.detail || t('genericAuthError'));
       }
     } finally {
       setLoading(false);
@@ -271,10 +271,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">İstifadəçi adı (@username)</label>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('usernameLabel')}</label>
                   <input
                     type="text"
-                    placeholder="örn: turk_user (unikal)"
+                    placeholder={t('usernamePlaceholder')}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className={inputClass}

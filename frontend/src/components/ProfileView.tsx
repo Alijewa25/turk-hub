@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Edit3, MessageCircle, X } from 'lucide-react';
-import { flagOf } from '../i18n';
+import { flagOf, useI18n } from '../i18n';
 import { API_URL, fetchUserPosts, fetchUserStats, mediaUrl, uploadAvatar } from '../api';
 
 interface ProfileViewProps {
@@ -31,6 +31,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenMessages,
   onUserUpdated,
 }) => {
+  const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
   const [profileUser, setProfileUser] = useState<any>(user);
   const [userPosts, setUserPosts] = useState<any[]>(posts);
@@ -156,7 +157,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           onClick={handleBack}
           className="flex items-center gap-2 text-xs text-sky-400 hover:underline mb-2"
         >
-          <ArrowLeft className="w-4 h-4" /> Geri dön
+          <ArrowLeft className="w-4 h-4" /> {t('back')}
         </button>
       )}
 
@@ -173,9 +174,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-slate-100">{profileUser?.full_name || 'İstifadəçi'}</h2>
+            <h2 className="text-xl font-bold text-slate-100">{profileUser?.full_name || t('userGeneric')}</h2>
             <p className="text-xs text-slate-400">@{profileUser?.username}</p>
-            <p className="text-xs text-slate-300 mt-2">{profileUser?.bio || 'Hələ bio əlavə edilməyib.'}</p>
+            <p className="text-xs text-slate-300 mt-2">{profileUser?.bio || t('noBio')}</p>
           </div>
 
           {isSelf ? (
@@ -189,7 +190,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <button
                 onClick={onLogout}
                 className="p-2 text-red-400 hover:text-red-300 bg-neutral-800 rounded-lg"
-                title="Çıxış"
+                title={t('logoutTitle')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -207,16 +208,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
-              Mesaj Göndər
+              {t('sendMessage')}
             </button>
           )}
         </div>
 
         <div className="flex gap-6 mt-6 pt-4 border-t border-neutral-800 text-xs text-slate-400">
-          <div><span className="font-bold text-slate-100">{userPosts.length}</span> post</div>
-          <div><span className="font-bold text-slate-100">{projects.length}</span> layihə</div>
-          <div><span className="font-bold text-slate-100">{stats.followers}</span> izləyici</div>
-          <div><span className="font-bold text-slate-100">{stats.following}</span> izlənilən</div>
+          <div><span className="font-bold text-slate-100">{userPosts.length}</span> {t('postsLabel')}</div>
+          <div><span className="font-bold text-slate-100">{projects.length}</span> {t('projectsLabel')}</div>
+          <div><span className="font-bold text-slate-100">{stats.followers}</span> {t('followersLabel')}</div>
+          <div><span className="font-bold text-slate-100">{stats.following}</span> {t('followingLabel')}</div>
         </div>
       </div>
 
@@ -224,7 +225,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" onClick={() => setShowFollowList(null)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-4 max-h-[60vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-100">{showFollowList === 'followers' ? 'İzləyicilər' : 'İzlənilənlər'}</h3>
+              <h3 className="text-sm font-bold text-slate-100">{showFollowList === 'followers' ? t('followersList') : t('followingList')}</h3>
               <button onClick={() => setShowFollowList(null)} className="text-slate-500">×</button>
             </div>
             <div className="space-y-2">
@@ -247,7 +248,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </button>
                 </div>
               ))}
-              {followList.length === 0 && <p className="text-xs text-slate-500">Boş</p>}
+              {followList.length === 0 && <p className="text-xs text-slate-500">{t('empty')}</p>}
             </div>
           </div>
         </div>
@@ -259,11 +260,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <button onClick={() => setIsEditing(false)} className="absolute top-4 right-4 text-slate-400">
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-sm font-bold text-slate-100">Profili Redaktə Et</h3>
+            <h3 className="text-sm font-bold text-slate-100">{t('editProfile')}</h3>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Profil Şəkli Yüklə</label>
+                <label className="text-[10px] text-slate-400 block mb-1">{t('profilePictureUpload')}</label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700">
                     {currentAvatar ? (
@@ -280,7 +281,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                placeholder="Ad Soyad"
+                placeholder={t('fullName')}
                 className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 focus:outline-none"
               />
               <input
@@ -293,7 +294,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 value={editBio}
                 onChange={(e) => setEditBio(e.target.value)}
                 rows={3}
-                placeholder="Bio"
+                placeholder={t('bio')}
                 className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 resize-none focus:outline-none"
               />
             </div>
@@ -302,7 +303,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               disabled={uploading}
               className="w-full py-2 rounded-lg bg-sky-500 text-black text-xs font-bold hover:opacity-90"
             >
-              {uploading ? 'Yüklənir...' : 'Yadda saxla'}
+              {uploading ? t('saving') : t('save')}
             </button>
           </div>
         </div>

@@ -71,18 +71,18 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Kəşf et: İstifadəçi adı, ad soyad..."
+            placeholder={t('explorePlaceholder')}
             className="flex-1 bg-transparent text-sm text-slate-100 placeholder-neutral-500 focus:outline-none"
           />
         </div>
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Tövsiyə Edilən Şəxslər</h2>
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">{t('suggestionsPeople')}</h2>
         {loading ? (
-          <div className="text-center py-8 text-xs text-slate-500">{t('loading') || 'Axtarılır...'}</div>
+          <div className="text-center py-8 text-xs text-slate-500">{t('searching')}</div>
         ) : users.length === 0 ? (
-          <div className="text-center py-8 text-xs text-slate-500">İstifadəçi tapılmadı.</div>
+          <div className="text-center py-8 text-xs text-slate-500">{t('noUsersFound')}</div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {users.map((u) => (
@@ -114,7 +114,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   <button
                     onClick={() => handleMessageClick(u)}
                     className="p-2 rounded-xl border border-neutral-800 bg-black/60 text-slate-400 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
-                    title={t('sendMessage') || 'Mesaj Göndər'}
+                    title={t('sendMessage')}
                   >
                     <MessageCircle className="w-4 h-4" />
                   </button>
@@ -128,11 +128,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   >
                     {u.is_following ? (
                       <>
-                        <UserCheck className="w-3.5 h-3.5" /> {t('following') || 'İzlənilir'}
+                        <UserCheck className="w-3.5 h-3.5" /> {t('following')}
                       </>
                     ) : (
                       <>
-                        <UserPlus className="w-3.5 h-3.5" /> {t('follow') || 'İzlə'}
+                        <UserPlus className="w-3.5 h-3.5" /> {t('follow')}
                       </>
                     )}
                   </button>

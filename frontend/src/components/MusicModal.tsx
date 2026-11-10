@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Music, Play, Square, X } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface MusicModalProps {
   open: boolean;
@@ -18,6 +19,7 @@ const TRACKS = [
 ];
 
 export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
+  const { t } = useI18n();
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -92,9 +94,9 @@ export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
         <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
           <div className="flex items-center gap-2">
             <Music className="w-5 h-5 text-skyBlue" />
-            <h3 className="text-sm font-bold text-slate-100">Pan-Türk Ethno-Music Kitabxanası</h3>
+            <h3 className="text-sm font-bold text-slate-100">{t('musicLibrary')}</h3>
           </div>
-          <button onClick={handleClose} aria-label="Bağla">
+          <button onClick={handleClose} aria-label={t('close')}>
             <X className="w-4 h-4 text-slate-400" />
           </button>
         </div>
@@ -112,7 +114,7 @@ export const MusicModal: React.FC<MusicModalProps> = ({ open, onClose }) => {
               <button
                 onClick={() => playEthnicSound(item.id)}
                 className="w-9 h-9 rounded-full bg-skyBlue text-black flex items-center justify-center font-bold hover:scale-105 transition-transform"
-                aria-label={playingId === item.id ? 'Dayandır' : 'Oxut'}
+                aria-label={playingId === item.id ? t('stop') : t('play')}
               >
                 {playingId === item.id ? (
                   <Square className="w-4 h-4 fill-current" />

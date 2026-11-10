@@ -36,7 +36,7 @@ import {
   timeAgo,
   unfollowUser,
 } from './api';
-import { flagOf, useI18n } from './i18n';
+import { flagOf, translateStatic, useI18n } from './i18n';
 import { Bell, BookOpen, Heart, MessageCircle, Sparkles, Users } from 'lucide-react';
 
 const INITIAL_POSTS: PostData[] = [
@@ -102,11 +102,11 @@ const INITIAL_POSTS: PostData[] = [
 ];
 
 const NOTIFICATIONS = [
-  { icon: Heart, text: 'Emre Yıldız paylaşmağını bəyəndi', time: '12 dəq', color: 'text-red-500' },
-  { icon: MessageCircle, text: 'Aigerim Nurlan şərh yazdı: "Əla layihədir!"', time: '1 səat', color: 'text-skyBlue' },
-  { icon: Users, text: 'Layihənə 3 yeni üzv qoşuldu', time: '3 səat', color: 'text-emerald-400' },
-  { icon: Bell, text: 'Hackathon 2026 üçün qeydiyyat açıldı', time: 'dünən', color: 'text-amber-400' },
-  { icon: BookOpen, text: 'Lüğətə 42 yeni söz əlavə olundu', time: '2 gün', color: 'text-violet-400' },
+  { icon: Heart, textKey: 'notifLiked', timeKey: 'time12m', color: 'text-red-500' },
+  { icon: MessageCircle, textKey: 'notifCommented', timeKey: 'time1h', color: 'text-skyBlue' },
+  { icon: Users, textKey: 'notifJoined', timeKey: 'time3h', color: 'text-emerald-400' },
+  { icon: Bell, textKey: 'notifHackathon', timeKey: 'timeYesterday', color: 'text-amber-400' },
+  { icon: BookOpen, textKey: 'notifDictionary', timeKey: 'time2d', color: 'text-violet-400' },
 ];
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -132,9 +132,9 @@ function mapApiPost(p: ApiPost): PostData {
   return {
     id: String(p.id),
     authorId: p.user_id,
-    author: p.author?.full_name || 'İstifadəçi',
+    author: p.author?.full_name || translateStatic('userGeneric'),
     country: p.author?.country || '',
-    role: p.author?.university || 'Tələbə',
+    role: p.author?.university || translateStatic('studentRole'),
     time: timeAgo(p.created_at) || '',
     body: p.body || '',
     media: hasMedia
@@ -249,7 +249,7 @@ export function App() {
     try {
       setProjects(await fetchProjects(token));
     } catch {
-      setProjectsError('Layihələr yüklənə bilmədi. Backend bağlantısını yoxla.');
+      setProjectsError(translateStatic('projectsLoadFailed'));
     } finally {
       setProjectsLoading(false);
     }
@@ -345,7 +345,7 @@ export function App() {
 
     if (!res.ok) {
       const detail = await res.json().catch(() => null);
-      throw new Error(detail?.detail || 'Post yaradıla bilmədi.');
+      throw new Error(detail?.detail || translateStatic('postCreateFailed'));
     }
 
     const created: ApiPost = await res.json();
@@ -474,7 +474,7 @@ export function App() {
                 onAddStory={() => openCreate('story')}
               />
               {!storiesLoaded && (
-                <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">Hekayələr yüklənir...</div>
+                <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">{t('loading')}</div>
               )}
               {displayFeed.map((post) => (
                 <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} token={token} postId={post.id} />
@@ -483,7 +483,7 @@ export function App() {
           )}
 
           {activeTab === 'explore' && (
-            <ErrorBoundary title="Kəşf bölməsi yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navExplore'))}>
               <ExploreView
                 token={token}
                 onNavigate={(tab, payload) => {
@@ -508,13 +508,13 @@ export function App() {
           )}
 
           {activeTab === 'rooms' && (
-            <ErrorBoundary title="Canlı otaqlar yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navRooms'))}>
               <RoomsView />
             </ErrorBoundary>
           )}
 
           {activeTab === 'messages' && (
-            <ErrorBoundary title="Mesajlar bölməsi yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navMessages'))}>
               <MessagesView
                 token={token}
                 currentUser={user}
@@ -525,13 +525,13 @@ export function App() {
           )}
 
           {activeTab === 'dictionary' && (
-            <ErrorBoundary title="Lüğət bölməsi yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navDictionary'))}>
               <Dictionary />
             </ErrorBoundary>
           )}
 
           {activeTab === 'projects' && (
-            <ErrorBoundary title="Layihələr bölməsi yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navProjects'))}>
               <ProjectHub
                 projects={projects}
                 joinedIds={joinedProjectIds}
@@ -550,7 +550,7 @@ export function App() {
           )}
 
           {activeTab === 'notifications' && (
-            <ErrorBoundary title="Bildirişlər yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navNotifications'))}>
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <Bell className="w-5 h-5 text-skyBlue" />
@@ -567,8 +567,8 @@ export function App() {
                         <span className={`w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center ${n.color}`}>
                           <Icon className="w-4 h-4" />
                         </span>
-                        <span className="min-w-0 flex-1 text-xs text-slate-300">{n.text}</span>
-                        <span className="text-[10px] text-slate-600 shrink-0">{n.time}</span>
+                        <span className="min-w-0 flex-1 text-xs text-slate-300">{t(n.textKey)}</span>
+                        <span className="text-[10px] text-slate-600 shrink-0">{t(n.timeKey)}</span>
                       </li>
                     );
                   })}
@@ -578,7 +578,7 @@ export function App() {
           )}
 
           {activeTab === 'profile' && (
-            <ErrorBoundary title="Profil bölməsi yüklənə bilmədi">
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', t('navProfile'))}>
               <ProfileView
                 user={user}
                 posts={ownPosts}

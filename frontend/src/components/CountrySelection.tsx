@@ -56,7 +56,7 @@ export const CountrySelection: React.FC<CountrySelectionProps> = ({ onContinue }
         setSaved(true);
         setTimeout(() => onContinue(updatedUser), 350);
       } catch (e: any) {
-        setError(e?.response?.data?.detail || 'Ölkə yenilənərkən xəta baş verdi. Yenidən cəhd edin.');
+        setError(e?.response?.data?.detail || t('countryUpdateError'));
       }
     } finally {
       setSaving(false);

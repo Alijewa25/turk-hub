@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Send, User } from 'lucide-react';
 import { API_URL, fetchUserByUsername, fetchUserStats, mediaUrl } from '../api';
+import { useI18n } from '../i18n';
 
 interface MessagesViewProps {
   token: string | null;
@@ -10,6 +11,7 @@ interface MessagesViewProps {
 }
 
 export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, initialTarget, onClose }) => {
+  const { t } = useI18n();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeUser, setActiveUser] = useState<any>(initialTarget || null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -109,13 +111,13 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
       });
       if (!res.ok) {
         const detail = await res.json().catch(() => null);
-        throw new Error(detail?.detail || 'Mesaj göndərilmədi.');
+        throw new Error(detail?.detail || t('messageSendFailed'));
       }
       setInput('');
       await fetchMessages(activeUser.id);
       await fetchConvos();
     } catch (err: any) {
-      setError(err?.message || 'Mesaj göndərilmədi.');
+      setError(err?.message || t('messageSendFailed'));
     } finally {
       setSending(false);
     }
@@ -171,7 +173,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Mesaj yaz..."
+            placeholder={t('messagePlaceholder')}
             className="flex-1 px-3 py-2 bg-black border border-neutral-800 rounded-xl text-xs text-slate-100"
           />
           <button
@@ -188,10 +190,10 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
 
   return (
     <section className="max-w-[620px] mx-auto">
-      <h2 className="text-base font-bold text-slate-100 mb-4">Mesajlar (DM)</h2>
+      <h2 className="text-base font-bold text-slate-100 mb-4">{t('messagesTitle')}</h2>
       <div className="space-y-2">
         {conversations.length === 0 && (
-          <p className="text-xs text-slate-500">Hələ söhbət yoxdur. Profil səhifəsindən mesaj göndərə bilərsiniz.</p>
+          <p className="text-xs text-slate-500">{t('noConversations')}</p>
         )}
         {conversations.map((u) => (
           <button
