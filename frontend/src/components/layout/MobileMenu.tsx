@@ -87,7 +87,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
         <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-4">
           <button onClick={() => navigate('home')} className="flex items-center gap-2.5 text-left">
             <img src="/logo.jpg" alt={t('brandLogoAlt')} className="h-9 w-9 rounded-full object-cover" />
-            <span className="font-heading bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-xl font-extrabold leading-none tracking-[-0.03em] text-transparent">
+            <span className="font-heading bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-xl font-extrabold leading-none tracking-tight text-transparent">
               TURK HUB
             </span>
           </button>
