@@ -24,14 +24,22 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+export const API_BASE_URL = API_URL;
+
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  if (url.startsWith('/')) {
+    return `${API_BASE_URL.replace(/\/api\/?$/, '')}${url}`;
+  }
+  return `${API_BASE_URL.replace(/\/api\/?$/, '')}/${url}`;
+}
 
 /** Resolve relative upload paths against the API host. */
 export function mediaUrl(path?: string | null): string {
-  if (!path) return '';
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
-    return path;
-  }
-  return `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  return resolveMediaUrl(path) || '';
 }
 
 export interface StoryAuthor {
@@ -43,6 +51,7 @@ export interface StoryAuthor {
   university?: string | null;
   bio?: string | null;
   profile_picture?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface ApiPost {
