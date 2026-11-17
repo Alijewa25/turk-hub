@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
 import { commentPost, likePost, mediaUrl, translateCached, translationChanged } from '../api';
-import { flagOf, LANG_TARGET, langDisplayName, useI18n } from '../i18n';
+import { flagOf, LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
 
 export interface PostMedia {
   title?: string;
@@ -25,6 +25,7 @@ export interface PostData {
   comments: number;
   is_liked?: boolean | null;
   liked_by_me?: boolean | null;
+  sourceLang?: string | null;
 }
 
 interface PostComment {
@@ -85,27 +86,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   }, [post.body, lang]);
 
   useEffect(() => {
-    const body = post.body?.trim();
-    if (!body) return;
-    let cancelled = false;
-    setTranslating(true);
-    translateCached(token, body, LANG_TARGET[lang], undefined, `post:${post.id}`)
-      .then((result) => {
-        if (cancelled || !translationChanged(result, body)) return;
-        setTranslatedBody(result.translated_text);
-        setTranslationSource(result.source_lang);
-        setShowTranslation(true);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setTranslating(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [post.body, lang, token]);
-
-  useEffect(() => {
     const target = LANG_TARGET[lang];
     comments.forEach((item) => {
       if (!item.text.trim() || item.autoTried || item.translatedText || item.translating) return;
@@ -144,9 +124,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       (!post.media?.image && Boolean(post.media?.fileUrl)));
 
   const currentAuthorName = user?.full_name || user?.username || t('userGeneric');
+  const sourceLang = post.sourceLang?.toLowerCase() || '';
+  const targetLang = LANG_TARGET[lang];
+  const normalizedTargetLang = targetLang === 'tk' ? 'tm' : targetLang;
+  const canTranslate = Boolean(post.body?.trim()) && sourceLang !== normalizedTargetLang;
 
   const handleTranslatePost = async () => {
-    if (!post.body) return;
+    if (!post.body || !canTranslate) return;
     if (showTranslation) {
       setShowTranslation(false);
       return;
@@ -202,7 +186,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         <div className="min-w-0 flex-1">
           <h3 className="text-xs font-semibold text-slate-100 truncate">{post.author}</h3>
           <p className="text-[10px] text-slate-500">
-            {post.country} • {post.role} • {post.time}
+            {localizedCountryName(post.country, lang)} • {localizedRole(post.role, lang, t('studentRole'))} • {post.time}
           </p>
         </div>
         <button
@@ -224,14 +208,16 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
               ({t('translatedFrom').replace('{lang}', langDisplayName(translationSource, lang))})
             </p>
           )}
-          <button
-            type="button"
-            onClick={handleTranslatePost}
-            disabled={translating}
-            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
-          >
-            {translating ? `🌐 ${t('translating')}` : showTranslation ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
-          </button>
+          {canTranslate && (
+            <button
+              type="button"
+              onClick={handleTranslatePost}
+              disabled={translating}
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
+            >
+              {translating ? `🌐 ${t('translating')}` : showTranslation ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+            </button>
+          )}
           {translationError && <p className="mt-1 text-[10px] text-red-400">{translationError}</p>}
         </div>
       )}
