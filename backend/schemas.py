@@ -238,6 +238,10 @@ class NotificationResponse(BaseModel):
     entity_type: Optional[str] = None
     entity_id: Optional[int] = None
     content: Optional[str] = None
+    actor_name: Optional[str] = None
+    actor_avatar: Optional[str] = None
+    post_id: Optional[int] = None
+    message: Optional[str] = None
     is_read: int = 0
     created_at: Optional[datetime] = None
     actor: Optional[UserResponse] = None
