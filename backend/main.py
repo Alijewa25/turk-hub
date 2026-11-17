@@ -627,6 +627,122 @@ def _safe_first_query(operation, db: Session, label: str):
         return None
 
 
+# --- REAL-TIME NOTIFICATIONS MANAGER & HELPERS ---
+
+class UserNotificationManager:
+    def __init__(self):
+        self.connections: dict[int, List[WebSocket]] = {}
+
+    async def connect(self, user_id: int, websocket: WebSocket):
+        await websocket.accept()
+        self.connections.setdefault(user_id, []).append(websocket)
+
+    def disconnect(self, user_id: int, websocket: WebSocket):
+        conns = self.connections.get(user_id)
+        if not conns:
+            return
+        try:
+            conns.remove(websocket)
+        except ValueError:
+            pass
+        if not conns:
+            self.connections.pop(user_id, None)
+
+    async def send_notification(self, user_id: int, payload: dict):
+        conns = list(self.connections.get(user_id, []))
+        if not conns:
+            return
+        message = json.dumps(payload, default=str)
+        dead = []
+        for ws in conns:
+            try:
+                await ws.send_text(message)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(user_id, ws)
+
+user_notification_manager = UserNotificationManager()
+
+
+def push_user_notification(user_id: int, payload: dict) -> None:
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(user_notification_manager.send_notification(user_id, payload))
+    except RuntimeError:
+        try:
+            asyncio.run(user_notification_manager.send_notification(user_id, payload))
+        except Exception:
+            logger.debug("Could not push WS notification to user %s", user_id)
+    except Exception:
+        logger.debug("Could not push WS notification to user %s", user_id)
+
+
+def _serialize_notification(n: models.Notification, actor: Optional[models.User] = None) -> dict:
+    actor_data = None
+    if actor:
+        actor_data = {
+            "id": actor.id,
+            "full_name": actor.full_name,
+            "username": actor.username,
+            "email": actor.email,
+            "country": actor.country,
+            "university": actor.university,
+            "bio": actor.bio,
+            "profile_picture": actor.profile_picture,
+        }
+    return {
+        "id": n.id,
+        "user_id": n.user_id,
+        "actor_id": n.actor_id,
+        "actor": actor_data,
+        "type": n.type,
+        "entity_type": n.entity_type,
+        "entity_id": n.entity_id,
+        "content": n.content,
+        "is_read": bool(n.is_read),
+        "created_at": n.created_at.isoformat() if n.created_at else None,
+    }
+
+
+def create_notification(
+    db: Session,
+    user_id: int,
+    actor_id: Optional[int],
+    notif_type: str,
+    entity_type: Optional[str] = None,
+    entity_id: Optional[int] = None,
+    content: Optional[str] = None,
+) -> Optional[models.Notification]:
+    if actor_id and user_id == actor_id:
+        return None
+    try:
+        notif = models.Notification(
+            user_id=user_id,
+            actor_id=actor_id,
+            type=notif_type,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            content=content,
+            is_read=0,
+        )
+        db.add(notif)
+        db.commit()
+        db.refresh(notif)
+
+        actor = db.query(models.User).filter(models.User.id == actor_id).first() if actor_id else None
+        event = {
+            "type": "notification",
+            "notification": _serialize_notification(notif, actor),
+        }
+        push_user_notification(user_id, event)
+        return notif
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to create notification for user %s", user_id)
+        return None
+
+
 # --- PROJECT HUB ENDPOINTS ---
 
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
@@ -657,6 +773,83 @@ def create_project(
     db.commit()
     db.refresh(db_project)
     return db_project
+
+
+@app.post("/api/projects/{project_id}/join")
+@app.post("/projects/{project_id}/join")
+def join_project(
+    project_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Layihə tapılmadı")
+
+    if project.owner_id == current_user.id:
+        return {"status": "ok", "message": "Layihənin sahibisiniz", "joined": True}
+
+    existing = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == current_user.id,
+    ).first()
+
+    if existing:
+        return {"status": "ok", "message": "Artıq müraciət etmisiniz", "status_code": existing.status, "joined": True}
+
+    member = models.ProjectMember(project_id=project.id, user_id=current_user.id, status="pending")
+    db.add(member)
+    db.commit()
+
+    if project.owner_id and project.owner_id != current_user.id:
+        create_notification(
+            db=db,
+            user_id=project.owner_id,
+            actor_id=current_user.id,
+            notif_type="project_join",
+            entity_type="project",
+            entity_id=project.id,
+            content=project.title,
+        )
+
+    return {"status": "ok", "message": "Müraciət göndərildi", "joined": True}
+
+
+@app.post("/api/projects/{project_id}/accept/{applicant_id}")
+@app.post("/projects/{project_id}/accept/{applicant_id}")
+def accept_project_member(
+    project_id: int,
+    applicant_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Layihə tapılmadı")
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Yalnız layihə sahibi qəbul edə bilər")
+
+    member = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == applicant_id,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Müraciət tapılmadı")
+
+    member.status = "accepted"
+    db.commit()
+
+    create_notification(
+        db=db,
+        user_id=applicant_id,
+        actor_id=current_user.id,
+        notif_type="project_accept",
+        entity_type="project",
+        entity_id=project.id,
+        content=project.title,
+    )
+
+    return {"status": "ok", "message": "Müraciət qəbul edildi"}
 
 # --- USER PROFILE & AVATAR ENDPOINTS ---
 
@@ -910,6 +1103,15 @@ def follow_user(
     if not existing:
         db.add(models.Follow(follower_id=current_user.id, followed_id=user_id))
         db.commit()
+        create_notification(
+            db=db,
+            user_id=user_id,
+            actor_id=current_user.id,
+            notif_type="follow",
+            entity_type="user",
+            entity_id=current_user.id,
+            content=current_user.full_name or current_user.username or "",
+        )
 
     return _follow_status(current_user.id, user_id, db)
 
@@ -1049,9 +1251,22 @@ def like_post(
         raise HTTPException(status_code=404, detail="Post tapılmadı")
     post.likes_count = (post.likes_count or 0) + 1
     db.commit()
+
+    if post.user_id and post.user_id != current_user.id:
+        create_notification(
+            db=db,
+            user_id=post.user_id,
+            actor_id=current_user.id,
+            notif_type="like",
+            entity_type="post",
+            entity_id=post.id,
+            content=(post.body or "")[:80],
+        )
+
     return {"status": "ok", "likes_count": post.likes_count}
 
 @app.post("/api/posts/{post_id}/comment")
+@app.post("/posts/{post_id}/comment")
 def comment_post(post_id: int, payload: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
@@ -1059,8 +1274,23 @@ def comment_post(post_id: int, payload: dict, current_user: models.User = Depend
     text = payload.get("text", "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Rəy boş ola bilməz")
+
+    comment = models.Comment(post_id=post.id, user_id=current_user.id, body=text)
+    db.add(comment)
     post.comments_count = (post.comments_count or 0) + 1
     db.commit()
+
+    if post.user_id and post.user_id != current_user.id:
+        create_notification(
+            db=db,
+            user_id=post.user_id,
+            actor_id=current_user.id,
+            notif_type="comment",
+            entity_type="post",
+            entity_id=post.id,
+            content=text[:100],
+        )
+
     return {"status": "ok", "comments_count": post.comments_count}
 
 
@@ -1146,6 +1376,16 @@ def send_message(payload: schemas.MessageCreate, current_user: models.User = Dep
     db.add(msg)
     db.commit()
     db.refresh(msg)
+
+    create_notification(
+        db=db,
+        user_id=payload.receiver_id,
+        actor_id=current_user.id,
+        notif_type="message",
+        entity_type="message",
+        entity_id=msg.id,
+        content=msg.content[:100],
+    )
     return schemas.MessageResponse(
         id=msg.id,
         sender_id=msg.sender_id,
@@ -1206,13 +1446,108 @@ def create_story(
 
 @app.get("/api/notifications")
 @app.get("/notifications")
-def list_notifications():
-    return []
+def list_notifications(
+    unread_only: bool = False,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        q = db.query(models.Notification).filter(models.Notification.user_id == current_user.id)
+        if unread_only:
+            q = q.filter(models.Notification.is_read == 0)
+        items = q.order_by(models.Notification.created_at.desc()).limit(limit).all()
+
+        unread_count = db.query(models.Notification).filter(
+            models.Notification.user_id == current_user.id,
+            models.Notification.is_read == 0,
+        ).count()
+
+        serialized = [_serialize_notification(n, n.actor) for n in items]
+        return {
+            "unread_count": unread_count,
+            "notifications": serialized,
+            "items": serialized,
+        }
+    except Exception:
+        logger.exception("Failed to fetch notifications for user %s", getattr(current_user, "id", "?"))
+        return {
+            "unread_count": 0,
+            "notifications": [],
+            "items": [],
+        }
+
+
+@app.patch("/api/notifications/read")
+@app.post("/api/notifications/read")
+@app.patch("/notifications/read")
+@app.post("/notifications/read")
+@app.post("/api/notifications/mark-all-read")
+@app.post("/notifications/mark-all-read")
+def mark_notifications_read(
+    payload: Optional[dict] = Body(default=None),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    payload = payload or {}
+    notif_id = payload.get("id") or payload.get("notification_id")
+    ids = payload.get("ids")
+
+    if notif_id is not None:
+        try:
+            nid = int(notif_id)
+            db.query(models.Notification).filter(
+                models.Notification.user_id == current_user.id,
+                models.Notification.id == nid,
+            ).update({"is_read": 1})
+        except (ValueError, TypeError):
+            pass
+    elif ids and isinstance(ids, list):
+        clean_ids = [int(i) for i in ids if isinstance(i, (int, str)) and str(i).isdigit()]
+        if clean_ids:
+            db.query(models.Notification).filter(
+                models.Notification.user_id == current_user.id,
+                models.Notification.id.in_(clean_ids),
+            ).update({"is_read": 1}, synchronize_session=False)
+    else:
+        # Mark all as read
+        db.query(models.Notification).filter(
+            models.Notification.user_id == current_user.id,
+            models.Notification.is_read == 0,
+        ).update({"is_read": 1}, synchronize_session=False)
+
+    db.commit()
+    unread_count = db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id,
+        models.Notification.is_read == 0,
+    ).count()
+    return {"status": "ok", "unread_count": unread_count}
+
+
+@app.patch("/api/notifications/{notification_id}/read")
+@app.post("/api/notifications/{notification_id}/read")
+@app.patch("/notifications/{notification_id}/read")
+@app.post("/notifications/{notification_id}/read")
+def mark_single_notification_read(
+    notification_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id,
+        models.Notification.id == notification_id,
+    ).update({"is_read": 1})
+    db.commit()
+    unread_count = db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id,
+        models.Notification.is_read == 0,
+    ).count()
+    return {"status": "ok", "unread_count": unread_count}
 
 
 # --- AI TRANSLATION ---
 
-SUPPORTED_TRANSLATION_LANGS = {"az", "tr", "kk", "uz", "tm", "ky", "en"}
+SUPPORTED_TRANSLATION_LANGS = {"az", "tr", "kk", "uz", "tm", "ky", "ug", "en"}
 
 TRANSLATION_LANG_ALIASES = {
     "az": "az",
@@ -1241,6 +1576,10 @@ TRANSLATION_LANG_ALIASES = {
     "kyg": "ky",
     "kyrgyz": "ky",
     "kirgiz": "ky",
+    "ug": "ug",
+    "uig": "ug",
+    "uyghur": "ug",
+    "uygur": "ug",
     "en": "en",
     "eng": "en",
     "english": "en",
@@ -1327,6 +1666,8 @@ def _detect_translation_lang(raw: str) -> str:
         scores["tm"] += 2
     if any(ch in text for ch in "ʻ‘ʼ"):
         scores["uz"] += 1
+    if any(ch in text for ch in "ئابتجخدروزسشغفقكگڭلمنھوىېي"):
+        scores["ug"] += 4
     if re.search(r"\b(the|and|is|are|you|we|this|that|with|for|from|have)\b", text):
         scores["en"] += 2
 
@@ -1633,6 +1974,66 @@ async def websocket_endpoint(
             target_room = "global"
 
     await _chat_loop(websocket, target_room, client_id, token)
+
+
+@app.websocket("/api/ws/notifications")
+@app.websocket("/ws/notifications")
+@app.websocket("/api/ws/notifications/{user_id}")
+@app.websocket("/ws/notifications/{user_id}")
+async def websocket_notifications_endpoint(
+    websocket: WebSocket,
+    user_id: Optional[str] = None,
+    token: Optional[str] = Query(None),
+):
+    resolved_user_id: Optional[int] = None
+    if token:
+        try:
+            token_payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = token_payload.get("sub")
+            if email:
+                from database import SessionLocal
+                db = SessionLocal()
+                try:
+                    user = db.query(models.User).filter(models.User.email == email).first()
+                    if user:
+                        resolved_user_id = user.id
+                finally:
+                    db.close()
+        except JWTError:
+            pass
+
+    if resolved_user_id is None and user_id:
+        try:
+            resolved_user_id = int(user_id)
+        except (ValueError, TypeError):
+            pass
+
+    if resolved_user_id is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    await user_notification_manager.connect(resolved_user_id, websocket)
+    heartbeat_task = asyncio.create_task(_ws_heartbeat(websocket))
+    try:
+        while True:
+            data = await websocket.receive_text()
+            kind = _heartbeat_kind(data)
+            if kind == "ping":
+                await websocket.send_text(HEARTBEAT_PONG)
+                continue
+            if kind == "pong":
+                continue
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("WebSocket notifications error for user %s", resolved_user_id)
+    finally:
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        user_notification_manager.disconnect(resolved_user_id, websocket)
 
 
 # --- HELPERS ---
