@@ -2210,6 +2210,7 @@ def _follow_info(
 ) -> schemas.UserFollowInfo:
     followers_count = db.query(models.Follow).filter(models.Follow.followed_id == user.id).count()
     following_count = db.query(models.Follow).filter(models.Follow.follower_id == user.id).count()
+    posts_count = db.query(models.Post).filter(models.Post.user_id == user.id).count()
     is_following = db.query(models.Follow).filter(
         models.Follow.follower_id == current_user.id,
         models.Follow.followed_id == user.id,
@@ -2222,11 +2223,13 @@ def _follow_info(
         username=user.username,
         country=user.country,
         university=user.university,
+        role=user.university,
         bio=user.bio,
         profile_picture=avatar,
         avatar_url=avatar,
         followers_count=followers_count,
         following_count=following_count,
+        posts_count=posts_count,
         is_following=is_following,
     )
 
