@@ -4,6 +4,9 @@ import { resolveMediaUrl } from '../api';
 interface UserAvatarProps {
   name?: string | null;
   avatarUrl?: string | null;
+  src?: string | null;
+  country?: string | null;
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
   alt?: string;
 }
@@ -17,18 +20,21 @@ function initials(name?: string | null): string {
 export const UserAvatar: React.FC<UserAvatarProps> = ({
   name,
   avatarUrl,
-  className = 'w-9 h-9',
+  src,
+  size,
+  className,
   alt = '',
 }) => {
-  const resolvedSrc = resolveMediaUrl(avatarUrl);
+  const resolvedSrc = resolveMediaUrl(avatarUrl ?? src);
   const [imgError, setImgError] = useState(false);
+  const sizeClass = size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-20 h-20' : 'w-12 h-12';
 
   useEffect(() => {
     setImgError(false);
   }, [resolvedSrc]);
 
   return (
-    <span className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-skyBlue to-cyan-300 font-bold text-black ${className}`}>
+    <span className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-skyBlue to-cyan-300 font-bold text-black ${sizeClass} ${className || ''}`}>
       {resolvedSrc && !imgError ? (
         <img
           src={resolvedSrc}

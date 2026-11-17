@@ -95,6 +95,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   useEffect(() => {
+    setActiveProfileTab('posts');
+    setSavedPosts([]);
+  }, [targetUserId]);
+
+  useEffect(() => {
     let cancelled = false;
     const targetId = targetUserId || user?.id;
 
