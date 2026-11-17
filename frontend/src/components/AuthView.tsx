@@ -155,7 +155,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
             className="w-12 h-12 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
           />
           <div>
-            <p className="font-heading text-3xl sm:text-4xl font-extrabold tracking-[-0.03em] text-slate-100 leading-none">TURK HUB</p>
+            <p className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-100 leading-none">TURK HUB</p>
             <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-[0.25em]">{t('emblemTag')}</p>
           </div>
         </div>
@@ -209,7 +209,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               alt={t('brandLogoAlt')}
               className="md:hidden mx-auto mb-3 w-14 h-14 rounded-2xl object-cover shadow-lg shadow-skyBlue/20 ring-1 ring-skyBlue/40"
             />
-            <h1 className="font-heading text-3xl sm:text-4xl font-extrabold leading-none tracking-[-0.03em] bg-gradient-to-r from-skyBlue via-cyan-300 to-skyBlue-hover bg-clip-text text-transparent">
+            <h1 className="font-heading text-3xl sm:text-4xl font-extrabold leading-none tracking-tight bg-gradient-to-r from-skyBlue via-cyan-300 to-skyBlue-hover bg-clip-text text-transparent">
               TURK HUB
             </h1>
             <p className="text-xs text-slate-400 mt-1">{t('tagline')}</p>
