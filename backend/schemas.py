@@ -62,8 +62,10 @@ class UserUpdate(BaseModel):
     metadata: Optional[dict] = None
 
 class UserFollowInfo(UserResponse):
+    role: Optional[str] = None
     followers_count: int = 0
     following_count: int = 0
+    posts_count: int = 0
     is_following: bool = False
 
 class FollowStatus(BaseModel):
