@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Edit3, MessageCircle, X } from 'lucide-react';
 import { flagOf, useI18n } from '../i18n';
 import { API_URL, fetchUserPosts, fetchUserStats, mediaUrl, uploadAvatar } from '../api';
+import { PostCard } from './PostCard';
 
 interface ProfileViewProps {
   user: any;
@@ -49,6 +50,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   useEffect(() => {
     let cancelled = false;
+    const targetId = viewUserId || user?.id;
+
+    if (targetId) {
+      fetchUserPosts(targetId, currentToken || null)
+        .then((data) => {
+          if (!cancelled) setUserPosts(data);
+        })
+        .catch(() => {
+          if (!cancelled) setUserPosts([]);
+        });
+    }
 
     if (!isSelf && viewUserId) {
       setProfileUser(null);
@@ -65,16 +77,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           if (!cancelled) setProfileUser(null);
         });
 
-      fetchUserPosts(viewUserId, currentToken || null)
-        .then((data) => {
-          if (!cancelled) setUserPosts(data);
-        })
-        .catch(() => {
-          if (!cancelled) setUserPosts([]);
-        });
     } else {
       setProfileUser(user);
-      setUserPosts(posts);
+      setUserPosts(posts.length ? posts : []);
       setAvatarUrl(user?.avatar_url || user?.profile_picture || '');
       setEditName(user?.full_name || '');
       setEditUsername(user?.username || '');
@@ -172,6 +177,38 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               )}
             </div>
           </div>
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold text-slate-100">{t('postsLabel')}</h3>
+            {userPosts.length ? (
+              userPosts.map((item: any) => (
+                <PostCard
+                  key={item.id}
+                  post={{
+                    id: String(item.id),
+                    authorId: item.user_id,
+                    author: item.author?.full_name || profileUser?.full_name || t('userGeneric'),
+                    country: item.author?.country || profileUser?.country || '',
+                    role: item.author?.university || profileUser?.university || t('studentRole'),
+                    time: item.created_at ? new Date(item.created_at).toLocaleString() : '',
+                    body: item.body || '',
+                    media: item.image_url || item.file_url
+                      ? { image: item.image_url, fileUrl: item.file_url, fileName: item.file_name }
+                      : undefined,
+                    likes: item.likes_count || 0,
+                    comments: item.comments_count || 0,
+                    is_liked: item.is_liked ?? item.liked_by_me ?? false,
+                    liked_by_me: item.liked_by_me ?? item.is_liked ?? false,
+                  }}
+                  token={currentToken}
+                  postId={item.id}
+                  user={user}
+                />
+              ))
+            ) : (
+              <p className="text-xs text-slate-500">{t('empty')}</p>
+            )}
+          </section>
 
           <div className="flex-1">
             <h2 className="text-xl font-bold text-slate-100">{profileUser?.full_name || t('userGeneric')}</h2>
