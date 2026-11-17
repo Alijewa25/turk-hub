@@ -15,7 +15,6 @@ PAN_TURKIC_WORDS = [
         "uz": "suv",
         "tm": "suw",
         "ky": "суу",
-        "ug": "سۇ",
         "etymology": "Qədim Türk dillərində həyat mənbəyi sayılan əsas leksik vahid. Orxon-Yenisey abidələrində 'sub' formasında təsadüf olunur.",
     },
     {
@@ -27,7 +26,6 @@ PAN_TURKIC_WORDS = [
         "uz": "Tangri",
         "tm": "Taňry",
         "ky": "Теңир",
-        "ug": "تەڭرى",
         "etymology": "Qədim Türk inancında səma, ilahi qüvvə və yaradıcı mənasını verir. Göytürk yazılarında 'Tengri' kimi geniş istifadə olunub.",
     },
     {
@@ -39,7 +37,6 @@ PAN_TURKIC_WORDS = [
         "uz": "yo'ldosh",
         "tm": "ýoldaş",
         "ky": "жолдош",
-        "ug": "يولداش",
         "etymology": "'Yol' kökündən yaranaraq eyni yolda gedən, səfər yoldaşı və ümumi məqsəd üçün birləşən şəxs mənasını daşıyır.",
     },
     {
@@ -51,7 +48,6 @@ PAN_TURKIC_WORDS = [
         "uz": "el",
         "tm": "il",
         "ky": "эл",
-        "ug": "ئەل",
         "etymology": "Türk dövlət ənənəsində xalq, ölkə və idarə olunan ərazi anlayışlarını birləşdirən fundamental siyasi-sosial termin.",
     },
     {
@@ -63,7 +59,6 @@ PAN_TURKIC_WORDS = [
         "uz": "qut",
         "tm": "gut",
         "ky": "кут",
-        "ug": "قۇت",
         "etymology": "Qədim Türk dövlət ideologiyasında hökmdarın ilahi seçilmişliyini, bərəkət və uğuru bildirən anlayış. 'Qutluq' forması da geniş yayılıb.",
     },
     {
@@ -75,7 +70,6 @@ PAN_TURKIC_WORDS = [
         "uz": "bilim",
         "tm": "bilim",
         "ky": "билим",
-        "ug": "بىلىم",
         "etymology": "'Bilmək' feli kökündən törəyən bilig, qədim Türk mətnlərində elm, idrak və müdriklik mənasında işlədilib.",
     },
     {
@@ -87,7 +81,6 @@ PAN_TURKIC_WORDS = [
         "uz": "yo'l",
         "tm": "ýol",
         "ky": "жол",
-        "ug": "يول",
         "etymology": "Həm fiziki marşrut, həm də həyat tərzi, üsul və mənəvi istiqamət mənalarını daşıyan ortaq Türk kökü.",
     },
     {
@@ -99,7 +92,6 @@ PAN_TURKIC_WORDS = [
         "uz": "ko'k",
         "tm": "gök",
         "ky": "көк",
-        "ug": "كۆك",
         "etymology": "Səma və mavi rəngi bildirən kök. Türk kosmologiyasında göy Tanrı ilə əlaqələndirilən müqəddəs anlayışlardan biridir.",
     },
     {
@@ -111,7 +103,6 @@ PAN_TURKIC_WORDS = [
         "uz": "yer",
         "tm": "ýer",
         "ky": "жер",
-        "ug": "يەر",
         "etymology": "Torpaq, məkan və yurd mənasını verən qədim Türk sözü. Göy-yer cütlüyü ənənəvi Türk dünyagörüşünün əsasını təşkil edir.",
     },
     {
@@ -123,7 +114,6 @@ PAN_TURKIC_WORDS = [
         "uz": "ot",
         "tm": "at",
         "ky": "ат",
-        "ug": "ئات",
         "etymology": "Türk köçəri həyatının simvolu olan at, qədim dövrlərdən hərbi, iqtisadi və mədəni həyatda mərkəzi yer tutub.",
     },
     {
@@ -135,7 +125,6 @@ PAN_TURKIC_WORDS = [
         "uz": "ona",
         "tm": "ene",
         "ky": "эне",
-        "ug": "ئانا",
         "etymology": "Bütün Türk dillərində qohumluq əlaqəsini bildirən ən qədim və sabit leksik qatlardan biri.",
     },
     {
@@ -147,7 +136,6 @@ PAN_TURKIC_WORDS = [
         "uz": "ota",
         "tm": "ata",
         "ky": "ата",
-        "ug": "ئاتا",
         "etymology": "Ailə başçısı, baba və əcdad mənasını daşıyır. Türk dövlət ənənəsində 'ata' hörmət və davamlılıq simvoludur.",
     },
     {
@@ -159,7 +147,6 @@ PAN_TURKIC_WORDS = [
         "uz": "kun",
         "tm": "gün",
         "ky": "күн",
-        "ug": "كۈن",
         "etymology": "Günəş və gün mənasını verir. Qədim təqvim və zaman hesablamalarında əsas vahid kimi istifadə olunub.",
     },
     {
@@ -171,7 +158,6 @@ PAN_TURKIC_WORDS = [
         "uz": "oy",
         "tm": "aý",
         "ky": "ай",
-        "ug": "ئاي",
         "etymology": "Həm göy cismi, həm də zaman ölçüsü mənasını daşıyır. Qədim Türk təqvimində Ay dövrləri mühüm rol oynayıb.",
     },
     {
@@ -183,7 +169,6 @@ PAN_TURKIC_WORDS = [
         "uz": "yulduz",
         "tm": "ýyldyz",
         "ky": "жылдыз",
-        "ug": "يۇلتۇز",
         "etymology": "Göy cisimlərini bildirən söz. Qədim Türk astronomiyası və mifologiyasında istiqamət və taleyin göstəricisi sayılıb.",
     },
     {
@@ -195,7 +180,6 @@ PAN_TURKIC_WORDS = [
         "uz": "o't",
         "tm": "ot",
         "ky": "от",
-        "ug": "ئوت",
         "etymology": "Atəş və alov mənasını verən qədim Türk kökü. Ocaq, ailə və müqəddəslik anlayışları ilə sıx bağlıdır.",
     },
     {
@@ -207,7 +191,6 @@ PAN_TURKIC_WORDS = [
         "uz": "tog'",
         "tm": "dag",
         "ky": "тоо",
-        "ug": "تاغ",
         "etymology": "Yüksək relyef formasını bildirir. Türk mifologiyasında dağlar müqəddəs məkan və dövlət simvolu kimi qəbul edilib.",
     },
     {
@@ -219,7 +202,6 @@ PAN_TURKIC_WORDS = [
         "uz": "dengiz",
         "tm": "deňiz",
         "ky": "деңиз",
-        "ug": "دېڭىز",
         "etymology": "Böyük su hövzəsi mənasını verən ortaq Türk sözü. Səfər, ticarət və dənizçilik terminologiyasında geniş istifadə olunub.",
     },
     {
@@ -231,7 +213,6 @@ PAN_TURKIC_WORDS = [
         "uz": "til",
         "tm": "dil",
         "ky": "тил",
-        "ug": "تىل",
         "etymology": "Həm bədən üzvü, həm də ünsiyyət sistemi mənasını daşıyır. Türk dillərinin ortaq mənşəyini göstərən əsas sözlərdəndir.",
     },
     {
@@ -243,7 +224,6 @@ PAN_TURKIC_WORDS = [
         "uz": "so'z",
         "tm": "söz",
         "ky": "сөз",
-        "ug": "سۆز",
         "etymology": "Nitq, ifadə və vəd mənalarını birləşdirən qədim Türk leksemi. Yazılı abidələrdə 'sab' və 'söz' formaları ilə qarşılaşırıq.",
     },
     {
@@ -255,7 +235,6 @@ PAN_TURKIC_WORDS = [
         "uz": "kuch",
         "tm": "güýç",
         "ky": "күч",
-        "ug": "كۈچ",
         "etymology": "Fiziki qüvvə, təsir və qüdrət mənasını verir. Dövlət və hərbi terminologiyada geniş istifadə olunub.",
     },
     {
@@ -267,7 +246,6 @@ PAN_TURKIC_WORDS = [
         "uz": "birlik",
         "tm": "birlik",
         "ky": "биримдик",
-        "ug": "بىرلىك",
         "etymology": "'Bir' kökündən törəyən birlik, həmrəylik və vahidlik anlayışını ifadə edir. Pan-Türk ideyalarında əsas anlayışlardan biridir.",
     },
     {
@@ -279,7 +257,6 @@ PAN_TURKIC_WORDS = [
         "uz": "kelajak",
         "tm": "geljek",
         "ky": "келечек",
-        "ug": "كەلگۈسى",
         "etymology": "'Gəlmək' feli əsasında yaranan zaman anlayışı. Müasir Türk dillərində müxtəlif fonetik formalarda yaşayır.",
     },
     {
@@ -291,7 +268,6 @@ PAN_TURKIC_WORDS = [
         "uz": "tinchlik",
         "tm": "parahatçylyk",
         "ky": "тынчтык",
-        "ug": "تىنچلىق",
         "etymology": "'Bar-' kökü ilə əlaqəli olan barış, razılıq, sülh və birgə yaşayış mənasını ifadə edir.",
     },
     {
@@ -303,7 +279,6 @@ PAN_TURKIC_WORDS = [
         "uz": "tamg'a",
         "tm": "tamga",
         "ky": "тамга",
-        "ug": "تامغا",
         "etymology": "Möhür, nişan və aidiyyət işarəsi. Qədim Türk tayfaları mal-qaranı və əraziləri tamga ilə qeyd edirdilər.",
     },
     {
@@ -315,7 +290,6 @@ PAN_TURKIC_WORDS = [
         "uz": "o'rda",
         "tm": "orda",
         "ky": "ордо",
-        "ug": "ئوردا",
         "etymology": "Hərbi qüvvə və hökmdarın düşərgəsi mənasını verir. 'Orda' forması sonralar siyasi qurum adına çevrilib.",
     },
     {
@@ -327,7 +301,6 @@ PAN_TURKIC_WORDS = [
         "uz": "elat",
         "tm": "halk",
         "ky": "улус",
-        "ug": "ئۇلۇس",
         "etymology": "Xalq, tayfa birliyi və dövlət quruluşu mənasında istifadə olunub. Monqol və Türk idarəçilik ənənələrində geniş yayılıb.",
     },
 ]
@@ -386,7 +359,6 @@ def seed_dictionary(db: Session) -> int:
             "uz_val": item["uz"],
             "ky_val": item["ky"],
             "tm_val": item["tm"],
-            "ug_val": item["ug"],
             "etymology_note": item["etymology"],
             "source": "Pan-Türk ortaq leksikonu",
             "approved": 1,
