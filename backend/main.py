@@ -214,6 +214,9 @@ CORS_ORIGINS = [
     if o.strip()
 ]
 
+TRANSLATION_CACHE: dict[tuple[str, str, str], schemas.TranslationResponse] = {}
+MAX_TRANSLATION_CACHE_SIZE = 2048
+
 # Production/preview origins must always be allowed, even when CORS_ORIGINS is
 # overridden by the hosting provider (e.g. Render environment variables).
 REQUIRED_CORS_ORIGINS = [
@@ -1140,8 +1143,31 @@ def unfollow_user(
 
 # --- POSTS ---
 
+def _post_response(post: models.Post, current_user: models.User, db: Session) -> schemas.PostResponse:
+    liked = db.query(models.PostLike.id).filter(
+        models.PostLike.post_id == post.id,
+        models.PostLike.user_id == current_user.id,
+    ).first() is not None
+    return schemas.PostResponse(
+        id=post.id,
+        user_id=post.user_id,
+        body=post.body,
+        image_url=post.image_url,
+        file_url=post.file_url,
+        file_name=post.file_name,
+        likes_count=post.likes_count or 0,
+        comments_count=post.comments_count or 0,
+        is_liked=liked,
+        liked_by_me=liked,
+        created_at=post.created_at,
+        author=schemas.UserResponse.model_validate(post.author) if post.author else None,
+    )
+
+
 @app.get("/api/posts", response_model=List[schemas.PostResponse])
+@app.get("/api/posts/feed", response_model=List[schemas.PostResponse])
 @app.get("/posts", response_model=List[schemas.PostResponse])
+@app.get("/posts/feed", response_model=List[schemas.PostResponse])
 def list_posts(
     limit: int = Query(100, ge=1, le=200),
     current_user: models.User = Depends(get_current_user),
@@ -1155,18 +1181,7 @@ def list_posts(
     result = []
     for p in posts:
         try:
-            result.append(schemas.PostResponse(
-                id=p.id,
-                user_id=p.user_id,
-                body=p.body,
-                image_url=p.image_url,
-                file_url=p.file_url,
-                file_name=p.file_name,
-                likes_count=p.likes_count or 0,
-                comments_count=p.comments_count or 0,
-                created_at=p.created_at,
-                author=schemas.UserResponse.model_validate(p.author) if p.author else None,
-            ))
+            result.append(_post_response(p, current_user, db))
         except Exception:
             logger.warning("Could not serialize post %s", getattr(p, "id", "?"), exc_info=True)
     return result
@@ -1191,20 +1206,11 @@ def create_post(
     db.add(post)
     db.commit()
     db.refresh(post)
-    return schemas.PostResponse(
-        id=post.id,
-        user_id=post.user_id,
-        body=post.body,
-        image_url=post.image_url,
-        file_url=post.file_url,
-        file_name=post.file_name,
-        likes_count=post.likes_count or 0,
-        comments_count=post.comments_count or 0,
-        created_at=post.created_at,
-        author=schemas.UserResponse.model_validate(current_user),
-    )
+    return _post_response(post, current_user, db)
 
 
+@app.get("/api/users/me/posts", response_model=List[schemas.PostResponse])
+@app.get("/users/me/posts", response_model=List[schemas.PostResponse])
 @app.get("/api/users/{user_id}/posts", response_model=List[schemas.PostResponse])
 @app.get("/users/{user_id}/posts", response_model=List[schemas.PostResponse])
 def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -1216,18 +1222,7 @@ def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models
     result = []
     for p in posts:
         try:
-            result.append(schemas.PostResponse(
-                id=p.id,
-                user_id=p.user_id,
-                body=p.body,
-                image_url=p.image_url,
-                file_url=p.file_url,
-                file_name=p.file_name,
-                likes_count=p.likes_count or 0,
-                comments_count=p.comments_count or 0,
-                created_at=p.created_at,
-                author=schemas.UserResponse.model_validate(p.author) if p.author else None,
-            ))
+            result.append(_post_response(p, current_user, db))
         except Exception:
             logger.warning("Could not serialize post %s", getattr(p, "id", "?"), exc_info=True)
     return result
@@ -1249,10 +1244,21 @@ def like_post(
     post = db.query(models.Post).filter(models.Post.id == numeric_post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post tapılmadı")
-    post.likes_count = (post.likes_count or 0) + 1
+    existing = db.query(models.PostLike).filter(
+        models.PostLike.post_id == post.id,
+        models.PostLike.user_id == current_user.id,
+    ).first()
+    if existing:
+        db.delete(existing)
+        post.likes_count = max(0, (post.likes_count or 0) - 1)
+        liked = False
+    else:
+        db.add(models.PostLike(post_id=post.id, user_id=current_user.id))
+        post.likes_count = (post.likes_count or 0) + 1
+        liked = True
     db.commit()
 
-    if post.user_id and post.user_id != current_user.id:
+    if liked and post.user_id and post.user_id != current_user.id:
         create_notification(
             db=db,
             user_id=post.user_id,
@@ -1263,7 +1269,17 @@ def like_post(
             content=(post.body or "")[:80],
         )
 
-    return {"status": "ok", "likes_count": post.likes_count}
+    return {"liked": liked, "likes_count": post.likes_count or 0}
+
+
+@app.get("/api/posts/{post_id}", response_model=schemas.PostResponse)
+@app.get("/posts/{post_id}", response_model=schemas.PostResponse)
+def get_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    return _post_response(post, current_user, db)
+
 
 @app.post("/api/posts/{post_id}/comment")
 @app.post("/posts/{post_id}/comment")
@@ -1547,7 +1563,7 @@ def mark_single_notification_read(
 
 # --- AI TRANSLATION ---
 
-SUPPORTED_TRANSLATION_LANGS = {"az", "tr", "kk", "uz", "tm", "ky", "ug", "en"}
+SUPPORTED_TRANSLATION_LANGS = {"az", "tr", "kk", "uz", "tm", "ky", "en"}
 
 TRANSLATION_LANG_ALIASES = {
     "az": "az",
@@ -1576,10 +1592,6 @@ TRANSLATION_LANG_ALIASES = {
     "kyg": "ky",
     "kyrgyz": "ky",
     "kirgiz": "ky",
-    "ug": "ug",
-    "uig": "ug",
-    "uyghur": "ug",
-    "uygur": "ug",
     "en": "en",
     "eng": "en",
     "english": "en",
@@ -1666,8 +1678,6 @@ def _detect_translation_lang(raw: str) -> str:
         scores["tm"] += 2
     if any(ch in text for ch in "ʻ‘ʼ"):
         scores["uz"] += 1
-    if any(ch in text for ch in "ئابتجخدروزسشغفقكگڭلمنھوىېي"):
-        scores["ug"] += 4
     if re.search(r"\b(the|and|is|are|you|we|this|that|with|for|from|have)\b", text):
         scores["en"] += 2
 
@@ -1723,7 +1733,9 @@ def _external_translate_sync(text: str, source_lang: str, target_lang: str) -> O
                     "content": (
                         "You are a precise translator for Turkic languages. "
                         f"Translate the user text from {source_lang} to {target_lang}. "
-                        "Return only the translation."
+                        "Return only the translation. Preserve emojis, hashtags, URLs, line breaks, "
+                        "mentions, and formatting exactly; translate the complete meaning naturally, "
+                        "not word by word."
                     ),
                 },
                 {"role": "user", "content": text},
@@ -1800,24 +1812,37 @@ async def translate_text(payload: schemas.TranslationRequest):
             provider="original",
         )
 
+    cache_key = (text, source_lang, target_lang)
+    cached = TRANSLATION_CACHE.get(cache_key)
+    if cached:
+        return cached
+
     external = await _external_translate(text, source_lang, target_lang)
     if external:
-        return schemas.TranslationResponse(
+        result = schemas.TranslationResponse(
             original_text=text,
             translated_text=external,
             source_lang=source_lang,
             target_lang=target_lang,
             provider="ai",
         )
+        if len(TRANSLATION_CACHE) >= MAX_TRANSLATION_CACHE_SIZE:
+            TRANSLATION_CACHE.pop(next(iter(TRANSLATION_CACHE)))
+        TRANSLATION_CACHE[cache_key] = result
+        return result
 
     translated = _lexicon_translate(text, source_lang, target_lang)
-    return schemas.TranslationResponse(
+    result = schemas.TranslationResponse(
         original_text=text,
         translated_text=translated,
         source_lang=source_lang,
         target_lang=target_lang,
         provider="lexicon",
     )
+    if len(TRANSLATION_CACHE) >= MAX_TRANSLATION_CACHE_SIZE:
+        TRANSLATION_CACHE.pop(next(iter(TRANSLATION_CACHE)))
+    TRANSLATION_CACHE[cache_key] = result
+    return result
 
 
 # --- WEBSOCKET REAL-TIME CHAT ---
