@@ -45,9 +45,10 @@ interface PostCardProps {
   token?: string | null;
   postId?: string | number;
   user?: any;
+  highlighted?: boolean;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user, highlighted = false }) => {
   const { t, lang } = useI18n();
   const [liked, setLiked] = useState(post.is_liked ?? post.liked_by_me ?? false);
   const [saved, setSaved] = useState(false);
@@ -178,8 +179,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   };
 
   return (
-    <article className="bg-neutral-900/60 border border-neutral-800 rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700">
-      <div className="p-3 flex items-center gap-3">
+    <article id={`post-${post.id}`} className={`w-full bg-neutral-900/60 border rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700 ${highlighted ? 'border-skyBlue ring-2 ring-skyBlue/30' : 'border-slate-800/80'}`}>
+      <div className="p-4 sm:p-5 flex items-center gap-3">
         <span className="w-9 h-9 rounded-full bg-black border border-skyBlue/40 text-lg flex items-center justify-center">
           {flag}
         </span>
@@ -199,8 +200,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       </div>
 
       {post.body && (
-        <div className="px-3 pb-2">
-          <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+        <div className="px-4 sm:px-5 pb-3">
+          <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
             {showTranslation && translatedBody ? translatedBody : post.body}
           </p>
           {showTranslation && translatedBody && (
@@ -223,7 +224,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       )}
 
       {imageSrc && (
-        <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-neutral-800">
+        <div className="mx-4 sm:mx-5 mb-4 overflow-hidden rounded-xl border border-slate-800/80">
           <img src={imageSrc} alt={post.media?.title || t('postMedia')} className="w-full max-h-96 object-cover" />
         </div>
       )}
@@ -233,7 +234,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           href={fileHref}
           target="_blank"
           rel="noreferrer"
-          className="mx-3 mb-3 flex items-center gap-2 rounded-xl border border-neutral-800 bg-black/60 px-3 py-2.5 text-xs text-emerald-400 hover:border-emerald-500/40 transition-colors"
+          className="mx-4 sm:mx-5 mb-4 flex items-center gap-2 rounded-xl border border-slate-800/80 bg-black/60 px-3 py-2.5 text-xs text-emerald-400 hover:border-emerald-500/40 transition-colors"
         >
           <FileText className="w-4 h-4 shrink-0" />
           <span className="truncate">{post.media?.fileName || t('pdfDocument')}</span>
@@ -241,7 +242,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       )}
 
       {!imageSrc && !isPdf && post.media && (post.media.title || post.media.description || post.media.badge) && (
-        <div className="mx-3 mb-3 bg-gradient-to-br from-neutral-900 via-neutral-900 to-skyBlue/10 rounded-xl p-5 flex flex-col items-center text-center border border-neutral-800">
+        <div className="mx-4 sm:mx-5 mb-4 bg-gradient-to-br from-neutral-900 via-neutral-900 to-skyBlue/10 rounded-xl p-5 flex flex-col items-center text-center border border-slate-800/80">
           <Sparkles className="w-8 h-8 text-skyBlue mb-2 animate-pulse" />
           {post.media.title && <h4 className="text-sm font-bold text-slate-100">{post.media.title}</h4>}
           {post.media.description && (
@@ -255,7 +256,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         </div>
       )}
 
-      <div className="px-3 pb-2 flex items-center gap-4 text-slate-400">
+      <div className="px-4 sm:px-5 pb-4 flex items-center gap-5 text-slate-400">
         <button
           onClick={async () => {
             try {
@@ -296,7 +297,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       </div>
 
       {showComments && (
-        <div className="px-3 pb-3 border-t border-neutral-800 pt-3 space-y-2">
+        <div className="px-4 sm:px-5 pb-4 border-t border-slate-800/80 pt-4 space-y-3">
           {comments.map((c) => (
             <div key={c.id} className="space-y-0.5">
               <p className="text-xs text-slate-400">
