@@ -148,6 +148,7 @@ function mapApiPost(p: ApiPost): PostData {
     comments: p.comments_count || 0,
     is_liked: p.is_liked ?? p.liked_by_me ?? false,
     liked_by_me: p.liked_by_me ?? p.is_liked ?? false,
+    is_saved: p.is_saved ?? false,
     sourceLang: p.source_lang || undefined,
   };
 }
@@ -157,8 +158,14 @@ export function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(() => loadStored<any>('user', null));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
-  const [profileViewUserId, setProfileViewUserId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    return hash || sessionStorage.getItem('th_active_tab') || 'home';
+  });
+  const [profileViewUserId, setProfileViewUserId] = useState<number | null>(() => {
+    const stored = sessionStorage.getItem('th_profile_user_id');
+    return stored ? Number(stored) : null;
+  });
   const [messagesTarget, setMessagesTarget] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<PostData[]>(() => loadStored<PostData[]>('th_user_posts', []));
   const [feedPosts, setFeedPosts] = useState<PostData[]>([]);
@@ -346,8 +353,17 @@ export function App() {
       setProfileViewUserId(null);
     }
     setActiveTab(tab);
+    sessionStorage.setItem('th_active_tab', tab);
+    window.history.replaceState(null, '', `#${tab}`);
     setMobileMenuOpen(false);
   };
+
+  useEffect(() => {
+    sessionStorage.setItem('th_active_tab', activeTab);
+    window.history.replaceState(null, '', `#${activeTab}`);
+    if (profileViewUserId) sessionStorage.setItem('th_profile_user_id', String(profileViewUserId));
+    else sessionStorage.removeItem('th_profile_user_id');
+  }, [activeTab, profileViewUserId]);
 
   const openCreate = (mode: 'post' | 'story') => {
     setCreateMode(mode);
@@ -517,6 +533,11 @@ export function App() {
     ...userPosts,
     ...feedPosts.filter((p) => p.authorId === user?.id && !userPosts.some((u) => u.id === p.id)),
   ];
+  const handleSavedChange = (postId: string | number, isSaved: boolean) => {
+    const update = (post: PostData) => (String(post.id) === String(postId) ? { ...post, is_saved: isSaved } : post);
+    setFeedPosts((prev) => prev.map(update));
+    setUserPosts((prev) => prev.map(update));
+  };
 
   return (
     <div className="min-h-screen bg-black text-slate-100">
@@ -572,7 +593,15 @@ export function App() {
                 <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">{t('loading')}</div>
               )}
               {displayFeed.map((post) => (
-                <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} token={token} postId={post.id} highlighted={highlightedPostId === Number(post.id)} />
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onJoin={() => setActiveTab('projects')}
+                  token={token}
+                  postId={post.id}
+                  highlighted={highlightedPostId === Number(post.id)}
+                  onSavedChange={handleSavedChange}
+                />
               ))}
             </>
           )}
