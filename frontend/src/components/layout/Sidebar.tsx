@@ -13,9 +13,10 @@ interface SidebarProps {
   onLogout: () => void;
   token?: string | null;
   onViewProfile?: (id: number) => void;
+  unreadCount?: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onCreatePost, onLogout, token = null, onViewProfile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onCreatePost, onLogout, token = null, onViewProfile, unreadCount = 0 }) => {
   const { t } = useI18n();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -28,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
     { id: 'messages', label: t('navMessages'), icon: Mail },
     { id: 'projects', label: t('navProjects'), icon: Rocket },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },
-    { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: 3 },
+    { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     { id: 'profile', label: t('navProfile'), icon: User },
   ];
 
