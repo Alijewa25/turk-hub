@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
-import { commentPost, likePost, mediaUrl, translateCached, translationChanged } from '../api';
+import { commentPost, likePost, mediaUrl, toggleSavePost, translateCached, translationChanged } from '../api';
 import { flagOf, LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
 
 export interface PostMedia {
@@ -25,6 +25,7 @@ export interface PostData {
   comments: number;
   is_liked?: boolean | null;
   liked_by_me?: boolean | null;
+  is_saved?: boolean | null;
   sourceLang?: string | null;
 }
 
@@ -46,12 +47,13 @@ interface PostCardProps {
   postId?: string | number;
   user?: any;
   highlighted?: boolean;
+  onSavedChange?: (postId: string | number, isSaved: boolean) => void;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user, highlighted = false }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user, highlighted = false, onSavedChange }) => {
   const { t, lang } = useI18n();
   const [liked, setLiked] = useState(post.is_liked ?? post.liked_by_me ?? false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(post.is_saved ?? false);
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
   const [likeCount, setLikeCount] = useState(post.likes || 0);
@@ -68,6 +70,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     setLikeCount(post.likes || 0);
     setCommentCount(post.comments || 0);
   }, [post.id, post.is_liked, post.liked_by_me, post.likes, post.comments]);
+
+  useEffect(() => {
+    setSaved(post.is_saved ?? false);
+  }, [post.id, post.is_saved]);
 
   useEffect(() => {
     setTranslatedBody('');
@@ -191,7 +197,20 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           </p>
         </div>
         <button
-          onClick={() => setSaved((s) => !s)}
+          onClick={async () => {
+            const previous = saved;
+            const next = !previous;
+            setSaved(next);
+            onSavedChange?.(post.id, next);
+            try {
+              const result = await toggleSavePost(token, post.id);
+              setSaved(result.is_saved);
+              onSavedChange?.(post.id, result.is_saved);
+            } catch {
+              setSaved(previous);
+              onSavedChange?.(post.id, previous);
+            }
+          }}
           aria-label={t('savePost')}
           className={`transition-colors ${saved ? 'text-skyBlue' : 'text-slate-500 hover:text-slate-300'}`}
         >
