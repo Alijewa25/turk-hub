@@ -56,6 +56,7 @@ export interface ApiPost {
   comments_count?: number | null;
   is_liked?: boolean | null;
   liked_by_me?: boolean | null;
+  source_lang?: string | null;
   created_at?: string | null;
   author?: StoryAuthor | null;
 }
