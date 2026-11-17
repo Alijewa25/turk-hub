@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Edit3, MessageCircle, X } from 'lucide-react';
-import { flagOf, useI18n } from '../i18n';
-import { API_URL, fetchUserPosts, fetchUserStats, mediaUrl, uploadAvatar } from '../api';
+import { ArrowLeft, Edit3, MessageCircle, UserPlus, UserCheck, X } from 'lucide-react';
+import { flagOf, localizedCountryName, localizedRole, useI18n } from '../i18n';
+import { API_URL, fetchFollowers, fetchFollowing, fetchUserPosts, fetchUserStats, followUser, mediaUrl, unfollowUser, uploadAvatar } from '../api';
 import { PostCard } from './PostCard';
 
 interface ProfileViewProps {
@@ -32,7 +32,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenMessages,
   onUserUpdated,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
   const [profileUser, setProfileUser] = useState<any>(user);
   const [userPosts, setUserPosts] = useState<any[]>(posts);
@@ -43,10 +43,46 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || user?.profile_picture || '');
   const [uploading, setUploading] = useState(false);
   const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null);
-  const [followList] = useState<any[]>([]);
+  const [followList, setFollowList] = useState<any[]>([]);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followPending, setFollowPending] = useState<Set<number>>(new Set());
+  const [isFollowing, setIsFollowing] = useState(false);
 
   const isSelf = !viewUserId || viewUserId === user?.id;
   const currentToken = token || localStorage.getItem('token');
+
+  const openFollowList = async (kind: 'followers' | 'following') => {
+    const targetId = viewUserId || user?.id;
+    if (!targetId) return;
+    setShowFollowList(kind);
+    setFollowLoading(true);
+    try {
+      setFollowList(kind === 'followers'
+        ? await fetchFollowers(targetId, currentToken)
+        : await fetchFollowing(targetId, currentToken));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const toggleListFollow = async (item: any) => {
+    if (!item?.id || item.id === user?.id || followPending.has(item.id)) return;
+    setFollowPending((prev) => new Set(prev).add(item.id));
+    try {
+      const result = item.is_following
+        ? await unfollowUser(currentToken, item.id)
+        : await followUser(currentToken, item.id);
+      setFollowList((prev) => prev.map((entry) => entry.id === item.id
+        ? { ...entry, is_following: result.following }
+        : entry));
+    } finally {
+      setFollowPending((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +104,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         .then((data) => {
           if (cancelled) return;
           setProfileUser(data);
+          setIsFollowing(Boolean(data.is_following));
           setStats({
             followers: data.followers_count || 0,
             following: data.following_count || 0,
@@ -79,6 +116,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     } else {
       setProfileUser(user);
+      setIsFollowing(false);
       setUserPosts(posts.length ? posts : []);
       setAvatarUrl(user?.avatar_url || user?.profile_picture || '');
       setEditName(user?.full_name || '');
@@ -125,6 +163,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
+  const toggleProfileFollow = async () => {
+    if (!profileUser?.id || isSelf) return;
+    const result = isFollowing
+      ? await unfollowUser(currentToken, profileUser.id)
+      : await followUser(currentToken, profileUser.id);
+    setIsFollowing(Boolean(result.following));
+    setStats((prev) => ({ ...prev, followers: result.followers }));
+  };
+
   const saveProfile = async () => {
     try {
       const res = await fetch(`${API_URL}/api/users/me`, {
@@ -156,7 +203,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const currentAvatar = avatarUrl || profileUser?.avatar_url || profileUser?.profile_picture;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-12">
+    <div className="w-full max-w-3xl mx-auto space-y-4 pb-12">
       {!isSelf && handleBack && (
         <button
           onClick={handleBack}
@@ -166,10 +213,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </button>
       )}
 
-      <div className="p-6 bg-neutral-900 border border-neutral-800 rounded-2xl relative">
-        <div className="flex items-center gap-4">
+      <div className="p-4 sm:p-6 bg-neutral-900 border border-neutral-800 rounded-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="relative group">
-            <div className="w-20 h-20 rounded-full bg-neutral-800 border-2 border-sky-500 overflow-hidden flex items-center justify-center text-2xl font-bold">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neutral-800 border-2 border-sky-500 overflow-hidden flex items-center justify-center text-2xl font-bold">
               {currentAvatar ? (
                 <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -178,42 +225,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           </div>
 
-          <section className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-100">{t('postsLabel')}</h3>
-            {userPosts.length ? (
-              userPosts.map((item: any) => (
-                <PostCard
-                  key={item.id}
-                  post={{
-                    id: String(item.id),
-                    authorId: item.user_id,
-                    author: item.author?.full_name || profileUser?.full_name || t('userGeneric'),
-                    country: item.author?.country || profileUser?.country || '',
-                    role: item.author?.university || profileUser?.university || t('studentRole'),
-                    time: item.created_at ? new Date(item.created_at).toLocaleString() : '',
-                    body: item.body || '',
-                    media: item.image_url || item.file_url
-                      ? { image: item.image_url, fileUrl: item.file_url, fileName: item.file_name }
-                      : undefined,
-                    likes: item.likes_count || 0,
-                    comments: item.comments_count || 0,
-                    is_liked: item.is_liked ?? item.liked_by_me ?? false,
-                    liked_by_me: item.liked_by_me ?? item.is_liked ?? false,
-                    sourceLang: item.source_lang || undefined,
-                  }}
-                  token={currentToken}
-                  postId={item.id}
-                  user={user}
-                />
-              ))
-            ) : (
-              <p className="text-xs text-slate-500">{t('empty')}</p>
-            )}
-          </section>
-
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-slate-100">{profileUser?.full_name || t('userGeneric')}</h2>
             <p className="text-xs text-slate-400">@{profileUser?.username}</p>
+            <p className="text-xs text-slate-400 mt-2">{flagOf(profileUser?.country)} {localizedCountryName(profileUser?.country, lang)} · {localizedRole(profileUser?.university, lang, t('studentRole'))}</p>
             <p className="text-xs text-slate-300 mt-2">{profileUser?.bio || t('noBio')}</p>
           </div>
 
@@ -234,8 +249,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => {
+            <div className="flex gap-2">
+              <button
+                onClick={() => void toggleProfileFollow()}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-skyBlue text-black text-xs font-bold hover:bg-skyBlue-hover"
+              >
+                {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                {isFollowing ? t('following') : t('follow')}
+              </button>
+              <button
+                onClick={() => {
                 const target = profileUser || { id: viewUserId };
                 if (onOpenMessages) {
                   onOpenMessages(target);
@@ -243,20 +266,53 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   _onNavigate('messages', { messageUser: target });
                 }
               }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              {t('sendMessage')}
-            </button>
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-800 bg-black/60 text-xs text-slate-300 hover:text-skyBlue hover:border-skyBlue/40 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {t('sendMessage')}
+              </button>
+            </div>
           )}
         </div>
 
-        <div className="flex gap-6 mt-6 pt-4 border-t border-neutral-800 text-xs text-slate-400">
+        <div className="flex flex-wrap gap-5 mt-6 pt-4 border-t border-neutral-800 text-xs text-slate-400">
           <div><span className="font-bold text-slate-100">{userPosts.length}</span> {t('postsLabel')}</div>
           <div><span className="font-bold text-slate-100">{projects.length}</span> {t('projectsLabel')}</div>
-          <div><span className="font-bold text-slate-100">{stats.followers}</span> {t('followersLabel')}</div>
-          <div><span className="font-bold text-slate-100">{stats.following}</span> {t('followingLabel')}</div>
+          <button onClick={() => void openFollowList('followers')} className="hover:text-skyBlue"><span className="font-bold text-slate-100">{stats.followers}</span> {t('followersLabel')}</button>
+          <button onClick={() => void openFollowList('following')} className="hover:text-skyBlue"><span className="font-bold text-slate-100">{stats.following}</span> {t('followingLabel')}</button>
         </div>
+      </div>
+
+      <div className="flex w-full border-b border-neutral-800">
+        <button className="flex-1 py-3 text-xs font-bold text-skyBlue border-b-2 border-skyBlue">{t('postsLabel')}</button>
+        <button className="flex-1 py-3 text-xs text-slate-500">{t('projectsLabel')}</button>
+        <button className="flex-1 py-3 text-xs text-slate-500">{t('savedPosts')}</button>
+      </div>
+
+      <div className="flex flex-col gap-4 w-full">
+        {userPosts.length ? userPosts.map((item: any) => (
+          <PostCard
+            key={item.id}
+            post={{
+              id: String(item.id),
+              authorId: item.user_id,
+              author: item.author?.full_name || profileUser?.full_name || t('userGeneric'),
+              country: item.author?.country || profileUser?.country || '',
+              role: item.author?.university || profileUser?.university || t('studentRole'),
+              time: item.created_at ? new Date(item.created_at).toLocaleString() : '',
+              body: item.body || '',
+              media: item.image_url || item.file_url ? { image: item.image_url, fileUrl: item.file_url, fileName: item.file_name } : undefined,
+              likes: item.likes_count || 0,
+              comments: item.comments_count || 0,
+              is_liked: item.is_liked ?? item.liked_by_me ?? false,
+              liked_by_me: item.liked_by_me ?? item.is_liked ?? false,
+              sourceLang: item.source_lang || undefined,
+            }}
+            token={currentToken}
+            postId={item.id}
+            user={user}
+          />
+        )) : <p className="text-xs text-slate-500 text-center py-8">{t('empty')}</p>}
       </div>
 
       {showFollowList && (
@@ -267,22 +323,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <button onClick={() => setShowFollowList(null)} className="text-slate-500">×</button>
             </div>
             <div className="space-y-2">
-              {followList.map((u: any) => (
-                <div key={u.id} className="flex items-center gap-2 p-2 rounded-xl border border-neutral-800">
-                  <span className="text-lg">{flagOf(u.country)}</span>
+              {followLoading ? <p className="text-xs text-slate-500">{t('loading')}</p> : followList.map((u: any) => (
+                <div key={u.id} role="button" tabIndex={0} onClick={() => { setShowFollowList(null); _onNavigate?.('profile', u); }} onKeyDown={(event) => { if (event.key === 'Enter') { setShowFollowList(null); _onNavigate?.('profile', u); } }} className="w-full flex items-center gap-2 p-2 rounded-xl border border-neutral-800 text-left hover:border-skyBlue/40">
+                  <span className="w-9 h-9 rounded-full bg-neutral-800 overflow-hidden flex items-center justify-center">{u.profile_picture || u.avatar_url ? <img src={mediaUrl(u.profile_picture || u.avatar_url)} alt="" className="w-full h-full object-cover" /> : flagOf(u.country)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-slate-100 truncate">{u.full_name}</p>
                     <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>
                   </div>
                   <button
-                    onClick={() => {
-                      if (onOpenMessages) onOpenMessages(u);
-                      else if (_onNavigate) _onNavigate('messages', { messageUser: u });
-                      setShowFollowList(null);
-                    }}
+                    onClick={(event) => { event.stopPropagation(); void toggleListFollow(u); }}
                     className="px-2 py-1 text-[10px] text-skyBlue"
                   >
-                    {t('dmShort')}
+                    {u.is_following ? <><UserCheck className="inline w-3 h-3" /> {t('following')}</> : <><UserPlus className="inline w-3 h-3" /> {t('follow')}</>}
                   </button>
                 </div>
               ))}
