@@ -12,9 +12,10 @@ import {
   User,
   X,
 } from 'lucide-react';
-import { flagOf, useI18n } from '../../i18n';
+import { useI18n } from '../../i18n';
 import { ThemeToggle } from '../ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { UserAvatar } from '../UserAvatar';
 
 interface MobileMenuProps {
   open: boolean;
@@ -147,13 +148,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-neutral-900"
             onClick={() => navigate('profile')}
           >
-            <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-skyBlue/40 bg-black text-lg">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
-              ) : (
-                flagOf(user?.country)
-              )}
-            </span>
+            <UserAvatar name={user?.full_name} avatarUrl={user?.avatar_url || user?.profile_picture} className="h-9 w-9" alt={user?.full_name || ''} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-semibold text-slate-100">
                 {user?.full_name || t('userGeneric')}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, Search, UserCheck, UserPlus } from 'lucide-react';
-import { fetchSuggestions, followUser, mediaUrl, unfollowUser } from '../api';
+import { fetchSuggestions, followUser, unfollowUser } from '../api';
 import { flagOf, useI18n } from '../i18n';
+import { UserAvatar } from './UserAvatar';
 
 interface ExploreViewProps {
   token?: string | null;
@@ -94,11 +95,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   onClick={() => handleProfileClick(u.id)}
                   className="relative w-12 h-12 rounded-full bg-neutral-800 border border-skyBlue/40 overflow-hidden flex items-center justify-center text-lg cursor-pointer"
                 >
-                  {u.avatar_url || u.profile_picture ? (
-                    <img src={mediaUrl(u.avatar_url || u.profile_picture)} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    flagOf(u.country)
-                  )}
+                  <UserAvatar name={u.full_name} avatarUrl={u.avatar_url || u.profile_picture} className="w-full h-full text-lg" />
                 </div>
 
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleProfileClick(u.id)}>

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Send, User } from 'lucide-react';
-import { API_URL, fetchUserByUsername, fetchUserStats, mediaUrl, translateCached, translationChanged } from '../api';
+import { ArrowLeft, Send } from 'lucide-react';
+import { API_URL, fetchUserByUsername, fetchUserStats, translateCached, translationChanged } from '../api';
 import { LANG_TARGET, langDisplayName, useI18n } from '../i18n';
+import { UserAvatar } from './UserAvatar';
 
 interface MessagesViewProps {
   token: string | null;
@@ -160,8 +161,6 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
     }
   };
 
-  const avatar = (u: any) => mediaUrl(u?.profile_picture);
-
   if (activeUser) {
     return (
       <section className="max-w-[620px] mx-auto">
@@ -176,13 +175,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden">
-              {avatar(activeUser) ? (
-                <img src={avatar(activeUser)} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-4 h-4 text-slate-500" />
-              )}
-            </div>
+            <UserAvatar name={activeUser.full_name} avatarUrl={activeUser.avatar_url || activeUser.profile_picture} className="w-9 h-9 text-xs" />
             <div>
               <p className="text-xs font-semibold text-slate-100">{activeUser.full_name}</p>
               <p className="text-[10px] text-slate-500">@{activeUser.username || activeUser.id}</p>
@@ -261,13 +254,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
             onClick={() => setActiveUser(u)}
             className="w-full flex items-center gap-3 p-3 rounded-xl border border-neutral-800 bg-black/50 hover:border-skyBlue/40 text-left"
           >
-            <div className="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden">
-              {avatar(u) ? (
-                <img src={avatar(u)} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-5 h-5 text-slate-500" />
-              )}
-            </div>
+            <UserAvatar name={u.full_name} avatarUrl={u.avatar_url || u.profile_picture} className="w-10 h-10 text-sm" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-slate-100 truncate">{u.full_name}</p>
               <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>

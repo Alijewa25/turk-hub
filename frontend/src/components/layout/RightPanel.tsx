@@ -1,7 +1,8 @@
 import React from 'react';
 import { ArrowRight, Rocket, Sparkles, TrendingUp } from 'lucide-react';
 import { FollowUser, ProjectItem } from '../../api';
-import { flagOf, useI18n } from '../../i18n';
+import { useI18n } from '../../i18n';
+import { UserAvatar } from '../UserAvatar';
 
 interface RightPanelProps {
   user?: any;
@@ -35,9 +36,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     <aside className="hidden lg:block fixed inset-y-0 right-0 z-30 w-80 border-l border-neutral-900 bg-black px-5 py-6 overflow-y-auto no-scrollbar">
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
         <div className="flex items-center gap-3">
-          <span className="w-12 h-12 rounded-full bg-black border border-skyBlue/40 text-2xl flex items-center justify-center">
-            {flagOf(user?.country)}
-          </span>
+          <UserAvatar name={user?.full_name} avatarUrl={user?.avatar_url || user?.profile_picture} className="w-12 h-12" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-100 truncate">{user?.full_name || t('userGeneric')}</p>
             <p className="text-xs text-slate-500 truncate">{user?.email || 'turkhub.az'}</p>
@@ -66,9 +65,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
               key={u.id}
               className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2.5 hover:border-skyBlue/40 transition-colors duration-200"
             >
-              <span className="w-8 h-8 rounded-full bg-black border border-neutral-800 flex items-center justify-center text-base">
-                {flagOf(u.country)}
-              </span>
+              <UserAvatar name={u.full_name} avatarUrl={u.avatar_url || u.profile_picture} className="w-8 h-8 text-xs" />
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold text-slate-100 truncate">{u.full_name}</span>
                 <span className="block text-[10px] text-slate-500">

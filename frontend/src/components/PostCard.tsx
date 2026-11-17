@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
 import { commentPost, likePost, mediaUrl, toggleSavePost, translateCached, translationChanged } from '../api';
-import { flagOf, LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
+import { LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
+import { UserAvatar } from './UserAvatar';
 
 export interface PostMedia {
   title?: string;
@@ -15,6 +16,7 @@ export interface PostMedia {
 export interface PostData {
   id: string;
   authorId?: number;
+  avatarUrl?: string | null;
   author: string;
   country: string;
   role: string;
@@ -121,7 +123,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   }, [comments, lang, token]);
 
   const pid = postId ?? post.id;
-  const flag = flagOf(post.country);
   const imageSrc = mediaUrl(post.media?.image);
   const fileHref = mediaUrl(post.media?.fileUrl);
   const isPdf =
@@ -187,9 +188,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   return (
     <article id={`post-${post.id}`} className={`w-full bg-neutral-900/60 border rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700 ${highlighted ? 'border-skyBlue ring-2 ring-skyBlue/30' : 'border-slate-800/80'}`}>
       <div className="p-4 sm:p-5 flex items-center gap-3">
-        <span className="w-9 h-9 rounded-full bg-black border border-skyBlue/40 text-lg flex items-center justify-center">
-          {flag}
-        </span>
+        <UserAvatar name={post.author} avatarUrl={post.avatarUrl} className="w-9 h-9 text-lg" />
         <div className="min-w-0 flex-1">
           <h3 className="text-xs font-semibold text-slate-100 truncate">{post.author}</h3>
           <p className="text-[10px] text-slate-500">

@@ -9,6 +9,7 @@ import { MobileMenu } from './components/layout/MobileMenu';
 import { StoriesBar } from './components/StoriesBar';
 import { StoryViewer } from './components/StoryViewer';
 import { PostCard, PostData } from './components/PostCard';
+import { UserAvatar } from './components/UserAvatar';
 import { CreatePostModal } from './components/CreatePostModal';
 import { Dictionary } from './components/Dictionary';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -34,7 +35,6 @@ import {
   joinProject,
   markAllNotificationsAsRead,
   markNotificationAsRead,
-  mediaUrl,
   NotificationItem,
   ProjectDraft,
   ProjectItem,
@@ -150,6 +150,7 @@ function mapApiPost(p: ApiPost): PostData {
     id: String(p.id),
     authorId: p.user_id,
     author: p.author?.full_name || translateStatic('userGeneric'),
+    avatarUrl: p.author?.profile_picture,
     country: p.author?.country || '',
     role: p.author?.university || translateStatic('studentRole'),
     time: timeAgo(p.created_at) || '',
@@ -706,7 +707,7 @@ export function App() {
                         <span className="w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center text-skyBlue">
                           <Icon className="w-4 h-4" />
                         </span>
-                        {n.actor_avatar ? <img src={mediaUrl(n.actor_avatar)} alt="" className="w-8 h-8 rounded-full object-cover" /> : null}
+                        <UserAvatar name={n.actor_name} avatarUrl={n.actor_avatar} className="w-8 h-8" />
                         <span className="min-w-0 flex-1 text-xs text-slate-300">{formatNotificationText(n, lang, t)}</span>
                         <span className="text-[10px] text-slate-600 shrink-0">{timeAgo(n.created_at)}</span>
                       </li>

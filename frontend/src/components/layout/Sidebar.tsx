@@ -4,6 +4,7 @@ import { fetchSuggestions } from '../../api';
 import { flagOf, useI18n } from '../../i18n';
 import { ThemeToggle } from '../ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { UserAvatar } from '../UserAvatar';
 
 interface SidebarProps {
   activeTab: string;
@@ -126,13 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
           className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-neutral-900/70 transition-colors cursor-pointer"
           onClick={() => setActiveTab('profile')}
         >
-          <span className="relative w-9 h-9 rounded-full bg-black border border-skyBlue/40 text-lg flex items-center justify-center overflow-hidden">
-            {user?.avatar_url ? (
-              <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
-            ) : (
-              flagOf(user?.country)
-            )}
-          </span>
+          <UserAvatar name={user?.full_name} avatarUrl={user?.avatar_url || user?.profile_picture} className="w-9 h-9" alt={user?.full_name || ''} />
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-semibold text-slate-100 truncate">{user?.full_name || t('userGeneric')}</span>
             <span className="block text-[10px] text-slate-500 truncate">@{user?.username || user?.id || 'turkhub'}</span>

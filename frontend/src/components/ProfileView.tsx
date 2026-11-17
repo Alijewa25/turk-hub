@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Edit3, MessageCircle, Rocket, UserPlus, UserCheck, X } from 'lucide-react';
 import { flagOf, localizedCountryName, localizedRole, useI18n } from '../i18n';
-import { API_URL, fetchFollowers, fetchFollowing, fetchProjects, fetchSavedPosts, fetchUserPosts, fetchUserStats, followUser, mediaUrl, ProjectItem, unfollowUser, uploadAvatar } from '../api';
+import { API_URL, fetchFollowers, fetchFollowing, fetchProjects, fetchSavedPosts, fetchUserPosts, fetchUserStats, followUser, ProjectItem, unfollowUser, uploadAvatar } from '../api';
 import { PostCard } from './PostCard';
+import { UserAvatar } from './UserAvatar';
 
 interface ProfileViewProps {
   user: any;
@@ -249,11 +250,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="relative group">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neutral-800 border-2 border-sky-500 overflow-hidden flex items-center justify-center text-2xl font-bold">
-              {currentAvatar ? (
-                <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
-              ) : (
-                profileUser?.full_name?.[0] || profileUser?.username?.[0] || t('userGeneric')[0]
-              )}
+              <UserAvatar name={profileUser?.full_name || profileUser?.username} avatarUrl={currentAvatar} className="w-full h-full text-2xl" />
             </div>
           </div>
 
@@ -406,7 +403,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="space-y-2">
               {followLoading ? <p className="text-xs text-slate-500">{t('loading')}</p> : followList.map((u: any) => (
                 <div key={u.id} role="button" tabIndex={0} onClick={() => { setShowFollowList(null); _onNavigate?.('profile', u); }} onKeyDown={(event) => { if (event.key === 'Enter') { setShowFollowList(null); _onNavigate?.('profile', u); } }} className="w-full flex items-center gap-2 p-2 rounded-xl border border-neutral-800 text-left hover:border-skyBlue/40">
-                  <span className="w-9 h-9 rounded-full bg-neutral-800 overflow-hidden flex items-center justify-center">{u.profile_picture || u.avatar_url ? <img src={mediaUrl(u.profile_picture || u.avatar_url)} alt="" className="w-full h-full object-cover" /> : flagOf(u.country)}</span>
+                  <UserAvatar name={u.full_name} avatarUrl={u.profile_picture || u.avatar_url} className="w-9 h-9 text-sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-slate-100 truncate">{u.full_name}</p>
                     <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>
@@ -438,13 +435,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <label className="text-[10px] text-slate-400 block mb-1">{t('profilePictureUpload')}</label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700">
-                    {currentAvatar ? (
-                      <img src={mediaUrl(currentAvatar)} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-bold">
-                        {editName?.[0] || t('userGeneric')[0]}
-                      </div>
-                    )}
+                    <UserAvatar name={editName} avatarUrl={currentAvatar} className="w-full h-full text-sm" />
                   </div>
                   <input type="file" accept="image/*" onChange={handleAvatarUpload} className="text-xs text-slate-400" />
                 </div>
