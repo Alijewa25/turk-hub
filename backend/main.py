@@ -1148,6 +1148,10 @@ def _post_response(post: models.Post, current_user: models.User, db: Session) ->
         models.PostLike.post_id == post.id,
         models.PostLike.user_id == current_user.id,
     ).first() is not None
+    is_saved = db.query(models.SavedPost.id).filter(
+        models.SavedPost.post_id == post.id,
+        models.SavedPost.user_id == current_user.id,
+    ).first() is not None
     return schemas.PostResponse(
         id=post.id,
         user_id=post.user_id,
@@ -1160,6 +1164,7 @@ def _post_response(post: models.Post, current_user: models.User, db: Session) ->
         is_liked=liked,
         liked_by_me=liked,
         source_lang=_detect_translation_lang(post.body or ""),
+        is_saved=is_saved,
         created_at=post.created_at,
         author=schemas.UserResponse.model_validate(post.author) if post.author else None,
     )
@@ -1227,6 +1232,42 @@ def user_posts(user_id: int, db: Session = Depends(get_db), current_user: models
         except Exception:
             logger.warning("Could not serialize post %s", getattr(p, "id", "?"), exc_info=True)
     return result
+
+
+@app.get("/api/users/me/saved-posts", response_model=List[schemas.PostResponse])
+@app.get("/api/posts/saved", response_model=List[schemas.PostResponse])
+def saved_posts(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    saved = db.query(models.SavedPost).filter(
+        models.SavedPost.user_id == current_user.id,
+    ).order_by(models.SavedPost.created_at.desc()).all()
+    return [_post_response(item.post, current_user, db) for item in saved if item.post]
+
+
+@app.post("/api/posts/{post_id}/save")
+@app.post("/posts/{post_id}/save")
+def save_post(
+    post_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    existing = db.query(models.SavedPost).filter(
+        models.SavedPost.user_id == current_user.id,
+        models.SavedPost.post_id == post_id,
+    ).first()
+    if existing:
+        db.delete(existing)
+        is_saved = False
+    else:
+        db.add(models.SavedPost(user_id=current_user.id, post_id=post_id))
+        is_saved = True
+    db.commit()
+    return {"is_saved": is_saved}
 
 
 @app.post("/api/posts/{post_id}/like")
@@ -1798,6 +1839,22 @@ def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Opt
     return translated or None
 
 
+def _mymemory_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
+    source = "auto" if not source_lang else ("tk" if source_lang == "tm" else source_lang)
+    target = "tk" if target_lang == "tm" else target_lang
+    query = urllib_parse.urlencode({"q": text, "langpair": f"{source}|{target}"})
+    request = urllib_request.Request(
+        f"https://api.mymemory.translated.net/get?{query}",
+        headers={"User-Agent": "Mozilla/5.0 (TurkHub/1.0)"},
+        method="GET",
+    )
+    with urllib_request.urlopen(request, timeout=10) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    response_data = data.get("responseData", {}) if isinstance(data, dict) else {}
+    translated = response_data.get("translatedText") if isinstance(response_data, dict) else None
+    return translated.strip() if isinstance(translated, str) else None
+
+
 async def _external_translate(text: str, source_lang: str, target_lang: str) -> Optional[str]:
     try:
         llm_result = await asyncio.to_thread(
@@ -1808,8 +1865,8 @@ async def _external_translate(text: str, source_lang: str, target_lang: str) -> 
         )
         if llm_result and llm_result.strip() != text.strip():
             return llm_result.strip()
-    except Exception:
-        logger.warning("LLM translation provider failed; trying Google fallback", exc_info=True)
+    except Exception as exc:
+        logger.warning("LLM translation provider failed: %s", exc)
     try:
         google_result = await asyncio.to_thread(
             _google_translate_sync,
@@ -1819,8 +1876,19 @@ async def _external_translate(text: str, source_lang: str, target_lang: str) -> 
         )
         if google_result and google_result.strip() != text.strip():
             return google_result.strip()
-    except Exception:
-        logger.warning("Google translation fallback failed", exc_info=True)
+    except Exception as exc:
+        logger.warning("Google translation fallback failed: %s", exc)
+    try:
+        mymemory_result = await asyncio.to_thread(
+            _mymemory_translate_sync,
+            text,
+            source_lang,
+            target_lang,
+        )
+        if mymemory_result and mymemory_result.strip() != text.strip():
+            return mymemory_result.strip()
+    except Exception as exc:
+        logger.warning("MyMemory translation fallback failed: %s", exc)
     return None
 
 
