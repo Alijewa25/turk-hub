@@ -449,7 +449,7 @@ const EXTRA_AZ: Record<string, string> = {
   translate: 'Tərcümə et',
   translating: 'Tərcümə olunur...',
   showOriginal: 'Orijinalı göstər',
-  translatedFrom: '{lang} dilindən tərcümə olunub',
+  translatedFrom: '{lang} dilindən tərcümə edildi',
   translationFailed: 'Tərcümə alınmadı',
   originalText: 'Orijinal mətn',
   live: 'Canlı',
@@ -1502,7 +1502,64 @@ const EXTRA_EN: Record<string, string> = {
   studentRole: 'Student',
 };
 
-const EN: Record<string, string> = {};
+const EN: Record<string, string> = {
+  cancel: 'Cancel',
+  commentPlaceholder: 'Write a comment...',
+  continue: 'Continue',
+  createHint: 'Reach audiences across six countries with Göktürk blue',
+  darkTheme: 'Dark theme',
+  emblemTag: 'Göktürk Network',
+  feat1: 'Unified youth network across 6 Turkic states',
+  feat2: 'Project, team, and resource sharing',
+  feat3: 'Pan-Turkic etymological dictionary and AI translation',
+  feedFooter: 'Turkic youth innovation network © 2026',
+  follow: 'Follow',
+  following: 'Following',
+  joinTeam: 'Join the team',
+  haveAccount: 'Already have an account?',
+  heroA: 'Turk Youth',
+  heroB: 'Innovation Network',
+  heroSub: 'A unified digital space for the youth of six Turkic states: create projects, build teams, and turn your ideas into a shared future.',
+  labelEmail: 'Email',
+  labelFullName: 'Full name',
+  labelLanguage: 'Language',
+  labelPassword: 'Password',
+  lightTheme: 'Light theme',
+  loading: 'Loading...',
+  loginLink: 'Log in',
+  loginTab: 'Log in',
+  logout: 'Log out',
+  memberRole: 'Student',
+  myStory: 'Your story',
+  navDictionary: 'Dictionary',
+  navExplore: 'Explore',
+  navHome: 'Home',
+  navMessages: 'Messages',
+  navNotifications: 'Notifications',
+  navProfile: 'Profile',
+  navProjects: 'Projects',
+  navRooms: 'Rooms / Live chat',
+  newPost: 'New post',
+  noAccount: "Don't have an account?",
+  onboardingHint: 'Final registration step — required',
+  onboardingSubtitle: 'Choose your country — your profile origin will be updated and the interface will switch to that country’s language.',
+  onboardingTitle: 'Which country are you from?',
+  publish: 'Publish',
+  registerTab: 'Register',
+  sendComment: 'Send',
+  sendMessage: 'Send message',
+  signupLink: 'Sign up',
+  socialOr: 'or continue with a social account',
+  socialSoon: 'Social login will be available soon',
+  storyOf: 'Story',
+  submitLogin: 'Log in',
+  submitRegister: 'Create account',
+  suggestionsForYou: 'Suggestions for you',
+  tagline: 'Turk Youth Innovation Network',
+  trendingNow: 'Trending now',
+  trendingProjects: 'Trending Pan-Turkic projects',
+  viewProfile: 'View profile',
+};
 
 const EXTRA_UI: Record<LangCode, Record<string, string>> = {
   AZ: {
@@ -1780,7 +1837,7 @@ export const LANG_TARGET: Record<LangCode, string> = {
   KK: 'kk',
   KY: 'ky',
   UZ: 'uz',
-  TK: 'tm',
+  TK: 'tk',
   EN: 'en',
 };
 
@@ -1797,6 +1854,77 @@ const LANG_NAMES: Record<LangCode, Record<string, string>> = {
 export function langDisplayName(code: string | null | undefined, uiLang: LangCode): string {
   const key = (code || '').toLowerCase();
   return LANG_NAMES[uiLang]?.[key] || key.toUpperCase();
+}
+
+const COUNTRY_NAMES: Record<LangCode, Record<string, string>> = {
+  AZ: {
+    Azerbaijan: 'Azərbaycan',
+    Türkiye: 'Türkiyə',
+    Kazakhstan: 'Qazaxıstan',
+    Kyrgyzstan: 'Qırğızıstan',
+    Uzbekistan: 'Özbəkistan',
+    Turkmenistan: 'Türkmənistan',
+  },
+  TR: {
+    Azerbaijan: 'Azerbaycan',
+    Türkiye: 'Türkiye',
+    Kazakhstan: 'Kazakistan',
+    Kyrgyzstan: 'Kırgızistan',
+    Uzbekistan: 'Özbekistan',
+    Turkmenistan: 'Türkmenistan',
+  },
+  KK: {
+    Azerbaijan: 'Әзербайжан',
+    Türkiye: 'Түркия',
+    Kazakhstan: 'Қазақстан',
+    Kyrgyzstan: 'Қырғызстан',
+    Uzbekistan: 'Өзбекстан',
+    Turkmenistan: 'Түрікменстан',
+  },
+  KY: {
+    Azerbaijan: 'Азербайжан',
+    Türkiye: 'Түркия',
+    Kazakhstan: 'Казакстан',
+    Kyrgyzstan: 'Кыргызстан',
+    Uzbekistan: 'Өзбекстан',
+    Turkmenistan: 'Түркмөнстан',
+  },
+  UZ: {
+    Azerbaijan: 'Ozarbayjon',
+    Türkiye: 'Turkiya',
+    Kazakhstan: 'Qozogʻiston',
+    Kyrgyzstan: 'Qirgʻiziston',
+    Uzbekistan: 'Oʻzbekiston',
+    Turkmenistan: 'Turkmaniston',
+  },
+  TK: {
+    Azerbaijan: 'Azerbaýjan',
+    Türkiye: 'Türkiýe',
+    Kazakhstan: 'Gazagystan',
+    Kyrgyzstan: 'Gyrgyzystan',
+    Uzbekistan: 'Özbegistan',
+    Turkmenistan: 'Türkmenistan',
+  },
+  EN: {
+    Azerbaijan: 'Azerbaijan',
+    Türkiye: 'Türkiye',
+    Kazakhstan: 'Kazakhstan',
+    Kyrgyzstan: 'Kyrgyzstan',
+    Uzbekistan: 'Uzbekistan',
+    Turkmenistan: 'Turkmenistan',
+  },
+};
+
+export function localizedCountryName(country: string | null | undefined, uiLang: LangCode): string {
+  if (!country) return '';
+  return COUNTRY_NAMES[uiLang]?.[country] || country;
+}
+
+export function localizedRole(role: string | null | undefined, uiLang: LangCode, fallback: string): string {
+  const value = (role || '').trim();
+  const genericRoles = new Set(['student', 'tələbə', 'öğrenci', 'студент', 'talaba', 'okuŵçy', 'okuwçy']);
+  const localizedGenericRole: Partial<Record<LangCode, string>> = { [uiLang]: fallback };
+  return genericRoles.has(value.toLowerCase()) ? localizedGenericRole[uiLang] || fallback : value || fallback;
 }
 
 interface I18nContextValue {
