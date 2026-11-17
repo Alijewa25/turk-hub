@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
-import asyncio, json, os, re, uuid, logging
+import asyncio, base64, io, json, os, re, uuid, logging
 
 from jose import JWTError, jwt
 
@@ -997,22 +997,38 @@ async def upload_avatar(
     if ext not in allowed:
         raise HTTPException(status_code=400, detail="Yalnız şəkil formatları qəbul olunur (.jpg, .jpeg, .png, .webp)")
 
-    fname = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
-    path = os.path.join(UPLOAD_DIR, fname)
-    
-    with open(path, "wb") as buffer:
-        content = await file.read()
-        buffer.write(content)
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Şəkil boş ola bilməz")
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Şəkil ölçüsü 5MB-dan böyük ola bilməz")
 
-    avatar_path = f"/uploads/{fname}"
-    current_user.profile_picture = avatar_path
-    if hasattr(current_user, 'avatar_url'):
-        setattr(current_user, 'avatar_url', avatar_path)
+    media_type = file.content_type if file.content_type in {
+        "image/jpeg", "image/png", "image/gif", "image/webp"
+    } else "image/jpeg"
+    try:
+        from PIL import Image
+
+        with Image.open(io.BytesIO(content)) as image:
+            image = image.convert("RGB")
+            resampling = getattr(Image, "Resampling", Image)
+            image.thumbnail((256, 256), resampling.LANCZOS)
+            output = io.BytesIO()
+            image.save(output, format="JPEG", quality=85, optimize=True)
+            content = output.getvalue()
+            media_type = "image/jpeg"
+    except ImportError:
+        logger.info("Pillow is unavailable; storing the uploaded avatar bytes unchanged")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Şəkil emal edilə bilmədi") from exc
+
+    avatar_url = f"data:{media_type};base64,{base64.b64encode(content).decode('ascii')}"
+    current_user.profile_picture = avatar_url
 
     db.commit()
     db.refresh(current_user)
 
-    return {"status": "ok", "avatar_url": avatar_path, "url": avatar_path}
+    return {"status": "ok", "avatar_url": avatar_url, "url": avatar_url}
 
 
 @app.post("/api/upload")
