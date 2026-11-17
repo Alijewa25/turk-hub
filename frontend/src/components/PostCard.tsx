@@ -23,6 +23,8 @@ export interface PostData {
   media?: PostMedia;
   likes: number;
   comments: number;
+  is_liked?: boolean | null;
+  liked_by_me?: boolean | null;
 }
 
 interface PostComment {
@@ -46,7 +48,7 @@ interface PostCardProps {
 
 export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user }) => {
   const { t, lang } = useI18n();
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(post.is_liked ?? post.liked_by_me ?? false);
   const [saved, setSaved] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
@@ -58,6 +60,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   const [showTranslation, setShowTranslation] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState('');
+
+  useEffect(() => {
+    setLiked(post.is_liked ?? post.liked_by_me ?? false);
+    setLikeCount(post.likes || 0);
+    setCommentCount(post.comments || 0);
+  }, [post.id, post.is_liked, post.liked_by_me, post.likes, post.comments]);
 
   useEffect(() => {
     setTranslatedBody('');
@@ -81,7 +89,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     if (!body) return;
     let cancelled = false;
     setTranslating(true);
-    translateCached(token, body, LANG_TARGET[lang])
+    translateCached(token, body, LANG_TARGET[lang], undefined, `post:${post.id}`)
       .then((result) => {
         if (cancelled || !translationChanged(result, body)) return;
         setTranslatedBody(result.translated_text);
@@ -102,7 +110,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     comments.forEach((item) => {
       if (!item.text.trim() || item.autoTried || item.translatedText || item.translating) return;
       setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true, autoTried: true } : c)));
-      translateCached(token, item.text, target)
+      translateCached(token, item.text, target, undefined, `comment:${item.id}`)
         .then((result) => {
           const useful = translationChanged(result, item.text);
           setComments((prev) =>
@@ -150,7 +158,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     setTranslating(true);
     setTranslationError('');
     try {
-      const result = await translateCached(token, post.body, LANG_TARGET[lang]);
+      const result = await translateCached(token, post.body, LANG_TARGET[lang], undefined, `post:${post.id}`);
       setTranslatedBody(result.translated_text);
       setTranslationSource(result.source_lang);
       setShowTranslation(true);
@@ -172,7 +180,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     }
     setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true, autoTried: true } : c)));
     try {
-      const result = await translateCached(token, item.text, LANG_TARGET[lang]);
+      const result = await translateCached(token, item.text, LANG_TARGET[lang], undefined, `comment:${item.id}`);
       setComments((prev) =>
         prev.map((c) =>
           c.id === item.id
@@ -264,15 +272,16 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       <div className="px-3 pb-2 flex items-center gap-4 text-slate-400">
         <button
           onClick={async () => {
-            if (liked) return;
             try {
-              setLiked(true);
-              setLikeCount((c) => c + 1);
+              const nextLiked = !liked;
+              setLiked(nextLiked);
+              setLikeCount((c) => Math.max(0, c + (nextLiked ? 1 : -1)));
               const res = await likePost(token, pid);
+              if (res?.liked !== undefined) setLiked(Boolean(res.liked));
               if (res?.likes_count !== undefined) setLikeCount(res.likes_count);
             } catch {
-              setLiked(false);
-              setLikeCount((c) => Math.max(0, c - 1));
+              setLiked((current) => !current);
+              setLikeCount((c) => Math.max(0, c + (liked ? 1 : -1)));
             }
           }}
           className={`flex items-center gap-1.5 text-xs transition-colors ${liked ? 'text-red-500' : 'hover:text-red-500'}`}
