@@ -56,6 +56,7 @@ export interface ApiPost {
   comments_count?: number | null;
   is_liked?: boolean | null;
   liked_by_me?: boolean | null;
+  is_saved?: boolean | null;
   source_lang?: string | null;
   created_at?: string | null;
   author?: StoryAuthor | null;
@@ -387,6 +388,19 @@ export async function fetchUserPosts(userId: number, token: string | null = null
     []
   );
   return Array.isArray(posts) ? posts : [];
+}
+
+export async function fetchSavedPosts(token: string | null): Promise<ApiPost[]> {
+  const res = await axios.get(`${API_URL}/api/users/me/saved-posts`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function toggleSavePost(
+  token: string | null,
+  postId: number | string
+): Promise<{ is_saved: boolean }> {
+  const res = await axios.post(`${API_URL}/api/posts/${postId}/save`, {}, { headers: headers(token) });
+  return { is_saved: Boolean(res.data?.is_saved) };
 }
 
 export async function likePost(token: string | null, postId: number | string) {
