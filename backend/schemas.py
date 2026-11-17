@@ -106,6 +106,8 @@ class PostResponse(BaseModel):
     file_name: Optional[str] = None
     likes_count: int = 0
     comments_count: int = 0
+    is_liked: bool = False
+    liked_by_me: bool = False
     created_at: Optional[datetime] = None
     author: Optional[UserResponse] = None
 
