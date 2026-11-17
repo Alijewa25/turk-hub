@@ -30,14 +30,25 @@
   --primary-contrast: #ffffff;
 }
 
+html,
 body {
   margin: 0;
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
 }
 
 @layer base {
@@ -47,12 +58,12 @@ body {
   h4,
   h5,
   h6 {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     letter-spacing: -0.02em;
   }
 
   button {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
   }
 }
 
