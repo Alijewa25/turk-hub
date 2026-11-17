@@ -54,6 +54,8 @@ export interface ApiPost {
   file_name?: string | null;
   likes_count?: number | null;
   comments_count?: number | null;
+  is_liked?: boolean | null;
+  liked_by_me?: boolean | null;
   created_at?: string | null;
   author?: StoryAuthor | null;
 }
@@ -125,7 +127,8 @@ export async function translateCached(
   token: string | null,
   text: string,
   targetLang: string,
-  sourceLang?: string
+  sourceLang?: string,
+  cacheScope?: string
 ): Promise<TranslationResult> {
   const clean = (text || '').trim();
   if (!clean) {
@@ -137,11 +140,31 @@ export async function translateCached(
       provider: 'original',
     };
   }
-  const cacheKey = `${targetLang}:${sourceLang || 'auto'}:${clean}`;
+  const cacheKey = `${cacheScope || 'text'}:${targetLang}:${sourceLang || 'auto'}:${clean}`;
   const cached = translationCache.get(cacheKey);
   if (cached) return cached;
+  const storageKey = `th_translation:${cacheKey}`;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored) as TranslationResult;
+        translationCache.set(cacheKey, parsed);
+        return parsed;
+      }
+    } catch {
+      localStorage.removeItem(storageKey);
+    }
+  }
   const result = await translateText(token, clean, targetLang, sourceLang);
-  if (result?.translated_text?.trim()) translationCache.set(cacheKey, result);
+  if (result?.translated_text?.trim()) {
+    translationCache.set(cacheKey, result);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(result));
+    } catch {
+      // Translation remains available in memory when storage is unavailable.
+    }
+  }
   return result;
 }
 
