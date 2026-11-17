@@ -81,8 +81,10 @@ export interface StoryItem {
 }
 
 export interface FollowUser extends StoryAuthor {
+  role?: string | null;
   followers_count: number;
   following_count: number;
+  posts_count?: number;
   is_following: boolean;
 }
 
