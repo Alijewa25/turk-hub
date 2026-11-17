@@ -108,6 +108,24 @@ const INITIAL_POSTS: PostData[] = [
   },
 ];
 
+const VALID_TABS = new Set([
+  'home',
+  'explore',
+  'rooms',
+  'messages',
+  'projects',
+  'dictionary',
+  'notifications',
+  'profile',
+]);
+
+function restoreActiveTab(): string {
+  const hash = window.location.hash.replace(/^#/, '');
+  const stored = sessionStorage.getItem('th_active_tab');
+  const candidate = hash || stored || 'home';
+  return VALID_TABS.has(candidate) ? candidate : 'home';
+}
+
 function loadStored<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -158,10 +176,7 @@ export function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(() => loadStored<any>('user', null));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [activeTab, setActiveTab] = useState(() => {
-    const hash = window.location.hash.replace('#', '');
-    return hash || sessionStorage.getItem('th_active_tab') || 'home';
-  });
+  const [activeTab, setActiveTab] = useState(restoreActiveTab);
   const [profileViewUserId, setProfileViewUserId] = useState<number | null>(() => {
     const stored = sessionStorage.getItem('th_profile_user_id');
     return stored ? Number(stored) : null;
@@ -305,6 +320,13 @@ export function App() {
     if (token) void loadProjects();
   }, [token, loadProjects]);
 
+  useEffect(() => {
+    sessionStorage.setItem('th_active_tab', activeTab);
+    window.history.replaceState(null, '', `#${activeTab}`);
+    if (profileViewUserId) sessionStorage.setItem('th_profile_user_id', String(profileViewUserId));
+    else sessionStorage.removeItem('th_profile_user_id');
+  }, [activeTab, profileViewUserId]);
+
   if (!token) {
     return (
       <AuthView
@@ -357,13 +379,6 @@ export function App() {
     window.history.replaceState(null, '', `#${tab}`);
     setMobileMenuOpen(false);
   };
-
-  useEffect(() => {
-    sessionStorage.setItem('th_active_tab', activeTab);
-    window.history.replaceState(null, '', `#${activeTab}`);
-    if (profileViewUserId) sessionStorage.setItem('th_profile_user_id', String(profileViewUserId));
-    else sessionStorage.removeItem('th_profile_user_id');
-  }, [activeTab, profileViewUserId]);
 
   const openCreate = (mode: 'post' | 'story') => {
     setCreateMode(mode);
