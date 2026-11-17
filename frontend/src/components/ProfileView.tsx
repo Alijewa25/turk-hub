@@ -40,7 +40,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [editName, setEditName] = useState(user?.full_name || '');
   const [editUsername, setEditUsername] = useState(user?.username || '');
   const [editBio, setEditBio] = useState(user?.bio || '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || user?.profile_picture || '');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null);
   const [followList, setFollowList] = useState<any[]>([]);
@@ -52,11 +52,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [userProjects, setUserProjects] = useState<ProjectItem[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
 
-  const isSelf = !viewUserId || viewUserId === user?.id;
+  const targetUserId = viewUserId ? Number(viewUserId) : null;
+  const isOwnProfile = !targetUserId || Boolean(user && targetUserId === Number(user.id));
   const currentToken = token || localStorage.getItem('token');
 
   const openFollowList = async (kind: 'followers' | 'following') => {
-    const targetId = viewUserId || user?.id;
+    const targetId = targetUserId || user?.id;
     if (!targetId) return;
     setShowFollowList(kind);
     setFollowLoading(true);
@@ -70,9 +71,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   useEffect(() => {
-    if (activeProfileTab !== 'saved' || !isSelf) return;
+    if (activeProfileTab !== 'saved' || !isOwnProfile) return;
     fetchSavedPosts(currentToken).then(setSavedPosts).catch(() => setSavedPosts([]));
-  }, [activeProfileTab, currentToken, isSelf]);
+  }, [activeProfileTab, currentToken, isOwnProfile]);
 
   const toggleListFollow = async (item: any) => {
     if (!item?.id || item.id === user?.id || followPending.has(item.id)) return;
@@ -95,7 +96,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    const targetId = viewUserId || user?.id;
+    const targetId = targetUserId || user?.id;
 
     if (targetId) {
       setProjectsLoading(true);
@@ -130,9 +131,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         });
     }
 
-    if (!isSelf && viewUserId) {
+    if (!isOwnProfile && targetUserId) {
       setProfileUser(null);
-      fetchUserStats(currentToken || null, viewUserId)
+      setAvatarUrl('');
+      setUserPosts([]);
+      setStats({ followers: 0, following: 0 });
+      setEditName('');
+      setEditUsername('');
+      setEditBio('');
+      fetchUserStats(currentToken || null, targetUserId)
         .then((data) => {
           if (cancelled) return;
           setProfileUser(data);
@@ -141,6 +148,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             followers: data.followers_count || 0,
             following: data.following_count || 0,
           });
+          setAvatarUrl(data.avatar_url ?? data.profile_picture ?? '');
         })
         .catch(() => {
           if (!cancelled) setProfileUser(null);
@@ -170,7 +178,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [viewUserId, user, posts, currentToken, isSelf]);
+  }, [targetUserId, user, posts, currentToken, isOwnProfile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -196,7 +204,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const toggleProfileFollow = async () => {
-    if (!profileUser?.id || isSelf) return;
+    if (!profileUser?.id || isOwnProfile) return;
     const result = isFollowing
       ? await unfollowUser(currentToken, profileUser.id)
       : await followUser(currentToken, profileUser.id);
@@ -232,12 +240,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const handleBack = onClearView || onClearViewUser;
-  const currentAvatar = avatarUrl || profileUser?.avatar_url || profileUser?.profile_picture;
-  const profileItems = activeProfileTab === 'posts' ? userPosts : savedPosts;
+  const currentAvatar = isOwnProfile
+    ? (avatarUrl || profileUser?.avatar_url || profileUser?.profile_picture)
+    : (profileUser?.avatar_url ?? profileUser?.profile_picture);
+  const profileItems = activeProfileTab === 'saved' ? savedPosts : userPosts;
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4 pb-12">
-      {!isSelf && handleBack && (
+      {!isOwnProfile && handleBack && (
         <button
           onClick={handleBack}
           className="flex items-center gap-2 text-xs text-sky-400 hover:underline mb-2"
@@ -261,7 +271,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <p className="text-xs text-slate-300 mt-2">{profileUser?.bio || t('noBio')}</p>
           </div>
 
-          {isSelf ? (
+          {isOwnProfile ? (
             <div className="flex gap-2">
               <button
                 onClick={() => setIsEditing(true)}
@@ -305,7 +315,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
 
         <div className="flex flex-wrap gap-5 mt-6 pt-4 border-t border-neutral-800 text-xs text-slate-400">
-          <div><span className="font-bold text-slate-100">{userPosts.length}</span> {t('postsLabel')}</div>
+          <div><span className="font-bold text-slate-100">{profileUser?.posts_count ?? userPosts.length}</span> {t('postsLabel')}</div>
           <div><span className="font-bold text-slate-100">{userProjects.length}</span> {t('projectsLabel')}</div>
           <button onClick={() => void openFollowList('followers')} className="hover:text-skyBlue"><span className="font-bold text-slate-100">{stats.followers}</span> {t('followersLabel')}</button>
           <button onClick={() => void openFollowList('following')} className="hover:text-skyBlue"><span className="font-bold text-slate-100">{stats.following}</span> {t('followingLabel')}</button>
@@ -315,7 +325,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       <div className="flex w-full border-b border-neutral-800">
         <button onClick={() => setActiveProfileTab('posts')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'posts' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('postsLabel')}</button>
         <button onClick={() => setActiveProfileTab('projects')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'projects' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('projectsLabel')}</button>
-        <button onClick={() => setActiveProfileTab('saved')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'saved' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('savedPosts')}</button>
+        {isOwnProfile && <button onClick={() => setActiveProfileTab('saved')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'saved' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('savedPosts')}</button>}
       </div>
 
       <div className="flex flex-col gap-4 w-full">
@@ -369,6 +379,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               id: String(item.id),
               authorId: item.user_id,
               author: item.author?.full_name || profileUser?.full_name || t('userGeneric'),
+              avatarUrl: item.author?.avatar_url ?? item.author?.profile_picture ?? profileUser?.avatar_url ?? profileUser?.profile_picture,
               country: item.author?.country || profileUser?.country || '',
               role: item.author?.university || profileUser?.university || t('studentRole'),
               time: item.created_at ? new Date(item.created_at).toLocaleString() : '',
