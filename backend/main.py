@@ -752,11 +752,26 @@ def create_notification(
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
 @app.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(db: Session = Depends(get_db)):
-    return _safe_list_query(
+    projects = _safe_list_query(
         lambda: db.query(models.Project).all(),
         db,
         "projects",
     )
+    return [
+        {
+            **schemas.ProjectResponse.model_validate(project).model_dump(),
+            "member_ids": [
+                member.user_id
+                for member in db.query(models.ProjectMember)
+                .filter(models.ProjectMember.project_id == project.id)
+                .all()
+            ],
+            "member_count": db.query(models.ProjectMember)
+            .filter(models.ProjectMember.project_id == project.id)
+            .count(),
+        }
+        for project in projects
+    ]
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse)
 @app.post("/projects", response_model=schemas.ProjectResponse)
