@@ -75,7 +75,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </button>
         <button onClick={() => setActiveTab('home')} className="flex min-w-0 items-center gap-2">
           <img src="/logo.jpg" alt={t('brandLogoAlt')} className="h-8 w-8 shrink-0 rounded-full object-cover" />
-          <span className="font-heading hidden bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-xl font-extrabold leading-none tracking-[-0.03em] text-transparent sm:inline">
+          <span className="font-heading hidden bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-xl font-extrabold leading-none tracking-tight text-transparent sm:inline">
             TURK HUB
           </span>
           <span className="flex items-center gap-1 rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-sm" title={user?.country}>
