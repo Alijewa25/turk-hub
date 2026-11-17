@@ -155,6 +155,7 @@ function mapApiPost(p: ApiPost): PostData {
     comments: p.comments_count || 0,
     is_liked: p.is_liked ?? p.liked_by_me ?? false,
     liked_by_me: p.liked_by_me ?? p.is_liked ?? false,
+    sourceLang: p.source_lang || undefined,
   };
 }
 
