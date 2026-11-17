@@ -109,6 +109,7 @@ class PostResponse(BaseModel):
     is_liked: bool = False
     liked_by_me: bool = False
     source_lang: Optional[str] = None
+    is_saved: bool = False
     created_at: Optional[datetime] = None
     author: Optional[UserResponse] = None
 
