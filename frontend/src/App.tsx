@@ -153,6 +153,8 @@ function mapApiPost(p: ApiPost): PostData {
       : undefined,
     likes: p.likes_count || 0,
     comments: p.comments_count || 0,
+    is_liked: p.is_liked ?? p.liked_by_me ?? false,
+    liked_by_me: p.liked_by_me ?? p.is_liked ?? false,
   };
 }
 
