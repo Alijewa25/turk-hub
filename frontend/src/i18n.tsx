@@ -1502,6 +1502,8 @@ const EXTRA_EN: Record<string, string> = {
   studentRole: 'Student',
 };
 
+const EN: Record<string, string> = {};
+
 const EXTRA_UI: Record<LangCode, Record<string, string>> = {
   AZ: {
     brandLogoAlt: 'TURK HUB loqosu',
@@ -1750,7 +1752,7 @@ export const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
   KY: { ...KY, ...EXTRA_KY, ...EXTRA_UI.KY },
   UZ: { ...UZ, ...EXTRA_UZ, ...EXTRA_UI.UZ },
   TK: { ...TK, ...EXTRA_TK, ...EXTRA_UI.TK },
-  EN: { ...EXTRA_EN, ...EXTRA_UI.EN },
+  EN: { ...EN, ...EXTRA_EN, ...EXTRA_UI.EN },
 };
 
 const TRANSLATION_FALLBACK_ORDER: LangCode[] = ['AZ', 'TR', 'KK', 'KY', 'UZ', 'TK', 'EN'];
