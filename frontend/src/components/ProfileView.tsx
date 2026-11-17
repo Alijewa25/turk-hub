@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Edit3, MessageCircle, UserPlus, UserCheck, X } from 'lucide-react';
+import { ArrowLeft, Edit3, MessageCircle, Rocket, UserPlus, UserCheck, X } from 'lucide-react';
 import { flagOf, localizedCountryName, localizedRole, useI18n } from '../i18n';
-import { API_URL, fetchFollowers, fetchFollowing, fetchSavedPosts, fetchUserPosts, fetchUserStats, followUser, mediaUrl, unfollowUser, uploadAvatar } from '../api';
+import { API_URL, fetchFollowers, fetchFollowing, fetchProjects, fetchSavedPosts, fetchUserPosts, fetchUserStats, followUser, mediaUrl, ProjectItem, unfollowUser, uploadAvatar } from '../api';
 import { PostCard } from './PostCard';
 
 interface ProfileViewProps {
@@ -22,7 +22,6 @@ interface ProfileViewProps {
 export const ProfileView: React.FC<ProfileViewProps> = ({
   user,
   posts,
-  projects,
   token,
   onLogout,
   viewUserId,
@@ -49,6 +48,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeProfileTab, setActiveProfileTab] = useState<'posts' | 'projects' | 'saved'>('posts');
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [userProjects, setUserProjects] = useState<ProjectItem[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
   const isSelf = !viewUserId || viewUserId === user?.id;
   const currentToken = token || localStorage.getItem('token');
@@ -96,12 +97,35 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const targetId = viewUserId || user?.id;
 
     if (targetId) {
+      setProjectsLoading(true);
       fetchUserPosts(targetId, currentToken || null)
         .then((data) => {
           if (!cancelled) setUserPosts(data);
         })
         .catch(() => {
           if (!cancelled) setUserPosts([]);
+        });
+      fetchProjects(currentToken || null)
+        .then((allProjects) => {
+          if (cancelled) return;
+          const matching = allProjects.filter((project) => {
+            const ownerId = project.owner_id ?? project.creator_id;
+            if (ownerId === targetId) return true;
+            const memberIds = [
+              ...(project.member_ids || []),
+              ...(project.participant_ids || []),
+              ...(project.members || []).map((member) => member.id ?? member.user_id),
+              ...(project.participants || []).map((member) => member.id ?? member.user_id),
+            ];
+            return memberIds.includes(targetId);
+          });
+          setUserProjects(matching);
+        })
+        .catch(() => {
+          if (!cancelled) setUserProjects([]);
+        })
+        .finally(() => {
+          if (!cancelled) setProjectsLoading(false);
         });
     }
 
@@ -208,6 +232,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const handleBack = onClearView || onClearViewUser;
   const currentAvatar = avatarUrl || profileUser?.avatar_url || profileUser?.profile_picture;
+  const profileItems = activeProfileTab === 'posts' ? userPosts : savedPosts;
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4 pb-12">
@@ -284,7 +309,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         <div className="flex flex-wrap gap-5 mt-6 pt-4 border-t border-neutral-800 text-xs text-slate-400">
           <div><span className="font-bold text-slate-100">{userPosts.length}</span> {t('postsLabel')}</div>
-          <div><span className="font-bold text-slate-100">{projects.length}</span> {t('projectsLabel')}</div>
+          <div><span className="font-bold text-slate-100">{userProjects.length}</span> {t('projectsLabel')}</div>
           <button onClick={() => void openFollowList('followers')} className="hover:text-skyBlue"><span className="font-bold text-slate-100">{stats.followers}</span> {t('followersLabel')}</button>
           <button onClick={() => void openFollowList('following')} className="hover:text-skyBlue"><span className="font-bold text-slate-100">{stats.following}</span> {t('followingLabel')}</button>
         </div>
@@ -297,7 +322,50 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       </div>
 
       <div className="flex flex-col gap-4 w-full">
-        {(activeProfileTab === 'saved' ? savedPosts : userPosts).length ? (activeProfileTab === 'saved' ? savedPosts : userPosts).map((item: any) => (
+        {activeProfileTab === 'projects' ? (
+          projectsLoading ? (
+            <p className="text-xs text-slate-500 text-center py-8">{t('loadingProjects')}</p>
+          ) : userProjects.length ? (
+            userProjects.map((project) => {
+              const targets = (project.target_countries || '').split(',').map((country) => country.trim()).filter(Boolean);
+              const skills = (project.required_skills || '').split(',').map((skill) => skill.trim()).filter(Boolean);
+              const memberCount = project.member_count ?? project.members_count;
+              return (
+                <article key={project.id} className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-skyBlue/30 bg-skyBlue/10 text-skyBlue">
+                      <Rocket className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-bold text-slate-100">{project.title}</h3>
+                      <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-400">{project.description}</p>
+                    </div>
+                  </div>
+                  {skills.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {skills.map((skill) => (
+                        <span key={skill} className="rounded-full border border-neutral-700 bg-black/40 px-2.5 py-1 text-[10px] text-slate-400">{skill}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                    {targets.map((country) => (
+                      <span key={country} className="rounded-full border border-skyBlue/30 bg-skyBlue/10 px-2 py-1 text-skyBlue">{flagOf(country)} {localizedCountryName(country, lang)}</span>
+                    ))}
+                    {memberCount !== undefined && <span>{memberCount} {t('teamMember')}</span>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => _onNavigate?.('projects', { projectId: project.id })}
+                    className="mt-4 rounded-lg bg-skyBlue px-3 py-2 text-xs font-bold text-black hover:bg-skyBlue-hover"
+                  >
+                    {t('joinAction')}
+                  </button>
+                </article>
+              );
+            })
+          ) : <p className="text-xs text-slate-500 text-center py-8">{t('noProjects')}</p>
+        ) : profileItems.length ? profileItems.map((item: any) => (
           <PostCard
             key={item.id}
             post={{
