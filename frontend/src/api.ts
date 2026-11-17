@@ -76,6 +76,16 @@ export interface FollowUser extends StoryAuthor {
   is_following: boolean;
 }
 
+export async function fetchFollowers(userId: number, token: string | null): Promise<FollowUser[]> {
+  const res = await axios.get(`${API_URL}/api/users/${userId}/followers`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchFollowing(userId: number, token: string | null): Promise<FollowUser[]> {
+  const res = await axios.get(`${API_URL}/api/users/${userId}/following`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
 export interface ProjectItem {
   id: number;
   title: string;
@@ -506,6 +516,10 @@ export interface NotificationItem {
   entity_type?: string | null;
   entity_id?: number | null;
   content?: string | null;
+  actor_name?: string | null;
+  actor_avatar?: string | null;
+  post_id?: number | null;
+  message?: string | null;
   is_read: boolean | number;
   created_at?: string | null;
 }
@@ -588,6 +602,14 @@ export async function markAllNotificationsAsRead(
   } catch {
     return markNotificationAsRead(token, undefined);
   }
+}
+
+export async function markNotificationReadById(
+  token: string | null,
+  id: number
+): Promise<{ unread_count: number }> {
+  const res = await axios.patch(`${API_URL}/api/notifications/${id}/read`, {}, { headers: headers(token) });
+  return { unread_count: Number(res.data?.unread_count ?? 0) };
 }
 
 export async function joinProject(
