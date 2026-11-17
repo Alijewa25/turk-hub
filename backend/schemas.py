@@ -191,6 +191,19 @@ class MessageResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RoomMessageResponse(BaseModel):
+    id: int
+    room_id: str
+    sender_id: int
+    sender_name: Optional[str] = None
+    sender_username: Optional[str] = None
+    sender_country: Optional[str] = None
+    sender_avatar: Optional[str] = None
+    content: str
+    created_at: Optional[datetime] = None
+
 class DictionaryBase(BaseModel):
     root_concept: str
     proto_root: Optional[str] = None

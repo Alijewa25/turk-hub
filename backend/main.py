@@ -614,6 +614,37 @@ def _safe_first_query(operation, db: Session, label: str):
         return None
 
 
+@app.get("/api/rooms/{room_id}/messages", response_model=List[schemas.RoomMessageResponse])
+def get_room_messages(
+    room_id: str,
+    limit: int = Query(50, ge=1, le=50),
+    _: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    messages = (
+        db.query(models.RoomMessage)
+        .join(models.User, models.RoomMessage.sender_id == models.User.id)
+        .filter(models.RoomMessage.room_id == room_id)
+        .order_by(models.RoomMessage.created_at.desc(), models.RoomMessage.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": message.id,
+            "room_id": message.room_id,
+            "sender_id": message.sender_id,
+            "sender_name": message.sender.full_name,
+            "sender_username": message.sender.username,
+            "sender_country": message.sender.country,
+            "sender_avatar": message.sender.profile_picture,
+            "content": message.content,
+            "created_at": message.created_at,
+        }
+        for message in reversed(messages)
+    ]
+
+
 # --- REAL-TIME NOTIFICATIONS MANAGER & HELPERS ---
 
 class UserNotificationManager:
@@ -1999,19 +2030,22 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-def _ws_display_name(token: Optional[str], client_id: str, db: Session) -> str:
+def _ws_user(token: Optional[str], db: Session) -> Optional[models.User]:
     if not token:
-        return f"İstifadəçi #{client_id}"
+        return None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
         if not email:
-            return f"İstifadəçi #{client_id}"
-        user = db.query(models.User).filter(models.User.email == email).first()
-        if user:
-            return user.full_name or user.username or f"İstifadəçi #{client_id}"
+            return None
+        return db.query(models.User).filter(models.User.email == email).first()
     except JWTError:
-        pass
+        return None
+
+
+def _ws_display_name(user: Optional[models.User], client_id: str) -> str:
+    if user:
+        return user.full_name or user.username or f"İstifadəçi #{client_id}"
     return f"İstifadəçi #{client_id}"
 
 
@@ -2049,10 +2083,8 @@ async def _ws_heartbeat(websocket: WebSocket):
 async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: Optional[str] = None):
     from database import SessionLocal
     db = SessionLocal()
-    try:
-        display = _ws_display_name(token, client_id, db)
-    finally:
-        db.close()
+    user = _ws_user(token, db)
+    display = _ws_display_name(user, client_id)
 
     await manager.connect(websocket, room_id)
     heartbeat_task = asyncio.create_task(_ws_heartbeat(websocket))
@@ -2069,7 +2101,35 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
                 # Client acknowledged our heartbeat; connection stays alive.
                 continue
 
-            await manager.broadcast(room_id, f"{display}: {data}")
+            if user:
+                message = models.RoomMessage(
+                    room_id=room_id,
+                    sender_id=user.id,
+                    content=data,
+                )
+                db.add(message)
+                db.commit()
+                db.refresh(message)
+                await manager.broadcast(
+                    room_id,
+                    json.dumps(
+                        {
+                            "type": "message",
+                            "id": message.id,
+                            "room_id": message.room_id,
+                            "sender_id": user.id,
+                            "sender_name": user.full_name,
+                            "sender_username": user.username,
+                            "sender_country": user.country,
+                            "sender_avatar": user.profile_picture,
+                            "content": message.content,
+                            "created_at": message.created_at,
+                        },
+                        default=str,
+                    ),
+                )
+            else:
+                await manager.broadcast(room_id, f"{display}: {data}")
     except WebSocketDisconnect:
         pass
     except Exception:
@@ -2085,6 +2145,7 @@ async def _chat_loop(websocket: WebSocket, room_id: str, client_id: str, token: 
             await manager.broadcast(room_id, f"{display} söhbətdən ayrıldı.")
         except Exception:
             logger.warning("Could not broadcast disconnect for room %s", room_id, exc_info=True)
+        db.close()
 
 
 @app.websocket("/api/ws/chat/global/{client_id}")

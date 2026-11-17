@@ -40,6 +40,7 @@ class User(Base):
     posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
     sent_messages = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender", cascade="all, delete-orphan")
     received_messages = relationship("Message", foreign_keys="Message.receiver_id", back_populates="receiver", cascade="all, delete-orphan")
+    room_messages = relationship("RoomMessage", back_populates="sender", cascade="all, delete-orphan")
     notifications = relationship("Notification", foreign_keys="Notification.user_id", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -161,6 +162,18 @@ class Message(Base):
 
     sender = relationship("User", foreign_keys=[sender_id], back_populates="sent_messages")
     receiver = relationship("User", foreign_keys=[receiver_id], back_populates="received_messages")
+
+
+class RoomMessage(Base):
+    __tablename__ = "room_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    room_id = Column(String, nullable=False, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    sender = relationship("User", back_populates="room_messages")
 
 
 class Project(Base):

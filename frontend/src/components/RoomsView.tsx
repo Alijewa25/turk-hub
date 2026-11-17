@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Globe, Send } from 'lucide-react';
 import { API_URL } from '../api';
 import { useI18n } from '../i18n';
+import { UserAvatar } from './UserAvatar';
 
 const ROOMS = [
   { id: 'az', nameKey: 'roomAz', lang: 'Azerbaijan' },
@@ -13,18 +14,67 @@ const ROOMS = [
   { id: 'global', nameKey: 'roomGlobal', lang: 'Global' },
 ];
 
+interface RoomChatMessage {
+  id?: number;
+  room_id?: string;
+  sender_id?: number;
+  sender_name?: string;
+  sender_username?: string;
+  sender_country?: string;
+  sender_avatar?: string;
+  content: string;
+  created_at?: string;
+  system?: boolean;
+}
+
 export const RoomsView: React.FC = () => {
   const { t, lang } = useI18n();
   const rooms = ROOMS.map((room) => ({ ...room, name: t(room.nameKey) }));
   const [activeRoomId, setActiveRoomId] = useState(ROOMS[0].id);
   const activeRoom = rooms.find((room) => room.id === activeRoomId) || rooms[0];
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<RoomChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState<'connecting' | 'open' | 'error'>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
 
+  const appendMessage = (message: RoomChatMessage) => {
+    setMessages((prev) => {
+      if (message.id !== undefined && prev.some((item) => item.id === message.id)) return prev;
+      if (message.id === undefined && prev.some((item) => item.system && item.content === message.content)) return prev;
+      return [...prev, message];
+    });
+  };
+
   useEffect(() => {
-    setMessages([t('chatWelcome').replace('{room}', activeRoom.name)]);
+    const token = localStorage.getItem('token');
+    const controller = new AbortController();
+    setMessages([{ content: t('chatWelcome').replace('{room}', activeRoom.name), system: true }]);
+
+    fetch(`${API_URL}/api/rooms/${encodeURIComponent(activeRoom.id)}/messages?limit=50`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Room history request failed: ${response.status}`);
+        return response.json() as Promise<RoomChatMessage[]>;
+      })
+      .then((history) => {
+        setMessages((prev) => {
+          const next = [...prev];
+          for (const message of history) {
+            if (!next.some((item) => item.id === message.id)) next.push(message);
+          }
+          return next;
+        });
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) console.error('Could not load room message history', error);
+      });
+
+    return () => controller.abort();
+  }, [activeRoomId, activeRoom.id, activeRoom.name, t]);
+
+  useEffect(() => {
     setStatus('connecting');
 
     const clientId = `web-${Math.random().toString(36).slice(2, 8)}`;
@@ -61,11 +111,11 @@ export const RoomsView: React.FC = () => {
       const delay = reconnectDelays[Math.min(attempt, reconnectDelays.length - 1)];
       attempt += 1;
       setStatus('error');
-      setMessages((prev) => [
-        ...prev,
-        t('connectionLost'),
-        t('reconnectingIn').replace('{sec}', String(Math.max(1, Math.round(delay / 1000)))),
-      ]);
+      appendMessage({ content: t('connectionLost'), system: true });
+      appendMessage({
+        content: t('reconnectingIn').replace('{sec}', String(Math.max(1, Math.round(delay / 1000)))),
+        system: true,
+      });
       reconnectTimer = setTimeout(connect, delay);
     };
 
@@ -103,9 +153,13 @@ export const RoomsView: React.FC = () => {
             return;
           }
           if (payload?.type === 'pong') return;
+          if (payload?.type === 'message' && typeof payload.content === 'string') {
+            appendMessage(payload as RoomChatMessage);
+            return;
+          }
         } catch {
         }
-        setMessages((prev) => [...prev, raw]);
+        appendMessage({ content: raw, system: true });
       };
       current.onerror = () => {
         try {
@@ -136,13 +190,13 @@ export const RoomsView: React.FC = () => {
       socket = null;
       socketRef.current = null;
     };
-  }, [activeRoomId, lang]);
+  }, [activeRoomId, lang, t]);
 
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
-      setMessages((prev) => [...prev, t('noConnection')]);
+      appendMessage({ content: t('noConnection'), system: true });
       return;
     }
     socketRef.current.send(text);
@@ -188,8 +242,26 @@ export const RoomsView: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {messages.map((msg, idx) => (
-            <div key={`${idx}-${msg.slice(0, 12)}`} className="p-2.5 bg-black/60 border border-neutral-800/80 rounded-xl text-xs text-slate-200">
-              {msg}
+            <div
+              key={msg.id ?? `${idx}-${msg.content.slice(0, 12)}`}
+              className={`flex items-start gap-2 ${msg.system ? 'justify-center' : ''}`}
+            >
+              {!msg.system && (
+                <UserAvatar
+                  name={msg.sender_name || msg.sender_username}
+                  avatarUrl={msg.sender_avatar}
+                  size="sm"
+                  className="h-7 w-7 text-[10px]"
+                />
+              )}
+              <div className={`max-w-[85%] p-2.5 bg-black/60 border border-neutral-800/80 rounded-xl text-xs text-slate-200 ${msg.system ? 'text-center text-slate-500' : ''}`}>
+                {!msg.system && (
+                  <p className="mb-1 text-[10px] font-semibold text-skyBlue">
+                    {msg.sender_name || msg.sender_username || t('userGeneric')}
+                  </p>
+                )}
+                {msg.content}
+              </div>
             </div>
           ))}
         </div>
