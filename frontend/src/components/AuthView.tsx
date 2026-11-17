@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Check, ChevronDown, Chrome, Github, Globe2, Layers, Sparkles, Users, X } from 'lucide-react';
+import { Check, ChevronDown, Globe2, Layers, Sparkles, Users, X } from 'lucide-react';
 import { LANG_META, UNION_COUNTRIES, useI18n } from '../i18n';
 import { API_URL } from '../api';
 
@@ -18,6 +18,15 @@ interface AuthViewProps {
 }
 
 const BRAND_FLAGS = ['🇦🇿', '🇹🇷', '🇰🇿', '🇺🇿', '🇰🇬', '🇹🇲'];
+const RECOVERY_CONTENT: Record<string, { title: string; body: string }> = {
+  AZ: { title: 'Şifrəni unutdum', body: 'Hesab bərpası üçün support@turkhub.az ünvanına yazın. E-poçt ünvanınızı və istifadəçi adınızı qeyd edin; dəstək komandamız növbəti addımları izah edəcək.' },
+  TR: { title: 'Parolamı unuttum', body: 'Hesabınızı kurtarmak için support@turkhub.az adresine yazın. E-posta adresinizi ve kullanıcı adınızı ekleyin; destek ekibimiz sonraki adımları paylaşacaktır.' },
+  KK: { title: 'Құпия сөзді ұмыттым', body: 'Есептік жазбаңызды қалпына келтіру үшін support@turkhub.az мекенжайына жазыңыз. Электрондық поштаңыз бен пайдаланушы атыңызды көрсетіңіз.' },
+  KY: { title: 'Сырсөзүмдү унуттум', body: 'Аккаунтту калыбына келтирүү үчүн support@turkhub.az дарегине жазыңыз. Электрондук почтаңызды жана колдонуучу атыңызды көрсөтүңүз.' },
+  UZ: { title: 'Parolni unutdim', body: 'Hisobni tiklash uchun support@turkhub.az manziliga yozing. Elektron pochtangiz va foydalanuvchi nomingizni ko‘rsating.' },
+  TK: { title: 'Parolymy untdum', body: 'Hasaby dikeltmek üçin support@turkhub.az salgysyna ýazyň. E-poçtaňyzy we ulanyjy adyňyzy görkeziň.' },
+  EN: { title: 'Forgot password', body: 'To recover your account, email support@turkhub.az with your email address and username. Our support team will explain the next steps.' },
+};
 
 export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const { lang, setLang, t } = useI18n();
@@ -28,7 +37,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [socialMsg, setSocialMsg] = useState('');
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
   const tryEndpoints = async (paths: string[], data: any, isJson = false) => {
@@ -65,7 +74,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSocialMsg('');
     setLoading(true);
 
     try {
@@ -118,11 +126,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
 
   const inputClass =
     'w-full px-4 py-3 bg-neutral-900/80 border border-neutral-800 rounded-xl text-sm text-slate-100 placeholder-neutral-500 focus:outline-none focus:border-skyBlue focus:ring-2 focus:ring-skyBlue/20 transition-all duration-200';
-
-  const socialLogin = (network: string) => {
-    setError('');
-    setSocialMsg(`${t('socialSoon')} — ${network}`);
-  };
 
   const features = [
     { icon: Users, text: t('feat1') },
@@ -226,7 +229,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
                 onClick={() => {
                   setIsLogin(tab.key);
                   setError('');
-                  setSocialMsg('');
                 }}
                 className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
                   isLogin === tab.key
@@ -245,12 +247,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               {error}
             </div>
           )}
-          {socialMsg && (
-            <div className="mb-4 p-3 bg-skyBlue/10 border border-skyBlue/30 text-skyBlue text-xs rounded-xl text-center">
-              {socialMsg}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-3">
             {!isLogin && (
               <>
@@ -312,30 +308,15 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          <div className="mt-5 flex items-center gap-3">
-            <span className="flex-1 h-px bg-neutral-800" />
-            <span className="text-[11px] text-neutral-500">{t('socialOr')}</span>
-            <span className="flex-1 h-px bg-neutral-800" />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          {isLogin && (
             <button
               type="button"
-              onClick={() => socialLogin('Google')}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 hover:border-skyBlue/50 hover:bg-neutral-800 text-xs font-semibold text-slate-200 transition-all duration-200"
+              onClick={() => setRecoveryOpen(true)}
+              className="mt-4 w-full text-center text-xs font-semibold text-skyBlue hover:underline"
             >
-              <Chrome className="w-4 h-4 text-skyBlue" />
-              {t('googleLabel')}
+              {(RECOVERY_CONTENT[lang] || RECOVERY_CONTENT.EN).title}
             </button>
-            <button
-              type="button"
-              onClick={() => socialLogin('GitHub')}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 hover:border-skyBlue/50 hover:bg-neutral-800 text-xs font-semibold text-slate-200 transition-all duration-200"
-            >
-              <Github className="w-4 h-4 text-slate-300" />
-              {t('githubLabel')}
-            </button>
-          </div>
+          )}
 
           <div className="mt-6 text-center border-t border-neutral-800 pt-4">
             <p className="text-xs text-slate-400">
@@ -344,7 +325,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setError('');
-                  setSocialMsg('');
                 }}
                 className="text-skyBlue font-semibold hover:underline ml-1"
               >
@@ -353,6 +333,37 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
             </p>
           </div>
         </div>
+        {recoveryOpen && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            role="presentation"
+            onClick={() => setRecoveryOpen(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="recovery-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <h2 id="recovery-modal-title" className="text-sm font-bold text-slate-100">
+                  {(RECOVERY_CONTENT[lang] || RECOVERY_CONTENT.EN).title}
+                </h2>
+                <button type="button" onClick={() => setRecoveryOpen(false)} aria-label={t('close')} className="text-slate-400 hover:text-slate-100">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-slate-300">{(RECOVERY_CONTENT[lang] || RECOVERY_CONTENT.EN).body}</p>
+              <a
+                href="mailto:support@turkhub.az"
+                className="mt-4 inline-flex text-sm font-semibold text-skyBlue hover:underline"
+              >
+                support@turkhub.az
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Language selector — footer */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
