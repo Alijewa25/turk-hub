@@ -455,3 +455,247 @@ export function timeAgo(iso?: string | null): string {
   const days = Math.floor(hours / 24);
   return `${days}g`;
 }
+
+export interface NotificationItem {
+  id: number;
+  user_id: number;
+  actor_id?: number | null;
+  actor?: StoryAuthor | null;
+  type: 'like' | 'comment' | 'follow' | 'project_join' | 'project_accept' | 'message' | string;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  content?: string | null;
+  is_read: boolean | number;
+  created_at?: string | null;
+}
+
+export interface NotificationsResponse {
+  unread_count: number;
+  notifications: NotificationItem[];
+}
+
+export async function fetchNotifications(
+  token: string | null,
+  unreadOnly: boolean = false
+): Promise<NotificationsResponse> {
+  const url = `${API_URL}/api/notifications${unreadOnly ? '?unread_only=true' : ''}`;
+  try {
+    const res = await axios.get(url, { headers: headers(token) });
+    if (Array.isArray(res.data)) {
+      return {
+        unread_count: res.data.filter((n: any) => !n.is_read).length,
+        notifications: res.data,
+      };
+    }
+    return {
+      unread_count: Number(res.data?.unread_count ?? 0),
+      notifications: Array.isArray(res.data?.notifications) ? res.data.notifications : [],
+    };
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      logApiFailure('fetchNotifications', err);
+      return { unread_count: 0, notifications: [] };
+    }
+    try {
+      const fallbackUrl = `${API_URL}/notifications${unreadOnly ? '?unread_only=true' : ''}`;
+      const res = await axios.get(fallbackUrl, { headers: headers(token) });
+      if (Array.isArray(res.data)) {
+        return {
+          unread_count: res.data.filter((n: any) => !n.is_read).length,
+          notifications: res.data,
+        };
+      }
+      return {
+        unread_count: Number(res.data?.unread_count ?? 0),
+        notifications: Array.isArray(res.data?.notifications) ? res.data.notifications : [],
+      };
+    } catch (fallbackErr) {
+      logApiFailure('fetchNotifications fallback', fallbackErr);
+      return { unread_count: 0, notifications: [] };
+    }
+  }
+}
+
+export async function markNotificationAsRead(
+  token: string | null,
+  id?: number
+): Promise<{ unread_count: number }> {
+  const payload = id !== undefined ? { id } : { mark_all: true };
+  try {
+    const res = await axios.post(`${API_URL}/api/notifications/read`, payload, { headers: headers(token) });
+    return { unread_count: Number(res.data?.unread_count ?? 0) };
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      logApiFailure('markNotificationAsRead', err);
+      return { unread_count: 0 };
+    }
+    try {
+      const res = await axios.post(`${API_URL}/notifications/read`, payload, { headers: headers(token) });
+      return { unread_count: Number(res.data?.unread_count ?? 0) };
+    } catch {
+      return { unread_count: 0 };
+    }
+  }
+}
+
+export async function markAllNotificationsAsRead(
+  token: string | null
+): Promise<{ unread_count: number }> {
+  try {
+    const res = await axios.post(`${API_URL}/api/notifications/mark-all-read`, {}, { headers: headers(token) });
+    return { unread_count: Number(res.data?.unread_count ?? 0) };
+  } catch {
+    return markNotificationAsRead(token, undefined);
+  }
+}
+
+export async function joinProject(
+  token: string | null,
+  projectId: number
+): Promise<{ status: string; message: string; joined: boolean }> {
+  try {
+    const res = await axios.post(`${API_URL}/api/projects/${projectId}/join`, {}, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      logApiFailure('joinProject', err);
+      throw friendlyError(err, 'Layihəyə qoşulma xətası.');
+    }
+    try {
+      const res = await axios.post(`${API_URL}/projects/${projectId}/join`, {}, { headers: headers(token) });
+      return res.data;
+    } catch (fallbackErr) {
+      logApiFailure('joinProject fallback', fallbackErr);
+      throw friendlyError(fallbackErr, 'Layihəyə qoşulma xətası.');
+    }
+  }
+}
+
+export async function acceptProjectMember(
+  token: string | null,
+  projectId: number,
+  applicantId: number
+): Promise<{ status: string; message: string }> {
+  try {
+    const res = await axios.post(`${API_URL}/api/projects/${projectId}/accept/${applicantId}`, {}, { headers: headers(token) });
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      logApiFailure('acceptProjectMember', err);
+      throw friendlyError(err, 'Qəbul etmə əməliyyatı alınmadı.');
+    }
+    const res = await axios.post(`${API_URL}/projects/${projectId}/accept/${applicantId}`, {}, { headers: headers(token) });
+    return res.data;
+  }
+}
+
+export function getWebSocketBaseUrl(): string {
+  const apiBase = new URL(API_URL, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000');
+  const wsProtocol = apiBase.protocol === 'https:' ? 'wss:' : 'ws:';
+  const basePath = apiBase.pathname.replace(/\/+$/, '').replace(/\/(?:api\/)?ws(?:\/chat)?$/i, '');
+  return `${wsProtocol}//${apiBase.host}${basePath}`;
+}
+
+export function createNotificationWebSocket(
+  token: string | null,
+  userId: number | null | undefined,
+  onNotification: (notif: NotificationItem) => void,
+  onStatusChange?: (status: 'connected' | 'disconnected' | 'connecting') => void
+): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  let disposed = false;
+  let socket: WebSocket | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  let pingTimer: ReturnType<typeof setInterval> | undefined;
+  let attempt = 0;
+  const delays = [1500, 3000, 6000, 12000];
+
+  const clearPing = () => {
+    if (pingTimer) {
+      clearInterval(pingTimer);
+      pingTimer = undefined;
+    }
+  };
+
+  const connect = () => {
+    if (disposed) return;
+    onStatusChange?.('connecting');
+
+    const wsBase = getWebSocketBaseUrl();
+    const endpoint = userId ? `${wsBase}/ws/notifications/${userId}` : `${wsBase}/ws/notifications`;
+    const socketUrl = new URL(endpoint);
+    if (token) socketUrl.searchParams.set('token', token);
+
+    try {
+      socket = new WebSocket(socketUrl.toString());
+    } catch {
+      scheduleReconnect();
+      return;
+    }
+
+    socket.onopen = () => {
+      if (disposed) {
+        socket?.close();
+        return;
+      }
+      attempt = 0;
+      onStatusChange?.('connected');
+      clearPing();
+      pingTimer = setInterval(() => {
+        if (socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 15000);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.type === 'ping' && socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        if (data?.type === 'notification' && data.notification) {
+          onNotification(data.notification);
+        }
+      } catch {
+        // ignore non-json
+      }
+    };
+
+    socket.onclose = () => {
+      clearPing();
+      if (!disposed) {
+        onStatusChange?.('disconnected');
+        scheduleReconnect();
+      }
+    };
+
+    socket.onerror = () => {
+      socket?.close();
+    };
+  };
+
+  const scheduleReconnect = () => {
+    if (disposed) return;
+    const delay = delays[Math.min(attempt, delays.length - 1)];
+    attempt += 1;
+    reconnectTimer = setTimeout(connect, delay);
+  };
+
+  connect();
+
+  return () => {
+    disposed = true;
+    clearPing();
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (socket) {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+      socket.close();
+    }
+  };
+}
