@@ -130,6 +130,21 @@ class PostLike(Base):
     post = relationship("Post", back_populates="likes")
 
 
+class SavedPost(Base):
+    __tablename__ = "saved_posts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "post_id", name="uq_saved_post_pair"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+    post = relationship("Post")
+
+
 class Message(Base):
     __tablename__ = "messages"
 
