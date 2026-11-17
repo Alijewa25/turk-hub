@@ -108,6 +108,7 @@ class PostResponse(BaseModel):
     comments_count: int = 0
     is_liked: bool = False
     liked_by_me: bool = False
+    source_lang: Optional[str] = None
     created_at: Optional[datetime] = None
     author: Optional[UserResponse] = None
 
@@ -194,7 +195,6 @@ class DictionaryBase(BaseModel):
     uz_val: Optional[str] = None
     ky_val: Optional[str] = None
     tm_val: Optional[str] = None
-    ug_val: Optional[str] = None
     etymology_note: Optional[str] = None
 
 
@@ -207,7 +207,6 @@ class DictionaryCreate(BaseModel):
     uz_val: Optional[str] = None
     ky_val: Optional[str] = None
     tm_val: Optional[str] = None
-    ug_val: Optional[str] = None
     etymology_note: Optional[str] = None
 
 
@@ -225,7 +224,6 @@ class DictionaryResponse(DictionaryBase):
             "uzb": self.uz_val,
             "kyg": self.ky_val,
             "tkm": self.tm_val,
-            "uig": self.ug_val,
         }
 
     class Config:
