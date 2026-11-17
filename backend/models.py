@@ -17,6 +17,10 @@ class User(Base):
     profile_picture = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    @property
+    def avatar_url(self):
+        return self.profile_picture
+
     # Relationships
     skills = relationship("UserSkill", back_populates="user", cascade="all, delete-orphan")
     projects = relationship("Project", back_populates="creator")
