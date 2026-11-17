@@ -19,6 +19,8 @@ class ProjectResponse(BaseModel):
     target_countries: Optional[str] = None
     contact_info: Optional[str] = None
     owner_id: Optional[int] = None
+    member_ids: List[int] = []
+    member_count: int = 0
 
     class Config:
         from_attributes = True
