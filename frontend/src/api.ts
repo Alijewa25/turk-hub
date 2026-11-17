@@ -95,6 +95,13 @@ export interface ProjectItem {
   target_countries?: string | null;
   contact_info?: string | null;
   owner_id?: number | null;
+  creator_id?: number | null;
+  member_count?: number | null;
+  members_count?: number | null;
+  member_ids?: number[] | null;
+  participant_ids?: number[] | null;
+  members?: Array<{ id?: number; user_id?: number }> | null;
+  participants?: Array<{ id?: number; user_id?: number }> | null;
   created_at?: string | null;
 }
 
