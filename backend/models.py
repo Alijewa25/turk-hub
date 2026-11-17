@@ -92,7 +92,6 @@ class Dictionary(Base):
     uz_val = Column(String, nullable=True)
     ky_val = Column(String, nullable=True)
     tm_val = Column(String, nullable=True)
-    ug_val = Column(String, nullable=True)
     etymology_note = Column(Text, nullable=True)
     source = Column(String, nullable=True)
     submitted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
