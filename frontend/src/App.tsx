@@ -34,6 +34,7 @@ import {
   joinProject,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  mediaUrl,
   NotificationItem,
   ProjectDraft,
   ProjectItem,
@@ -42,8 +43,8 @@ import {
   timeAgo,
   unfollowUser,
 } from './api';
-import { flagOf, translateStatic, useI18n } from './i18n';
-import { Bell, BookOpen, Heart, MessageCircle, Sparkles, Users } from 'lucide-react';
+import { flagOf, formatNotificationText, translateStatic, useI18n } from './i18n';
+import { Bell, MessageCircle, Sparkles, UserPlus } from 'lucide-react';
 
 const INITIAL_POSTS: PostData[] = [
   {
@@ -107,14 +108,6 @@ const INITIAL_POSTS: PostData[] = [
   },
 ];
 
-const NOTIFICATIONS = [
-  { icon: Heart, textKey: 'notifLiked', timeKey: 'time12m', color: 'text-red-500' },
-  { icon: MessageCircle, textKey: 'notifCommented', timeKey: 'time1h', color: 'text-skyBlue' },
-  { icon: Users, textKey: 'notifJoined', timeKey: 'time3h', color: 'text-emerald-400' },
-  { icon: Bell, textKey: 'notifHackathon', timeKey: 'timeYesterday', color: 'text-amber-400' },
-  { icon: BookOpen, textKey: 'notifDictionary', timeKey: 'time2d', color: 'text-violet-400' },
-];
-
 function loadStored<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -160,7 +153,7 @@ function mapApiPost(p: ApiPost): PostData {
 }
 
 export function App() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(() => loadStored<any>('user', null));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -192,6 +185,7 @@ export function App() {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
   const loadNotifications = useCallback(async () => {
     if (!token) return;
     const res = await fetchNotifications(token);
@@ -477,6 +471,12 @@ export function App() {
 
     if (notif.type === 'like' || notif.type === 'comment') {
       setActiveTab('home');
+      if (notif.post_id || notif.entity_id) {
+        const postId = Number(notif.post_id || notif.entity_id);
+        setHighlightedPostId(postId);
+        window.setTimeout(() => document.getElementById(`post-${postId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        window.setTimeout(() => setHighlightedPostId(null), 3000);
+      }
     } else if (notif.type === 'follow') {
       if (notif.actor_id) {
         setProfileViewUserId(notif.actor_id);
@@ -572,7 +572,7 @@ export function App() {
                 <div className="mb-4 text-[11px] text-neutral-500 animate-pulse">{t('loading')}</div>
               )}
               {displayFeed.map((post) => (
-                <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} token={token} postId={post.id} />
+                <PostCard key={post.id} post={post} onJoin={() => setActiveTab('projects')} token={token} postId={post.id} highlighted={highlightedPostId === Number(post.id)} />
               ))}
             </>
           )}
@@ -652,21 +652,24 @@ export function App() {
                   <h2 className="text-base font-bold text-slate-100">{t('navNotifications')}</h2>
                 </div>
                 <ul className="space-y-2">
-                  {NOTIFICATIONS.map((n, i) => {
-                    const Icon = n.icon;
+                  {notifications.map((n) => {
+                    const Icon = n.type === 'follow' ? UserPlus : n.type === 'message' ? MessageCircle : Bell;
                     return (
                       <li
-                        key={i}
-                        className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-3 hover:border-neutral-700 transition-colors cursor-pointer"
+                        key={n.id}
+                        onClick={() => void handleNotificationClick(n)}
+                        className={`flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-3 hover:border-neutral-700 transition-colors cursor-pointer ${!n.is_read ? 'border-skyBlue/40 bg-skyBlue/5' : ''}`}
                       >
-                        <span className={`w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center ${n.color}`}>
+                        <span className="w-9 h-9 rounded-full bg-neutral-900 flex items-center justify-center text-skyBlue">
                           <Icon className="w-4 h-4" />
                         </span>
-                        <span className="min-w-0 flex-1 text-xs text-slate-300">{t(n.textKey)}</span>
-                        <span className="text-[10px] text-slate-600 shrink-0">{t(n.timeKey)}</span>
+                        {n.actor_avatar ? <img src={mediaUrl(n.actor_avatar)} alt="" className="w-8 h-8 rounded-full object-cover" /> : null}
+                        <span className="min-w-0 flex-1 text-xs text-slate-300">{formatNotificationText(n, lang, t)}</span>
+                        <span className="text-[10px] text-slate-600 shrink-0">{timeAgo(n.created_at)}</span>
                       </li>
                     );
                   })}
+                  {!notifications.length && <li className="text-xs text-slate-500">{t('noNotifications')}</li>}
                 </ul>
               </section>
             </ErrorBoundary>
@@ -681,8 +684,8 @@ export function App() {
                 stats={stats}
                 onLogout={handleLogout}
                 onNavigate={(tab, payload) => {
-                  if (payload?.viewUserId) {
-                    setProfileViewUserId(payload.viewUserId);
+                  if (payload?.viewUserId || payload?.id) {
+                    setProfileViewUserId(payload.viewUserId || payload.id);
                   }
                   if (payload?.messageUser) {
                     setMessagesTarget(payload.messageUser);
