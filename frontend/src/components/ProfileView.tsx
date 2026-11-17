@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Edit3, MessageCircle, UserPlus, UserCheck, X } from 'lucide-react';
 import { flagOf, localizedCountryName, localizedRole, useI18n } from '../i18n';
-import { API_URL, fetchFollowers, fetchFollowing, fetchUserPosts, fetchUserStats, followUser, mediaUrl, unfollowUser, uploadAvatar } from '../api';
+import { API_URL, fetchFollowers, fetchFollowing, fetchSavedPosts, fetchUserPosts, fetchUserStats, followUser, mediaUrl, unfollowUser, uploadAvatar } from '../api';
 import { PostCard } from './PostCard';
 
 interface ProfileViewProps {
@@ -47,6 +47,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [followLoading, setFollowLoading] = useState(false);
   const [followPending, setFollowPending] = useState<Set<number>>(new Set());
   const [isFollowing, setIsFollowing] = useState(false);
+  const [activeProfileTab, setActiveProfileTab] = useState<'posts' | 'projects' | 'saved'>('posts');
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
 
   const isSelf = !viewUserId || viewUserId === user?.id;
   const currentToken = token || localStorage.getItem('token');
@@ -64,6 +66,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setFollowLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeProfileTab !== 'saved' || !isSelf) return;
+    fetchSavedPosts(currentToken).then(setSavedPosts).catch(() => setSavedPosts([]));
+  }, [activeProfileTab, currentToken, isSelf]);
 
   const toggleListFollow = async (item: any) => {
     if (!item?.id || item.id === user?.id || followPending.has(item.id)) return;
@@ -284,13 +291,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       </div>
 
       <div className="flex w-full border-b border-neutral-800">
-        <button className="flex-1 py-3 text-xs font-bold text-skyBlue border-b-2 border-skyBlue">{t('postsLabel')}</button>
-        <button className="flex-1 py-3 text-xs text-slate-500">{t('projectsLabel')}</button>
-        <button className="flex-1 py-3 text-xs text-slate-500">{t('savedPosts')}</button>
+        <button onClick={() => setActiveProfileTab('posts')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'posts' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('postsLabel')}</button>
+        <button onClick={() => setActiveProfileTab('projects')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'projects' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('projectsLabel')}</button>
+        <button onClick={() => setActiveProfileTab('saved')} className={`flex-1 py-3 text-xs font-bold ${activeProfileTab === 'saved' ? 'text-skyBlue border-b-2 border-skyBlue' : 'text-slate-500'}`}>{t('savedPosts')}</button>
       </div>
 
       <div className="flex flex-col gap-4 w-full">
-        {userPosts.length ? userPosts.map((item: any) => (
+        {(activeProfileTab === 'saved' ? savedPosts : userPosts).length ? (activeProfileTab === 'saved' ? savedPosts : userPosts).map((item: any) => (
           <PostCard
             key={item.id}
             post={{
@@ -306,11 +313,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               comments: item.comments_count || 0,
               is_liked: item.is_liked ?? item.liked_by_me ?? false,
               liked_by_me: item.liked_by_me ?? item.is_liked ?? false,
+              is_saved: item.is_saved ?? false,
               sourceLang: item.source_lang || undefined,
             }}
             token={currentToken}
             postId={item.id}
             user={user}
+            onSavedChange={(postId, isSaved) => {
+              if (!isSaved && activeProfileTab === 'saved') {
+                setSavedPosts((prev) => prev.filter((savedPost) => savedPost.id !== Number(postId)));
+              }
+            }}
           />
         )) : <p className="text-xs text-slate-500 text-center py-8">{t('empty')}</p>}
       </div>
