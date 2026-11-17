@@ -20,8 +20,10 @@ import { MessagesView } from './components/MessagesView';
 import {
   ApiPost,
   API_URL,
+  createNotificationWebSocket,
   createProject,
   fetchCurrentUser,
+  fetchNotifications,
   fetchPosts,
   fetchProjects,
   fetchStories,
@@ -29,6 +31,10 @@ import {
   fetchUserStats,
   followUser,
   FollowUser,
+  joinProject,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  NotificationItem,
   ProjectDraft,
   ProjectItem,
   publishStory,
@@ -36,8 +42,8 @@ import {
   timeAgo,
   unfollowUser,
 } from './api';
-import { flagOf, translateStatic, useI18n } from './i18n';
-import { Bell, BookOpen, Heart, MessageCircle, Sparkles, Users } from 'lucide-react';
+import { flagOf, formatNotificationText, translateStatic, useI18n } from './i18n';
+import { Bell, BookOpen, CheckCheck, Heart, Mail, MessageCircle, Rocket, Sparkles, UserPlus, Users } from 'lucide-react';
 
 const INITIAL_POSTS: PostData[] = [
   {
@@ -151,7 +157,7 @@ function mapApiPost(p: ApiPost): PostData {
 }
 
 export function App() {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(() => loadStored<any>('user', null));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -180,6 +186,44 @@ export function App() {
     loadNumberSet('th_joined_projects')
   );
   const [stats, setStats] = useState({ followers: 0, following: 0 });
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [notifFilter, setNotifFilter] = useState<'all' | 'unread'>('all');
+
+  const loadNotifications = useCallback(async () => {
+    if (!token) return;
+    const res = await fetchNotifications(token);
+    setNotifications(res.notifications);
+    setUnreadCount(res.unread_count);
+  }, [token]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!token || !user?.id) return;
+    const cleanupWs = createNotificationWebSocket(
+      token,
+      user.id,
+      (newNotif) => {
+        setNotifications((prev) => {
+          const filtered = prev.filter((n) => n.id !== newNotif.id);
+          return [newNotif, ...filtered];
+        });
+        setUnreadCount((c) => c + 1);
+      }
+    );
+    const pollInterval = setInterval(() => {
+      void loadNotifications();
+    }, 15000);
+
+    return () => {
+      cleanupWs();
+      clearInterval(pollInterval);
+    };
+  }, [token, user?.id, loadNotifications]);
 
   useEffect(() => {
     localStorage.setItem('th_user_posts', JSON.stringify(userPosts));
@@ -405,13 +449,57 @@ export function App() {
     }
   };
 
-  const toggleProjectJoin = (id: number) => {
+  const toggleProjectJoin = async (id: number) => {
     setJoinedProjectIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    if (token) {
+      try {
+        await joinProject(token, id);
+      } catch (err) {
+        console.warn('Could not join project on backend', err);
+      }
+    }
+  };
+
+  const handleNotificationClick = async (notif: NotificationItem) => {
+    if (!notif.is_read) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+      void markNotificationAsRead(token, notif.id);
+    }
+
+    if (notif.type === 'like' || notif.type === 'comment') {
+      setActiveTab('home');
+    } else if (notif.type === 'follow') {
+      if (notif.actor_id) {
+        setProfileViewUserId(notif.actor_id);
+      }
+      setActiveTab('profile');
+    } else if (notif.type === 'project_join' || notif.type === 'project_accept') {
+      setActiveTab('projects');
+    } else if (notif.type === 'message') {
+      if (notif.actor_id) {
+        setMessagesTarget({
+          id: notif.actor_id,
+          full_name: notif.actor?.full_name || translateStatic('userGeneric'),
+        });
+      }
+      setActiveTab('messages');
+    } else {
+      setActiveTab('home');
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    await markAllNotificationsAsRead(token);
   };
 
   const handleCreateProject = async (draft: ProjectDraft) => {
@@ -431,24 +519,29 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-black text-slate-100">
-            <Sidebar
-              activeTab={activeTab}
-              setActiveTab={handleTabChange}
-              user={user}
-              onCreatePost={() => openCreate('post')}
-              onLogout={handleLogout}
-              token={token}
-              onViewProfile={(id) => {
-                setProfileViewUserId(id);
-                setActiveTab('profile');
-              }}
-            />
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        user={user}
+        onCreatePost={() => openCreate('post')}
+        onLogout={handleLogout}
+        token={token}
+        unreadCount={unreadCount}
+        onViewProfile={(id) => {
+          setProfileViewUserId(id);
+          setActiveTab('profile');
+        }}
+      />
 
       <TopHeader
         user={user}
         setActiveTab={handleTabChange}
         onCreatePost={() => openCreate('post')}
         onOpenMenu={() => setMobileMenuOpen(true)}
+        unreadCount={unreadCount}
+        notifications={notifications}
+        onNotificationClick={handleNotificationClick}
+        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
       />
 
       <MobileMenu
@@ -459,6 +552,7 @@ export function App() {
         user={user}
         onCreatePost={() => openCreate('post')}
         onLogout={handleLogout}
+        unreadCount={unreadCount}
       />
 
       <div className="md:pl-60 lg:pr-80">
