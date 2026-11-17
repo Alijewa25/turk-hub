@@ -543,7 +543,6 @@ export function App() {
   const serverIds = new Set(feedPosts.map((p) => p.id));
   const localOnly = userPosts.filter((p) => !serverIds.has(p.id));
   const displayFeed = [...localOnly, ...feedPosts, ...INITIAL_POSTS];
-  const joinedProjects = projects.filter((project) => joinedProjectIds.has(project.id));
   const ownPosts = [
     ...userPosts,
     ...feedPosts.filter((p) => p.authorId === user?.id && !userPosts.some((u) => u.id === p.id)),
@@ -724,7 +723,7 @@ export function App() {
               <ProfileView
                 user={user}
                 posts={ownPosts}
-                projects={joinedProjects}
+                projects={projects}
                 stats={stats}
                 onLogout={handleLogout}
                 onNavigate={(tab, payload) => {
