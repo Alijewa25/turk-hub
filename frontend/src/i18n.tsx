@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type LangCode = 'AZ' | 'TR' | 'KK' | 'KY' | 'UZ' | 'TK' | 'EN';
+export type LangCode = 'AZ' | 'TR' | 'KK' | 'KY' | 'UZ' | 'TK' | 'UG' | 'EN';
 
 export interface CountryInfo {
   id: string;
@@ -15,6 +15,7 @@ export const UNION_COUNTRIES: CountryInfo[] = [
   { id: 'Kyrgyzstan', flag: '🇰🇬', name: 'Кыргызстан' },
   { id: 'Uzbekistan', flag: '🇺🇿', name: "O'zbekiston" },
   { id: 'Turkmenistan', flag: '🇹🇲', name: 'Türkmenistan' },
+  { id: 'Uyghur', flag: '🌙', name: 'ئۇيغۇر / Uyghur' },
 ];
 
 export const LANG_META: { code: LangCode; flag: string; label: string }[] = [
@@ -24,6 +25,7 @@ export const LANG_META: { code: LangCode; flag: string; label: string }[] = [
   { code: 'KY', flag: '🇰🇬', label: 'Кыргызча' },
   { code: 'UZ', flag: '🇺🇿', label: "O'zbekcha" },
   { code: 'TK', flag: '🇹🇲', label: 'Türkmençe' },
+  { code: 'UG', flag: '🌙', label: 'ئۇيغۇرچە' },
   { code: 'EN', flag: '🇬🇧', label: 'English' },
 ];
 
@@ -34,6 +36,7 @@ const COUNTRY_TO_LANG: Record<string, LangCode> = {
   Kyrgyzstan: 'KY',
   Uzbekistan: 'UZ',
   Turkmenistan: 'TK',
+  Uyghur: 'UG',
 };
 
 export function countryToLang(country?: string | null): LangCode {
@@ -49,6 +52,7 @@ function inferLang(country: string): LangCode | undefined {
   if (/KYRG|KIRG/.test(upper)) return 'KY';
   if (/UZB|OZBEK/.test(upper)) return 'UZ';
   if (/TURKM/.test(upper)) return 'TK';
+  if (/UYG|UIG/.test(upper)) return 'UG';
   return undefined;
 }
 
@@ -429,6 +433,69 @@ const TK: Record<string, string> = {
   storyOf: 'Hekaýasy',
 };
 
+
+const UG: Record<string, string> = {
+  tagline: 'تۈرك ياشلىرىنىڭ يېڭىلىق يارىتىش تورى',
+  heroA: 'تۈرك ياشلىرىنىڭ',
+  heroB: 'يېڭىلىق يارىتىش تورى',
+  heroSub: 'تۈرك خەلقلىرى ياشلىرى ئۈچۈن بىرلىككە كەلگەن رەقەملىك ماكان: قۇرۇلۇشلارنى قۇرۇڭ، گۇرۇپپا يىغىڭ ۋە ئىدىيەلىرىڭىزنى ئورتاق كەلگۈسىگە ئايلاندۇرۇڭ.',
+  emblemTag: 'كۆكتۈرك تورى',
+  feat1: 'تۈرك ئەللىرى بويىچە بىرلىككە كەلگەن ياشلار تورى',
+  feat2: 'قۇرۇلۇش، گۇرۇپپا ۋە بايلىق ئورتاقلىشىش',
+  feat3: 'پانتۈرك ئېتىمولوگىيە لۇغىتى ۋە AI تەرجىمىسى',
+  loginTab: 'كىرىش',
+  registerTab: 'تىزىملىتىش',
+  labelFullName: 'ئىسىم فامىلىسى',
+  labelEmail: 'ئېلخەت',
+  labelPassword: 'پارول',
+  labelLanguage: 'تىل',
+  submitLogin: 'كىرىش',
+  submitRegister: 'تىزىملىتىش',
+  loading: 'يۈكلىنىۋاتىدۇ...',
+  noAccount: 'ھېساباتىڭىز يوقمۇ?',
+  haveAccount: 'ھېساباتىڭىز بارمۇ?',
+  signupLink: 'تىزىملىتىش',
+  loginLink: 'كىرىش',
+  socialOr: 'ياكى ئىجتىمائىي ھېسابات بىلەن داۋاملاشتۇرۇش',
+  socialGoogle: 'Google بىلەن داۋاملاشتۇرۇش',
+  socialGithub: 'GitHub بىلەن داۋاملاشتۇرۇش',
+  socialSoon: 'ئىجتىمائىي ھېسابات ئارقىلىق كىرىش پات يېقىندا قوشۇلىدۇ',
+  onboardingTitle: 'قايسى دۆلەتتىن بولىسىز?',
+  onboardingSubtitle: 'دۆلىتىڭىزنى تاللاڭ — ئارخىپىڭىزدىكى مەنبە يېڭىلىنىدۇ، كۆرۈنمە يۈز تىلى شۇ دۆلەتنىڭ تىلىغا ئۆزگىرىدۇ.',
+  onboardingHint: 'تىزىملىتىشنىڭ ئاخىرقى باسقۇچى — مەجبۇرىي',
+  continue: 'داۋاملاشتۇرۇش',
+  navHome: 'باش بەت',
+  navExplore: 'بايقاش',
+  navRooms: 'خانىلار / نەق سۆھبەت',
+  navMessages: 'ئۇچۇرلار',
+  navProjects: 'قۇرۇلۇشلار',
+  navDictionary: 'لۇغەت',
+  navNotifications: 'ئۇقتۇرۇشلار',
+  navProfile: 'پروفىل',
+  newPost: 'يېڭى يازما',
+  myStory: 'ھېكايىڭىز',
+  joinTeam: 'گۇرۇپپىغا قاتنىشىش',
+  viewProfile: 'پروفىلنى كۆرۈش',
+  trendingProjects: 'ئالقىشلانغان پانتۈرك قۇرۇلۇشلىرى',
+  suggestionsForYou: 'سىزگە تەۋسىيەلەر',
+  follow: 'ئەگىشىش',
+  following: 'ئەگىشىۋاتىدۇ',
+  logout: 'چىقىش',
+  trendingNow: 'ھازىر ئالقىشتا',
+  commentPlaceholder: 'ئىنكاس يېزىڭ...',
+  sendComment: 'ئەۋەتىش',
+  sendMessage: 'ئۇچۇر ئەۋەتىش',
+  uploadAvatarLabel: 'پروفىل سۈرىتىنى يۈكلەش',
+  lightTheme: 'يورۇق تېما',
+  darkTheme: 'قاراڭغۇ تېما',
+  createHint: 'كۆكتۈرك ئاسمان كۆكى بىلەن بارلىق ئەللەر تاماشىبىنلىرىغا يېتىڭ',
+  cancel: 'بىكار قىلىش',
+  publish: 'ئېلان قىلىش',
+  feedFooter: 'تۈرك ياشلىرىنىڭ يېڭىلىق يارىتىش تورى © 2026',
+  memberRole: 'ئوقۇغۇچى',
+  storyOf: 'ھېكايىسى',
+};
+
 const EN: Record<string, string> = {
   tagline: 'Network of Turkic Youth Innovation',
   heroA: 'Network of Turkic',
@@ -492,6 +559,19 @@ const EN: Record<string, string> = {
 };
 
 const EXTRA_AZ: Record<string, string> = {
+  notifLikedPost: '{name} postunuzu bəyəndi',
+  notifCommentedPost: '{name} postunuza şərh yazdı',
+  notifFollowedYou: '{name} sizi izləməyə başladı',
+  notifProjectJoin: "{name} '{project}' layihənizə qoşulmaq istəyir",
+  notifProjectAccept: "'{project}' layihəsinə müraciətiniz qəbul edildi!",
+  notifDirectMessage: '{name} sizə yeni mesaj göndərdi',
+  notifGeneric: 'Yeni bildiriş',
+  markAllAsRead: 'Hamısını oxunmuş et',
+  noNotifications: 'Bildiriş yoxdur',
+  allNotifications: 'Bütün bildirişlər',
+  unread: 'Oxunmamış',
+  notificationsCount: '{count} yeni bildiriş',
+  viewAllNotifications: 'Bütün bildirişlərə bax',
   language: 'Dil',
   selectLanguage: 'Dil seç',
   translate: 'Tərcümə et',
@@ -632,6 +712,19 @@ const EXTRA_AZ: Record<string, string> = {
 };
 
 const EXTRA_TR: Record<string, string> = {
+  notifLikedPost: '{name} gönderinizi beğendi',
+  notifCommentedPost: '{name} gönderinize yorum yaptı',
+  notifFollowedYou: '{name} sizi takip etmeye başladı',
+  notifProjectJoin: "{name} '{project}' projenize katılmak istiyor",
+  notifProjectAccept: "'{project}' projesine katılım talebiniz onaylandı!",
+  notifDirectMessage: '{name} size yeni bir mesaj gönderdi',
+  notifGeneric: 'Yeni bildirim',
+  markAllAsRead: 'Tümünü okundu işaretle',
+  noNotifications: 'Henüz bildirim yok',
+  allNotifications: 'Tüm bildirimler',
+  unread: 'Okunmamış',
+  notificationsCount: '{count} yeni bildirim',
+  viewAllNotifications: 'Tüm bildirimleri gör',
   language: 'Dil',
   selectLanguage: 'Dil seç',
   translate: 'Çevir',
@@ -772,6 +865,19 @@ const EXTRA_TR: Record<string, string> = {
 };
 
 const EXTRA_KK: Record<string, string> = {
+  notifLikedPost: '{name} жазбаңызды ұнатты',
+  notifCommentedPost: '{name} жазбаңызға пікір қалдырды',
+  notifFollowedYou: '{name} сізге жазыла бастады',
+  notifProjectJoin: "{name} '{project}' жобаңызға қосылғысы келеді",
+  notifProjectAccept: "'{project}' жобасына өтінішіңіз қабылданды!",
+  notifDirectMessage: '{name} сізге жаңа хабарлама жіберді',
+  notifGeneric: 'Жаңа хабарлама',
+  markAllAsRead: 'Барлығын оқылды деп белгілеу',
+  noNotifications: 'Хабарламалар жоқ',
+  allNotifications: 'Барлық хабарламалар',
+  unread: 'Оқылмаған',
+  notificationsCount: '{count} жаңа хабарлама',
+  viewAllNotifications: 'Барлық хабарламаларды көру',
   language: 'Тіл',
   selectLanguage: 'Тілді таңдаңыз',
   translate: 'Аудару',
@@ -912,6 +1018,19 @@ const EXTRA_KK: Record<string, string> = {
 };
 
 const EXTRA_KY: Record<string, string> = {
+  notifLikedPost: '{name} билдирүүңүздү жактырды',
+  notifCommentedPost: '{name} билдирүүңүзгө пикир калтырды',
+  notifFollowedYou: '{name} сизди ээрчий баштады',
+  notifProjectJoin: "{name} '{project}' долбооруңузга кошулууну суранды",
+  notifProjectAccept: "'{project}' долбооруна өтүнүчүңүз кабыл алынды!",
+  notifDirectMessage: '{name} сизге жаңы билдирүү жөнөттү',
+  notifGeneric: 'Жاңы билдирүү',
+  markAllAsRead: 'Баарын окулду деп белгилөө',
+  noNotifications: 'Билдирүүлөр жок',
+  allNotifications: 'Бардык билдирүүлөр',
+  unread: 'Окула элек',
+  notificationsCount: '{count} жаңы билдирүү',
+  viewAllNotifications: 'Бардык билдирүүлөрдү көрүү',
   language: 'Тил',
   selectLanguage: 'Тилди тандаңыз',
   translate: 'Котору',
@@ -1052,6 +1171,19 @@ const EXTRA_KY: Record<string, string> = {
 };
 
 const EXTRA_UZ: Record<string, string> = {
+  notifLikedPost: '{name} postingizni yoqtirdi',
+  notifCommentedPost: '{name} postingizga izoh qoldirdi',
+  notifFollowedYou: '{name} sizga obuna bo\'ldi',
+  notifProjectJoin: "{name} '{project}' loyihangizga qo\'shilmoqchi",
+  notifProjectAccept: "'{project}' loyihasiga arizangiz qabul qilindi!",
+  notifDirectMessage: '{name} sizga yangi xabar yubordi',
+  notifGeneric: 'Yangi bildirishnoma',
+  markAllAsRead: 'Hammasini o\'qilgan deb belgilash',
+  noNotifications: 'Bildirishnomalar yo\'q',
+  allNotifications: 'Barcha bildirishnomalar',
+  unread: 'O\'qilmagan',
+  notificationsCount: '{count} yangi bildirishnoma',
+  viewAllNotifications: 'Barcha bildirishnomalarni ko\'rish',
   language: 'Til',
   selectLanguage: 'Tilni tanlang',
   translate: 'Tarjima qilish',
@@ -1192,6 +1324,19 @@ const EXTRA_UZ: Record<string, string> = {
 };
 
 const EXTRA_TK: Record<string, string> = {
+  notifLikedPost: '{name} ýazgyňyzy halady',
+  notifCommentedPost: '{name} ýazgyňyza teswir ýazdy',
+  notifFollowedYou: '{name} sizi yzarlamaga başlady',
+  notifProjectJoin: "{name} '{project}' taslamaňyza goşulmak isleýär",
+  notifProjectAccept: "'{project}' taslamasyna ýüz tutmasy kabul edildi!",
+  notifDirectMessage: '{name} size täze hat iberdi',
+  notifGeneric: 'Täze duýduryş',
+  markAllAsRead: 'Hemmesini okalan diýip belle',
+  noNotifications: 'Duýduryş ýok',
+  allNotifications: 'Ähli duýduryşlar',
+  unread: 'Okalmadyk',
+  notificationsCount: '{count} täze duýduryş',
+  viewAllNotifications: 'Ähli duýduryşlary gör',
   language: 'Dil',
   selectLanguage: 'Dil saýlaň',
   translate: 'Terjime et',
@@ -1331,7 +1476,174 @@ const EXTRA_TK: Record<string, string> = {
   studentRole: 'Okuwçy',
 };
 
+
+const EXTRA_UG: Record<string, string> = {
+  notifLikedPost: '{name} يازمىڭىزنى ياقتۇردى',
+  notifCommentedPost: '{name} يازمىڭىزغا ئىنكاس يازدى',
+  notifFollowedYou: '{name} سىزگە ئەگەشۈشنى باشلىدى',
+  notifProjectJoin: "{name} '{project}' قۇرۇلۇشىڭىزغا قاتناشماقچى",
+  notifProjectAccept: "'{project}' قۇرۇلۇشىغا ئىلتىماسىڭىز قوبۇل قىلىندى!",
+  notifDirectMessage: '{name} سىزگە يېڭى ئۇچۇر ئەۋەتتى',
+  notifGeneric: 'يېڭى ئۇقتۇرۇش',
+  markAllAsRead: 'ھەممىنى ئوقۇلدى دەپ بەلگىلەش',
+  noNotifications: 'ئۇقتۇرۇش يوق',
+  allNotifications: 'بارلىق ئۇقتۇرۇشلار',
+  unread: 'ئوقۇلمىغان',
+  notificationsCount: '{count} يېڭى ئۇقتۇرۇش',
+  viewAllNotifications: 'بارلىق ئۇقتۇرۇشلارنى كۆرۈش',
+  language: 'تىل',
+  selectLanguage: 'تىل تاللاڭ',
+  translate: 'تەرجىمە قىلىش',
+  translating: 'تەرجىمە قىلىنىۋاتىدۇ...',
+  showOriginal: 'ئەسلى تېكىستنى كۆرسىتىش',
+  translatedFrom: '{lang} تىلىدىن تەرجىمە قىلىندى',
+  translationFailed: 'تەرجىمە مەغلۇپ بولدى',
+  originalText: 'ئەسلى تېكىست',
+  live: 'نەق مەيدان',
+  connecting: 'ئۇلىنىۋاتىدۇ...',
+  offline: 'توردا يوق',
+  reconnectingIn: '{sec} سېكۇنتتىن كېيىن قايتا ئۇلىنىدۇ...',
+  connectionLost: 'ئۇلىنىش ئۈزۈلدى.',
+  noConnection: 'ئۇچۇر ئەۋەتىلمىدى: تور ئۇلىنىشى يوق.',
+  chatWelcome: '{room} خانىسىغا كىردىڭىز. ئورتاق سۆھبەت ۋە تىل مەشىقى قىلالايسىز.',
+  chatPlaceholder: '{room} خانىسىغا يېزىڭ...',
+  newProject: 'يېڭى قۇرۇلۇش',
+  projectName: 'قۇرۇلۇش ئىسمى',
+  projectAbout: 'قۇرۇلۇش ھەققىدە قىسقىچە ئۇچۇر',
+  requiredSkillsPlaceholder: 'تەلەپ قىلىنغان قابىلىيەتلەر (React, Python, UI/UX)',
+  targetCountriesPlaceholder: 'نىشان دۆلەتلەر (مەسىلەن: قازاقىستان، تۈركىيە)',
+  contactOptional: 'ئالاقىلىشىش (ئىختىيارىي)',
+  create: 'قۇرۇش',
+  projectDescription: 'قۇرۇلۇش تەسۋىرى',
+  targetTurkicStates: 'نىشان تۈرك دۆلەتلىرى',
+  requiredSkills: 'تەلەپ قىلىنغان ماھارەتلەر',
+  contactDm: 'ئالاقىلىشىش - DM ئەۋەتىڭ',
+  joined: 'قوشۇلدى',
+  joinAction: 'قاتنىشىش',
+  seekingTeam: 'گۇرۇپپا ئىزدەۋاتىدۇ',
+  teamMember: 'گۇرۇپپا ئەزاسى',
+  noProjects: 'ھازىرچە قۇرۇلۇش يوق. تۇنجى پانتۈرك قۇرۇلۇشىنى سىز قۇرۇڭ.',
+  loadingProjects: 'قۇرۇلۇشلار يۈكلىنىۋاتىدۇ...',
+  retry: 'قايتا سىناش',
+  projectMinCountries: 'قۇرۇلۇش كەم دېگەندە 2-3 تۈرك دۆلىتى ئۈچۈن لايىھىلىنىشى كېرەك.',
+  projectCreateError: 'قۇرۇلۇش قۇرۇشتا خاتالىق يۈز بەردى.',
+  projectIntro: '{name}, ماھارىتىڭىزگە ماس گۇرۇپپا تېپىڭ ۋە پانتۈرك قۇرۇلۇشلارغا قوشۇلۇڭ.',
+  newPanTurkProject: 'يېڭى پانتۈرك قۇرۇلۇشى',
+  userGeneric: 'ئىشلەتكۈچى',
+  savePost: 'ساقلاش',
+  sharePost: 'ھەمبەھىرلەش',
+  pdfDocument: 'PDF ھۆججىتى',
+  postMedia: 'يازما مېدىياسى',
+  suggestionsPeople: 'تەۋسىيە قىلىنغان شەخسلەر',
+  explorePlaceholder: 'ئىزدەش: ئىشلەتكۈچى ئىسمى، فامىلىسى...',
+  searching: 'ئىزدەۋاتىدۇ...',
+  noUsersFound: 'ئىشلەتكۈچى تېپىلمىدى.',
+  messagesTitle: 'ئۇچۇرلار (DM)',
+  noConversations: 'ھازىرچە سۆھبەت يوق. پروفىل بېتىدىن ئۇچۇر ئەۋەتەلەيسىز.',
+  messagePlaceholder: 'ئۇچۇر يېزىڭ...',
+  messageSendFailed: 'ئۇچۇر ئەۋەتىلمىدى.',
+  back: 'كەينىگە',
+  editProfile: 'پروفىلنى تەھرىرلەش',
+  profilePictureUpload: 'پروفىل رەسىمىنى يۈكلەش',
+  fullName: 'ئىسىم فامىلىسى',
+  bio: 'قىسقىچە ئارخىپ',
+  save: 'ساقلاش',
+  saving: 'ساقلىنىۋاتىدۇ...',
+  noBio: 'ھازىرچە قىسقىچە ئارخىپ قوشۇلمىدى.',
+  followersLabel: 'ئەگەشكۈچى',
+  followingLabel: 'ئەگەشكەنلىرى',
+  postsLabel: 'يازما',
+  projectsLabel: 'قۇرۇلۇش',
+  followersList: 'ئەگەشكۈچىلەر',
+  followingList: 'ئەگەشكەنلەر',
+  empty: 'بوش',
+  logoutTitle: 'چىقىش',
+  dictionaryTitle: 'پانتۈرك ئېتىمولوگىيە خەرىتىسى',
+  dictionarySubtitle: 'تۈرك تىللىرى ئارىسىدىكى ئېتىمولوگىيىلىك يىلتىزلار ۋە تەلەپپۇز ئوخشاشلىقلىرىنى ئىزدىڭ',
+  submitWord: 'يېڭى سۆز تەۋسىيە قىلىش',
+  searchWordPlaceholder: 'مەسىلەن: su, bilig, yol...',
+  dialectComparison: 'تەلەپپۇز سېلىشتۇرمىسى',
+  dynamicDialectComparison: 'دىنامىك سېلىشتۇرما',
+  etymologyParser: 'ئېتىمولوگىيە ئانالىزى',
+  panTurkEtymology: 'پانتۈرك ئېتىمولوگىيەسى',
+  noEtymologyFound: '"{query}" ئۈچۈن لۇغەتتە مەلۇمات تېپىلمىدى.',
+  submitSuggestion: 'سۆز تەۋسىيەسىنى ئەۋەتىش',
+  rootMeaning: 'يىلتىز / مەنىسى',
+  etymologyNote: 'ئېتىمولوگىيەلىك ئىزاھات',
+  suggestionSent: 'تەۋسىيە ئەۋەتىلدى',
+  errorGeneric: 'خاتالىق',
+  sending: 'ئەۋەتىلىۋاتىدۇ...',
+  send: 'ئەۋەتىش',
+  searchFailed: 'ئىزدەشتە خاتالىق كۆرۈلدى.',
+  serverNoResponse: 'مۇلازىمېتىر جاۋاب بەرمىدى',
+  aboutUs: 'بىز ھەققىدە',
+  help: 'ياردەم',
+  terms: 'شەرتلەر',
+  privacy: 'مەخپىيەتلىك',
+  openTeam: 'گۇرۇپپىغا ئوچۇق',
+  loadingUsers: 'ئىشلەتكۈچىلەر يۈكلىنىۋاتىدۇ...',
+  loadingProjectsRight: 'قۇرۇلۇشلار يۈكلىنىۋاتىدۇ...',
+  innovatorBio: 'يېڭىلىق ياراتقۇچى تۈرك ياشلىرى',
+  followersSuffix: 'ئەگەشكۈچى',
+  trendingDictionary: 'ئېتىمولوگىيە لۇغىتى',
+  trendingHackathon: 'خاكاتون 2026',
+  trendingStartup: 'تېزلىتىش پىلانى',
+  notifLiked: 'يازما ياقتۇرۇلدى',
+  notifCommented: 'يېڭى ئىنكاس يېزىلدى',
+  notifJoined: 'قۇرۇلۇشىڭىزغا يېڭى ئەزا قوشۇلدى',
+  notifHackathon: 'خاكاتون تىزىملىتىشى باشلاندى',
+  notifDictionary: 'لۇغەتكە يېڭى سۆزلەر قوشۇلدى',
+  time12m: '12 مىنۇت',
+  time1h: '1 سائەت',
+  time3h: '3 سائەت',
+  timeYesterday: 'تۈنۈگۈن',
+  time2d: '2 كۈن',
+  close: 'تاقاش',
+  previous: 'ئالدىنقى',
+  next: 'كېيىنكى',
+  usernameLabel: 'ئىشلەتكۈچى ئىسمى (@username)',
+  usernamePlaceholder: 'مەسىلەن: turk_user',
+  registerError: 'تىزىملىتىشتا خاتالىق كۆرۈلدى.',
+  loginInvalid: 'ئېلخەت ياكى پارول خاتا.',
+  genericAuthError: 'كىرىشتە خاتالىق كۆرۈلدى.',
+  countryUpdateError: 'دۆلەتنى يېڭىلاش مەغلۇپ بولدى.',
+  loginRequired: 'كىرىش تەلەپ قىلىنىدۇ.',
+  uploadFailed: 'يۈكلەش مەغلۇپ بولدى.',
+  uploadError: 'يۈكلەش خاتالىقى.',
+  imagePdf: 'رەسىم / PDF',
+  publishFailed: 'ئېلان قىلىش مەغلۇپ بولدى.',
+  unexpectedUiError: 'كۈتۈلمىگەن خاتالىق',
+  sectionLoadError: '{section} سەھىپىسىنى يۈكلەپ بولالمىدى',
+  retryAction: 'قايتا سىناش',
+  reloadPage: 'بەتنى يېڭىلاش',
+  appLoadError: 'ئەپنى يۈكلەپ بولالمىدى',
+  searchUsers: 'ئىشلەتكۈچى ئىزدەش',
+  openMenu: 'تىزىملىكنى ئېچىش',
+  closeMenu: 'تىزىملىكنى تاقاش',
+  mobileNavigation: 'يانفون يول باشلىغۇچى',
+  sectionLoadFailed: 'بۇ سەھىپىنى يۈكلەشتە خاتالىق كۆرۈلدى.',
+  musicLibrary: 'پانتۈرك ئېتنو-مۇزىكا ئامبىرى',
+  play: 'قويۇش',
+  stop: 'توختىتىش',
+  projectsLoadFailed: 'قۇرۇلۇشلارنى يۈكلىيەلمىدى.',
+  postCreateFailed: 'يازما قۇرالمىدى.',
+  studentRole: 'ئوقۇغۇچى',
+};
+
 const EXTRA_EN: Record<string, string> = {
+  notifLikedPost: '{name} liked your post',
+  notifCommentedPost: '{name} commented on your post',
+  notifFollowedYou: '{name} started following you',
+  notifProjectJoin: "{name} requested to join '{project}'",
+  notifProjectAccept: "Your request to join '{project}' was accepted!",
+  notifDirectMessage: '{name} sent you a message',
+  notifGeneric: 'New notification',
+  markAllAsRead: 'Mark all as read',
+  noNotifications: 'No notifications',
+  allNotifications: 'All notifications',
+  unread: 'Unread',
+  notificationsCount: '{count} new notifications',
+  viewAllNotifications: 'View all notifications',
   language: 'Language',
   selectLanguage: 'Select language',
   translate: 'Translate',
@@ -1676,6 +1988,42 @@ const EXTRA_UI: Record<LangCode, Record<string, string>> = {
     musicIgilDesc: 'Altaý-türk kirişli sazy',
     musicGhijakDesc: 'Türkmen halk küýleri',
   },
+  UG: {
+    brandLogoAlt: 'TURK HUB بەلگىسى',
+    emailPlaceholder: 'user@example.com',
+    passwordMask: '••••••••',
+    googleLabel: 'Google',
+    githubLabel: 'GitHub',
+    usernameShort: 'ئىشلەتكۈچى ئىسمى',
+    guestUser: 'مېھمان',
+    noEmail: 'ئېلخەت يوق',
+    unknownCountry: 'دۆلەت تاللانمىغان',
+    dmShort: 'ئۇچۇر',
+    dialectAz: '🇦🇿 ئەزەربەيجانچە',
+    dialectTr: '🇹🇷 تۈركچە',
+    dialectKk: '🇰🇿 قازاقچە',
+    dialectUz: '🇺🇿 ئۆزبېكچە',
+    dialectKy: '🇰🇬 قىرغىزچە',
+    dialectTm: '🇹🇲 تۈركمەنچە',
+    dialectUg: '🌙 ئۇيغۇرچە',
+    projectHubTitle: 'قۇرۇلۇش مەركىزى',
+    roomAz: '🇦🇿 ئەزەربەيجان تىلى',
+    roomTr: '🇹🇷 تۈركىيە تۈركچىسى',
+    roomKk: '🇰🇿 قازاق تىلى',
+    roomUz: '🇺🇿 ئۆزبېك تىلى',
+    roomTm: '🇹🇲 تۈركمەن تىلى',
+    roomKy: '🇰🇬 قىرغىز تىلى',
+    roomUg: '🌙 ئۇيغۇر تىلى',
+    roomGlobal: '🌐 پانتۈرك ئورتاق خانىسى',
+    musicKopuzDesc: 'قەدىمكى تۈرك چېلىش ئەسۋابى - كۆكتۈرك كۈيلىرى',
+    musicDombraDesc: 'قازاق ۋە قىرغىز خەلق ناخشىلىرى',
+    musicTarDesc: 'ئەزەربەيجان مۇقام ۋە خەلق مېلودىيەلىرى',
+    musicKomuzDesc: 'قىرغىز داستان ۋە كۈيلىرى',
+    musicDutarDesc: 'ئۆزبېك ۋە تۈركمەن خەلق مۇزىكىسى',
+    musicSazDesc: 'ئانادولۇ تۈرك خەلق ناخشىلىرى',
+    musicIgilDesc: 'ئالتاي-تۈرك تارلىق ئەسۋابى',
+    musicGhijakDesc: 'تۈركىي خەلق ھاۋالىرى',
+  },
   EN: {
     brandLogoAlt: 'TURK HUB logo',
     emailPlaceholder: 'name@example.com',
@@ -1719,10 +2067,11 @@ export const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
   KY: { ...KY, ...EXTRA_KY, ...EXTRA_UI.KY },
   UZ: { ...UZ, ...EXTRA_UZ, ...EXTRA_UI.UZ },
   TK: { ...TK, ...EXTRA_TK, ...EXTRA_UI.TK },
+  UG: { ...UG, ...EXTRA_UG, ...EXTRA_UI.UG },
   EN: { ...EN, ...EXTRA_EN, ...EXTRA_UI.EN },
 };
 
-const TRANSLATION_FALLBACK_ORDER: LangCode[] = ['AZ', 'TR', 'KK', 'KY', 'UZ', 'TK', 'EN'];
+const TRANSLATION_FALLBACK_ORDER: LangCode[] = ['AZ', 'TR', 'KK', 'KY', 'UZ', 'TK', 'UG', 'EN'];
 
 function lookupTranslation(lang: LangCode, key: string): string | undefined {
   const primary = TRANSLATIONS[lang];
@@ -1748,6 +2097,7 @@ export const LANG_TARGET: Record<LangCode, string> = {
   KY: 'ky',
   UZ: 'uz',
   TK: 'tm',
+  UG: 'ug',
   EN: 'en',
 };
 
@@ -1758,6 +2108,42 @@ const LANG_NAMES: Record<LangCode, Record<string, string>> = {
   KY: { az: 'Азербайжан', tr: 'Түркия', kk: 'Казак', ky: 'Кыргыз', uz: 'Өзбек', tm: 'Түркмен', en: 'Англис' },
   UZ: { az: 'Ozarbayjon', tr: 'Turkiya', kk: 'Qozoq', ky: "Qirg'iz", uz: "O'zbek", tm: 'Turkman', en: 'Ingliz' },
   TK: { az: 'Azerbaýjan', tr: 'Türkiýe', kk: 'Gazak', ky: 'Gyrgyz', uz: 'Özbek', tm: 'Türkmen', en: 'Iňlis' },
+  UG: {
+    brandLogoAlt: 'TURK HUB بەلگىسى',
+    emailPlaceholder: 'user@example.com',
+    passwordMask: '••••••••',
+    googleLabel: 'Google',
+    githubLabel: 'GitHub',
+    usernameShort: 'ئىشلەتكۈچى ئىسمى',
+    guestUser: 'مېھمان',
+    noEmail: 'ئېلخەت يوق',
+    unknownCountry: 'دۆلەت تاللانمىغان',
+    dmShort: 'ئۇچۇر',
+    dialectAz: '🇦🇿 ئەزەربەيجانچە',
+    dialectTr: '🇹🇷 تۈركچە',
+    dialectKk: '🇰🇿 قازاقچە',
+    dialectUz: '🇺🇿 ئۆزبېكچە',
+    dialectKy: '🇰🇬 قىرغىزچە',
+    dialectTm: '🇹🇲 تۈركمەنچە',
+    dialectUg: '🌙 ئۇيغۇرچە',
+    projectHubTitle: 'قۇرۇلۇش مەركىزى',
+    roomAz: '🇦🇿 ئەزەربەيجان تىلى',
+    roomTr: '🇹🇷 تۈركىيە تۈركچىسى',
+    roomKk: '🇰🇿 قازاق تىلى',
+    roomUz: '🇺🇿 ئۆزبېك تىلى',
+    roomTm: '🇹🇲 تۈركمەن تىلى',
+    roomKy: '🇰🇬 قىرغىز تىلى',
+    roomUg: '🌙 ئۇيغۇر تىلى',
+    roomGlobal: '🌐 پانتۈرك ئورتاق خانىسى',
+    musicKopuzDesc: 'قەدىمكى تۈرك چېلىش ئەسۋابى - كۆكتۈرك كۈيلىرى',
+    musicDombraDesc: 'قازاق ۋە قىرغىز خەلق ناخشىلىرى',
+    musicTarDesc: 'ئەزەربەيجان مۇقام ۋە خەلق مېلودىيەلىرى',
+    musicKomuzDesc: 'قىرغىز داستان ۋە كۈيلىرى',
+    musicDutarDesc: 'ئۆزبېك ۋە تۈركمەن خەلق مۇزىكىسى',
+    musicSazDesc: 'ئانادولۇ تۈرك خەلق ناخشىلىرى',
+    musicIgilDesc: 'ئالتاي-تۈرك تارلىق ئەسۋابى',
+    musicGhijakDesc: 'تۈركىي خەلق ھاۋالىرى',
+  },
   EN: { az: 'Azerbaijani', tr: 'Turkish', kk: 'Kazakh', ky: 'Kyrgyz', uz: 'Uzbek', tm: 'Turkmen', en: 'English' },
 };
 
@@ -1794,4 +2180,29 @@ export function useI18n(): I18nContextValue {
   const ctx = useContext(I18nContext);
   if (!ctx) throw new Error('useI18n must be used within I18nProvider');
   return ctx;
+}
+export function formatNotificationText(
+  notif: { type: string; actor?: { full_name?: string | null } | null; content?: string | null },
+  _lang: LangCode,
+  t: (key: string) => string
+): string {
+  const actorName = notif.actor?.full_name?.trim() || t('userGeneric');
+  const projectTitle = notif.content?.trim() || t('navProjects');
+
+  switch (notif.type) {
+    case 'like':
+      return t('notifLikedPost').replace('{name}', actorName);
+    case 'comment':
+      return t('notifCommentedPost').replace('{name}', actorName);
+    case 'follow':
+      return t('notifFollowedYou').replace('{name}', actorName);
+    case 'project_join':
+      return t('notifProjectJoin').replace('{name}', actorName).replace('{project}', projectTitle);
+    case 'project_accept':
+      return t('notifProjectAccept').replace('{project}', projectTitle);
+    case 'message':
+      return t('notifDirectMessage').replace('{name}', actorName);
+    default:
+      return notif.content?.trim() || t('notifGeneric');
+  }
 }
