@@ -24,6 +24,7 @@ interface MobileMenuProps {
   user?: any;
   onCreatePost: () => void;
   onLogout: () => void;
+  unreadCount?: number;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -34,6 +35,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   user,
   onCreatePost,
   onLogout,
+  unreadCount = 0,
 }) => {
   const { t } = useI18n();
 
@@ -53,7 +55,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
     { id: 'messages', label: t('navMessages'), icon: Mail },
     { id: 'projects', label: t('navProjects'), icon: Rocket },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },
-    { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: 3 },
+    { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     { id: 'profile', label: t('navProfile'), icon: User },
   ];
 
