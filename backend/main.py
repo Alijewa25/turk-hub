@@ -1684,39 +1684,6 @@ def _detect_translation_lang(raw: str) -> str:
     return best if scores[best] > 0 else "az"
 
 
-def _match_translation_case(source: str, target: str) -> str:
-    if source.isupper():
-        return target.upper()
-    if source[:1].isupper():
-        return target[:1].upper() + target[1:]
-    return target
-
-
-def _lexicon_translate(text: str, source_lang: str, target_lang: str) -> str:
-    if source_lang == target_lang:
-        return text
-
-    pairs = []
-    for entry in TRANSLATION_LEXICON:
-        source = entry.get(source_lang)
-        target = entry.get(target_lang)
-        if source and target and source.lower() != target.lower():
-            pairs.append((source, target))
-
-    pairs.sort(key=lambda pair: len(pair[0]), reverse=True)
-    translated = text
-    for source, target in pairs:
-        pattern = re.compile(
-            r"(?<!\w)" + re.escape(source) + r"(?!\w)",
-            re.IGNORECASE,
-        )
-        translated = pattern.sub(
-            lambda match, t=target: _match_translation_case(match.group(0), t),
-            translated,
-        )
-    return translated
-
-
 def _external_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
     api_url = os.getenv("TRANSLATE_API_URL")
     api_key = os.getenv("TRANSLATE_API_KEY")
@@ -1769,12 +1736,11 @@ def _external_translate_sync(text: str, source_lang: str, target_lang: str) -> O
 
 
 def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
-    google_source = "tk" if source_lang == "tm" else source_lang
     google_target = "tk" if target_lang == "tm" else target_lang
     query = urllib_parse.urlencode(
         {
             "client": "gtx",
-            "sl": google_source,
+            "sl": "auto",
             "tl": google_target,
             "dt": "t",
             "q": text,
@@ -1871,23 +1837,10 @@ async def translate_text(payload: schemas.TranslationRequest):
         TRANSLATION_CACHE[cache_key] = result
         return result
 
-    translated = _lexicon_translate(text, source_lang, target_lang)
-    if not translated.strip() or translated.strip() == text.strip():
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Tərcümə xidməti hazırda əlçatan deyil",
-        )
-    result = schemas.TranslationResponse(
-        original_text=text,
-        translated_text=translated,
-        source_lang=source_lang,
-        target_lang=target_lang,
-        provider="lexicon",
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="Tərcümə xidməti hazırda əlçatan deyil",
     )
-    if len(TRANSLATION_CACHE) >= MAX_TRANSLATION_CACHE_SIZE:
-        TRANSLATION_CACHE.pop(next(iter(TRANSLATION_CACHE)))
-    TRANSLATION_CACHE[cache_key] = result
-    return result
 
 
 # --- WEBSOCKET REAL-TIME CHAT ---
