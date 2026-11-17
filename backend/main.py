@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from pydantic import ValidationError
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 import asyncio, json, os, re, uuid, logging
 
@@ -356,7 +357,6 @@ def search_dictionary(
             (models.Dictionary.uz_val.ilike(search_pattern)) |
             (models.Dictionary.ky_val.ilike(search_pattern)) |
             (models.Dictionary.tm_val.ilike(search_pattern)) |
-            (models.Dictionary.ug_val.ilike(search_pattern)) |
             (models.Dictionary.proto_root.ilike(search_pattern)) |
             (models.Dictionary.etymology_note.ilike(search_pattern))
         )
@@ -379,7 +379,6 @@ def dictionary_compare(
             (models.Dictionary.uz_val.ilike(search_pattern)) |
             (models.Dictionary.ky_val.ilike(search_pattern)) |
             (models.Dictionary.tm_val.ilike(search_pattern)) |
-            (models.Dictionary.ug_val.ilike(search_pattern)) |
             (models.Dictionary.proto_root.ilike(search_pattern)) |
             (models.Dictionary.etymology_note.ilike(search_pattern))
         ).all(),
@@ -398,7 +397,6 @@ def dictionary_compare(
                 "uz": item.uz_val,
                 "ky": item.ky_val,
                 "tm": item.tm_val,
-                "ug": item.ug_val,
             },
             "etymology": item.etymology_note,
         })
@@ -421,7 +419,6 @@ def submit_dictionary_entry(
         uz_val=entry.uz_val,
         ky_val=entry.ky_val,
         tm_val=entry.tm_val,
-        ug_val=entry.ug_val,
         etymology_note=entry.etymology_note,
         submitted_by=current_user.id,
         approved=1,
@@ -1159,6 +1156,7 @@ def _post_response(post: models.Post, current_user: models.User, db: Session) ->
         comments_count=post.comments_count or 0,
         is_liked=liked,
         liked_by_me=liked,
+        source_lang=_detect_translation_lang(post.body or ""),
         created_at=post.created_at,
         author=schemas.UserResponse.model_validate(post.author) if post.author else None,
     )
@@ -1584,6 +1582,7 @@ TRANSLATION_LANG_ALIASES = {
     "uzb": "uz",
     "uzbek": "uz",
     "ozbek": "uz",
+    "tk": "tm",
     "tm": "tm",
     "tkm": "tm",
     "turkmen": "tm",
@@ -1769,17 +1768,58 @@ def _external_translate_sync(text: str, source_lang: str, target_lang: str) -> O
     return None
 
 
+def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
+    google_source = "tk" if source_lang == "tm" else source_lang
+    google_target = "tk" if target_lang == "tm" else target_lang
+    query = urllib_parse.urlencode(
+        {
+            "client": "gtx",
+            "sl": google_source,
+            "tl": google_target,
+            "dt": "t",
+            "q": text,
+        }
+    )
+    request = urllib_request.Request(
+        f"https://translate.googleapis.com/translate_a/single?{query}",
+        headers={"User-Agent": "TurkHub/1.0"},
+        method="GET",
+    )
+    with urllib_request.urlopen(request, timeout=10) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    segments = data[0] if isinstance(data, list) and data else []
+    translated = "".join(
+        segment[0]
+        for segment in segments
+        if isinstance(segment, list) and segment and isinstance(segment[0], str)
+    ).strip()
+    return translated or None
+
+
 async def _external_translate(text: str, source_lang: str, target_lang: str) -> Optional[str]:
     try:
-        return await asyncio.to_thread(
+        llm_result = await asyncio.to_thread(
             _external_translate_sync,
             text,
             source_lang,
             target_lang,
         )
+        if llm_result and llm_result.strip() != text.strip():
+            return llm_result.strip()
     except Exception:
-        logger.warning("External translation provider failed; using lexicon fallback", exc_info=True)
-        return None
+        logger.warning("LLM translation provider failed; trying Google fallback", exc_info=True)
+    try:
+        google_result = await asyncio.to_thread(
+            _google_translate_sync,
+            text,
+            source_lang,
+            target_lang,
+        )
+        if google_result and google_result.strip() != text.strip():
+            return google_result.strip()
+    except Exception:
+        logger.warning("Google translation fallback failed", exc_info=True)
+    return None
 
 
 @app.post("/api/translate", response_model=schemas.TranslationResponse)
@@ -1832,6 +1872,11 @@ async def translate_text(payload: schemas.TranslationRequest):
         return result
 
     translated = _lexicon_translate(text, source_lang, target_lang)
+    if not translated.strip() or translated.strip() == text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Tərcümə xidməti hazırda əlçatan deyil",
+        )
     result = schemas.TranslationResponse(
         original_text=text,
         translated_text=translated,
@@ -2011,31 +2056,38 @@ async def websocket_notifications_endpoint(
     token: Optional[str] = Query(None),
 ):
     resolved_user_id: Optional[int] = None
-    if token:
-        try:
-            token_payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = token_payload.get("sub")
-            if email:
-                from database import SessionLocal
-                db = SessionLocal()
-                try:
-                    user = db.query(models.User).filter(models.User.email == email).first()
-                    if user:
-                        resolved_user_id = user.id
-                finally:
-                    db.close()
-        except JWTError:
-            pass
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
-    if resolved_user_id is None and user_id:
-        try:
-            resolved_user_id = int(user_id)
-        except (ValueError, TypeError):
-            pass
+    try:
+        token_payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = token_payload.get("sub")
+        if email:
+            from database import SessionLocal
+            db = SessionLocal()
+            try:
+                user = db.query(models.User).filter(models.User.email == email).first()
+                if user:
+                    resolved_user_id = user.id
+            finally:
+                db.close()
+    except JWTError:
+        resolved_user_id = None
 
     if resolved_user_id is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
+
+    if user_id:
+        try:
+            requested_user_id = int(user_id)
+        except (ValueError, TypeError):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        if requested_user_id != resolved_user_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
 
     await user_notification_manager.connect(resolved_user_id, websocket)
     heartbeat_task = asyncio.create_task(_ws_heartbeat(websocket))
