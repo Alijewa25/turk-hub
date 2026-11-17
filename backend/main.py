@@ -700,6 +700,10 @@ def _serialize_notification(n: models.Notification, actor: Optional[models.User]
         "entity_type": n.entity_type,
         "entity_id": n.entity_id,
         "content": n.content,
+        "actor_name": actor.full_name if actor else None,
+        "actor_avatar": actor.profile_picture if actor else None,
+        "post_id": n.entity_id if n.entity_type == "post" else None,
+        "message": n.content,
         "is_read": bool(n.is_read),
         "created_at": n.created_at.isoformat() if n.created_at else None,
     }
@@ -1027,10 +1031,8 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
 
 # --- FOLLOW SYSTEM ---
 
-@app.get("/api/users/{user_id}/followers", response_model=List[schemas.UserFollowInfo])
-@app.get("/api/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
 @app.get("/users/{user_id}/followers", response_model=List[schemas.UserFollowInfo])
-@app.get("/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
+@app.get("/api/users/{user_id}/followers", response_model=List[schemas.UserFollowInfo])
 def list_followers(
     user_id: int,
     current_user: models.User = Depends(get_current_user),
@@ -1057,6 +1059,7 @@ def list_followers(
 
 
 @app.get("/api/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
+@app.get("/users/{user_id}/following", response_model=List[schemas.UserFollowInfo])
 def list_following(
     user_id: int,
     current_user: models.User = Depends(get_current_user),
@@ -1536,6 +1539,39 @@ def mark_notifications_read(
         models.Notification.is_read == 0,
     ).count()
     return {"status": "ok", "unread_count": unread_count}
+
+
+@app.patch("/api/notifications/{notification_id}/read")
+@app.patch("/notifications/{notification_id}/read")
+def mark_notification_read_by_id(
+    notification_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == current_user.id,
+    ).update({"is_read": 1})
+    db.commit()
+    unread_count = db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id,
+        models.Notification.is_read == 0,
+    ).count()
+    return {"status": "ok", "unread_count": unread_count}
+
+
+@app.post("/api/notifications/read-all")
+@app.post("/notifications/read-all")
+def mark_all_notifications_read_alias(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id,
+        models.Notification.is_read == 0,
+    ).update({"is_read": 1}, synchronize_session=False)
+    db.commit()
+    return {"status": "ok", "unread_count": 0}
 
 
 @app.patch("/api/notifications/{notification_id}/read")
