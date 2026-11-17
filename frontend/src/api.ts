@@ -122,7 +122,23 @@ export async function translateText(
   }
 }
 
+const TRANSLATION_CACHE_VERSION = 'th_translation_v2_';
+const LEGACY_TRANSLATION_CACHE_PREFIX = 'th_translation:';
 const translationCache = new Map<string, TranslationResult>();
+let legacyTranslationCacheCleared = false;
+
+function clearLegacyTranslationCache(): void {
+  if (legacyTranslationCacheCleared || typeof localStorage === 'undefined') return;
+  legacyTranslationCacheCleared = true;
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX)) localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage can be unavailable in private browsing; the in-memory cache still works.
+  }
+}
 
 export async function translateCached(
   token: string | null,
@@ -131,6 +147,7 @@ export async function translateCached(
   sourceLang?: string,
   cacheScope?: string
 ): Promise<TranslationResult> {
+  clearLegacyTranslationCache();
   const clean = (text || '').trim();
   if (!clean) {
     return {
@@ -144,7 +161,7 @@ export async function translateCached(
   const cacheKey = `${cacheScope || 'text'}:${targetLang}:${sourceLang || 'auto'}:${clean}`;
   const cached = translationCache.get(cacheKey);
   if (cached) return cached;
-  const storageKey = `th_translation:${cacheKey}`;
+  const storageKey = `${TRANSLATION_CACHE_VERSION}${cacheKey}`;
   if (typeof localStorage !== 'undefined') {
     try {
       const stored = localStorage.getItem(storageKey);
