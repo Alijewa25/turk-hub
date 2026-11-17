@@ -199,6 +199,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     comments: item.comments_count || 0,
                     is_liked: item.is_liked ?? item.liked_by_me ?? false,
                     liked_by_me: item.liked_by_me ?? item.is_liked ?? false,
+                    sourceLang: item.source_lang || undefined,
                   }}
                   token={currentToken}
                   postId={item.id}
