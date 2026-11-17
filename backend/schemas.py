@@ -1,5 +1,5 @@
 from pydantic import BaseModel, computed_field, model_validator
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 from datetime import datetime
 
 
@@ -228,3 +228,32 @@ class DictionaryResponse(DictionaryBase):
 
     class Config:
         from_attributes = True
+
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    actor_id: Optional[int] = None
+    type: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    content: Optional[str] = None
+    is_read: int = 0
+    created_at: Optional[datetime] = None
+    actor: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationsListResponse(BaseModel):
+    unread_count: int
+    notifications: List[NotificationResponse]
+    items: List[NotificationResponse] = []
+
+
+class NotificationReadRequest(BaseModel):
+    id: Optional[int] = None
+    notification_id: Optional[int] = None
+    ids: Optional[List[int]] = None
+    mark_all: Optional[bool] = False
