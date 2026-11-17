@@ -11,7 +11,13 @@ import database, models
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT Configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "turk_youth_hub_super_secret_key_2026")
+ENV = os.getenv("ENV", "development").strip().lower()
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if ENV == "production":
+        raise RuntimeError("SECRET_KEY must be set when ENV=production")
+    SECRET_KEY = "local-development-secret-change-me"
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 Hours
 

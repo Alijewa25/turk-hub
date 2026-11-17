@@ -2,9 +2,15 @@ import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Render və ya Neon-dan gələn PostgreSQL URL-ini götürür, yoxdursa lokal SQLite istifadə edir
-_LOCAL_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "turk_hub.db")
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{_LOCAL_DB_PATH}"
+ENV = os.getenv("ENV", "development").strip().lower()
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    if ENV == "production":
+        raise RuntimeError("DATABASE_URL must be set when ENV=production")
+    DATABASE_URL = "sqlite:///./turk_hub.db"
+
+SQLALCHEMY_DATABASE_URL = DATABASE_URL
 
 # Render/Heroku 'postgres://' verdikdə SQLAlchemy 1.4+ üçün 'postgresql://' fərqini düzəldirik
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):

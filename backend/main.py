@@ -218,19 +218,6 @@ CORS_ORIGINS = [
 TRANSLATION_CACHE: dict[tuple[str, str, str], schemas.TranslationResponse] = {}
 MAX_TRANSLATION_CACHE_SIZE = 2048
 
-# Production/preview origins must always be allowed, even when CORS_ORIGINS is
-# overridden by the hosting provider (e.g. Render environment variables).
-REQUIRED_CORS_ORIGINS = [
-    "https://turk-hub.vercel.app",
-    "https://www.turk-hub.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "*",
-]
-for origin in REQUIRED_CORS_ORIGINS:
-    if origin not in CORS_ORIGINS:
-        CORS_ORIGINS.append(origin)
-
 # Covers Vercel preview deployments and subdomains such as
 # https://<branch>.vercel.app and https://app.turk-hub.vercel.app.
 CORS_ORIGIN_REGEX = r"https://([a-zA-Z0-9-]+\.)*(turk-hub\.)?vercel\.app"

@@ -1,10 +1,14 @@
 __pycache__/
 *.db
+*.sqlite3
+uploads/
+backend/uploads/
 .venv/node_modules/
 frontend/node_modules/
 frontend/dist/
 dist/
 .env
+backend/.env
 .venv/
 backend/.venv/
 backend/.venv/
