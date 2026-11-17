@@ -42,8 +42,8 @@ import {
   timeAgo,
   unfollowUser,
 } from './api';
-import { flagOf, formatNotificationText, translateStatic, useI18n } from './i18n';
-import { Bell, BookOpen, CheckCheck, Heart, Mail, MessageCircle, Rocket, Sparkles, UserPlus, Users } from 'lucide-react';
+import { flagOf, translateStatic, useI18n } from './i18n';
+import { Bell, BookOpen, Heart, MessageCircle, Sparkles, Users } from 'lucide-react';
 
 const INITIAL_POSTS: PostData[] = [
   {
@@ -157,7 +157,7 @@ function mapApiPost(p: ApiPost): PostData {
 }
 
 export function App() {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(() => loadStored<any>('user', null));
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -189,8 +189,6 @@ export function App() {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [notifFilter, setNotifFilter] = useState<'all' | 'unread'>('all');
-
   const loadNotifications = useCallback(async () => {
     if (!token) return;
     const res = await fetchNotifications(token);
