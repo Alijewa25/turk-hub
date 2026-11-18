@@ -151,7 +151,7 @@ export async function translateText(
   }
 }
 
-const TRANSLATION_CACHE_VERSION = 'th_translation_v2_';
+const TRANSLATION_CACHE_VERSION = 'th_translation_v3_';
 const LEGACY_TRANSLATION_CACHE_PREFIX = 'th_translation:';
 const translationCache = new Map<string, TranslationResult>();
 let legacyTranslationCacheCleared = false;

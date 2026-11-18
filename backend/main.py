@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
-import asyncio, base64, io, json, os, re, uuid, logging
+import asyncio, base64, io, json, os, re, ssl, uuid, logging
 
 from jose import JWTError, jwt
 
@@ -1876,12 +1876,11 @@ TRANSLATION_PROVIDER_CODES = {
 
 
 def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
-    google_source = "auto" if not source_lang else TRANSLATION_PROVIDER_CODES.get(source_lang, "auto")
     google_target = TRANSLATION_PROVIDER_CODES.get(target_lang, target_lang)
     query = urllib_parse.urlencode(
         {
             "client": "gtx",
-            "sl": google_source,
+            "sl": "auto",
             "tl": google_target,
             "dt": "t",
             "q": text,
@@ -1889,17 +1888,28 @@ def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Opt
     )
     request = urllib_request.Request(
         f"https://translate.googleapis.com/translate_a/single?{query}",
-        headers={"User-Agent": "TurkHub/1.0"},
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept": "application/json,text/javascript,*/*;q=0.01",
+            "Accept-Language": "az,en;q=0.9,tr;q=0.8",
+            "Referer": "https://translate.google.com/",
+        },
         method="GET",
     )
-    with urllib_request.urlopen(request, timeout=10) as response:
+    ssl_context = ssl.create_default_context()
+    with urllib_request.urlopen(request, timeout=10, context=ssl_context) as response:
         data = json.loads(response.read().decode("utf-8"))
-    segments = data[0] if isinstance(data, list) and data else []
-    translated = "".join(
-        segment[0]
-        for segment in segments
-        if isinstance(segment, list) and segment and isinstance(segment[0], str)
-    ).strip()
+    segments = data[0] if isinstance(data, list) and data and isinstance(data[0], list) else []
+    translated_parts = []
+    for segment in segments:
+        if not isinstance(segment, list) or not segment:
+            continue
+        value = segment[0]
+        if isinstance(value, str):
+            translated_parts.append(value)
+    translated = "".join(translated_parts).strip()
+    if translated and translated.strip() == text.strip():
+        return None
     return translated or None
 
 
@@ -2005,13 +2015,9 @@ async def translate_text(payload: schemas.TranslationRequest):
         TRANSLATION_CACHE[cache_key] = result
         return result
 
-    # Never turn an upstream outage/rate-limit into a 5xx response.
-    return schemas.TranslationResponse(
-        original_text=text,
-        translated_text=text,
-        source_lang=source_lang,
-        target_lang=target_lang,
-        provider="fallback",
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="Tərcümə xidmətindən nəticə alınmadı",
     )
 
 
