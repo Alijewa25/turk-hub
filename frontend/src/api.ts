@@ -141,39 +141,75 @@ export async function translateText(
     };
   }
 
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && Array.isArray(data[0])) {
-        const translated = data[0]
-          .map((segment: unknown) =>
-            Array.isArray(segment) && typeof segment[0] === 'string' ? segment[0] : ''
-          )
-          .join('')
-          .trim();
-        if (translated && translated !== clean) {
-          const detectedSource = typeof data[2] === 'string'
-            ? (data[2].toLowerCase() === 'tm' ? 'tk' : data[2].toLowerCase())
-            : (sourceLang || 'auto');
+  const normalizedSource = sourceLang?.toLowerCase() === 'tm'
+    ? 'tk'
+    : (sourceLang?.toLowerCase() || '');
+  const inferredSource = normalizedSource && normalizedSource !== 'auto'
+    ? normalizedSource
+    : (/[ґА-яЁёӘәҒғҚқӨөҰұҮүҺһІі]/u.test(clean)
+      ? (/ҚқҒғӨөҰұҮүҺһІі/u.test(clean) ? 'kk' : 'ky')
+      : (/[ıİəƏşŞçÇğĞöÖüÜ]/u.test(clean) ? 'az' : 'en'));
+  const myMemorySources = normalizedSource && normalizedSource !== 'auto'
+    ? [normalizedSource]
+    : ['Autodetect', inferredSource, 'en', 'tr', 'az'];
+  for (const myMemorySource of [...new Set(myMemorySources)]) {
+    try {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${encodeURIComponent(myMemorySource)}|${encodeURIComponent(targetLang)}`;
+      const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        const data = await response.json();
+        const translated = typeof data?.responseData?.translatedText === 'string'
+          ? data.responseData.translatedText.trim()
+          : '';
+        if (
+          translated &&
+          translated !== clean &&
+          !/MYMEMORY WARNING/i.test(translated)
+        ) {
+          const detectedSource = typeof data?.responseData?.detectedLanguage === 'string'
+            ? data.responseData.detectedLanguage.toLowerCase()
+            : myMemorySource === 'Autodetect' ? 'auto' : myMemorySource;
           return {
             original_text: clean,
             translated_text: translated,
-            source_lang: detectedSource,
+            source_lang: detectedSource === 'tm' ? 'tk' : detectedSource,
             target_lang: targetLang,
-            provider: 'google-browser',
+            provider: 'mymemory-browser',
           };
         }
       }
+    } catch {
+      // Try the next public provider/source pair.
     }
-  } catch {
-    // Browser provider unavailable or blocked; fall through to the backend fallback.
+  }
+
+  for (const lingvaBase of [
+    'https://lingva.ml',
+    'https://lingva.lunar.icu',
+  ]) {
+    try {
+      const response = await fetch(
+        `${lingvaBase}/api/v1/auto/${encodeURIComponent(targetLang)}/${encodeURIComponent(clean)}`,
+        { method: 'GET', headers: { Accept: 'application/json' } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const translated = typeof data?.translation === 'string'
+          ? data.translation.trim()
+          : '';
+        if (translated && translated !== clean) {
+          return {
+            original_text: clean,
+            translated_text: translated,
+            source_lang: inferredSource,
+            target_lang: targetLang,
+            provider: 'lingva-browser',
+          };
+        }
+      }
+    } catch {
+      // Try the next Lingva instance.
+    }
   }
 
   try {
@@ -197,7 +233,7 @@ export async function translateText(
   }
 }
 
-const TRANSLATION_CACHE_VERSION = 'th_translation_v3_';
+const TRANSLATION_CACHE_VERSION = 'th_translation_v4_';
 const LEGACY_TRANSLATION_CACHE_PREFIX = 'th_translation:';
 const translationCache = new Map<string, TranslationResult>();
 let legacyTranslationCacheCleared = false;
@@ -210,7 +246,8 @@ function clearLegacyTranslationCache(): void {
       const key = localStorage.key(index);
       if (
         key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX) ||
-        key?.startsWith('th_translation_v2_')
+        key?.startsWith('th_translation_v2_') ||
+        key?.startsWith('th_translation_v3_')
       ) {
         localStorage.removeItem(key);
       }
