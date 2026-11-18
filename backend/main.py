@@ -1687,7 +1687,7 @@ def mark_single_notification_read(
 
 # --- AI TRANSLATION ---
 
-SUPPORTED_TRANSLATION_LANGS = {"az", "tr", "kk", "uz", "tm", "ky", "en"}
+SUPPORTED_TRANSLATION_LANGS = {"az", "tr", "kk", "uz", "tk", "ky", "en"}
 
 TRANSLATION_LANG_ALIASES = {
     "az": "az",
@@ -1708,11 +1708,11 @@ TRANSLATION_LANG_ALIASES = {
     "uzb": "uz",
     "uzbek": "uz",
     "ozbek": "uz",
-    "tk": "tm",
-    "tm": "tm",
-    "tkm": "tm",
-    "turkmen": "tm",
-    "turkmenistan": "tm",
+    "tk": "tk",
+    "tm": "tk",
+    "tkm": "tk",
+    "turkmen": "tk",
+    "turkmenistan": "tk",
     "ky": "ky",
     "kyg": "ky",
     "kyrgyz": "ky",
@@ -1723,9 +1723,9 @@ TRANSLATION_LANG_ALIASES = {
 }
 
 TRANSLATION_LEXICON: List[dict] = [
-    {"az": "salam", "tr": "merhaba", "kk": "сәлем", "uz": "salom", "tm": "salam", "ky": "салам", "en": "hello"},
-    {"az": "sabahınız xeyir", "tr": "günaydın", "kk": "қайырлы таң", "uz": "xayrli tong", "tm": "ertiriňiz haýyrly", "ky": "күнүңүз жарык", "en": "good morning"},
-    {"az": "təşəkkür edirəm", "tr": "teşekkür ederim", "kk": "рақмет", "uz": "rahmat", "tm": "sag bol", "ky": "рахмат", "en": "thank you"},
+    {"az": "salam", "tr": "merhaba", "kk": "сәлем", "uz": "salom", "tk": "salam", "ky": "салам", "en": "hello"},
+    {"az": "sabahınız xeyir", "tr": "günaydın", "kk": "қайырлы таң", "uz": "xayrli tong", "tk": "ertiriňiz haýyrly", "ky": "күнүңүз жарык", "en": "good morning"},
+    {"az": "təşəkkür edirəm", "tr": "teşekkür ederim", "kk": "рақмет", "uz": "rahmat", "tk": "sag bol", "ky": "рахмат", "en": "thank you"},
     {"az": "xoş gəlmisiniz", "tr": "hoş geldiniz", "kk": "қош келдіңіз", "uz": "xush kelibsiz", "tm": "hoş geldiňiz", "ky": "кош келиңиз", "en": "welcome"},
     {"az": "bəli", "tr": "evet", "kk": "иә", "uz": "ha", "tm": "hawa", "ky": "ооба", "en": "yes"},
     {"az": "xeyr", "tr": "hayır", "kk": "жоқ", "uz": "yo'q", "tm": "ýok", "ky": "жок", "en": "no"},
@@ -1790,6 +1790,9 @@ def _detect_translation_lang(raw: str) -> str:
         for lang, term in entry.items():
             if not term:
                 continue
+            lang = _normalize_translation_lang(lang)
+            if lang not in scores:
+                continue
             if re.search(r"(?<!\w)" + re.escape(term.lower()) + r"(?!\w)", text):
                 scores[lang] += max(1, len(term.split()))
 
@@ -1800,7 +1803,7 @@ def _detect_translation_lang(raw: str) -> str:
     if any(ch in text for ch in "ңөү"):
         scores["ky"] += 2
     if any(ch in text for ch in "äňşçöüýž"):
-        scores["tm"] += 2
+        scores["tk"] += 2
     if any(ch in text for ch in "ʻ‘ʼ"):
         scores["uz"] += 1
     if re.search(r"\b(the|and|is|are|you|we|this|that|with|for|from|have)\b", text):
@@ -1861,12 +1864,24 @@ def _external_translate_sync(text: str, source_lang: str, target_lang: str) -> O
     return None
 
 
+TRANSLATION_PROVIDER_CODES = {
+    "az": "az",
+    "tr": "tr",
+    "kk": "kk",
+    "uz": "uz",
+    "tk": "tk",
+    "ky": "ky",
+    "en": "en",
+}
+
+
 def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
-    google_target = "tk" if target_lang == "tm" else target_lang
+    google_source = "auto" if not source_lang else TRANSLATION_PROVIDER_CODES.get(source_lang, "auto")
+    google_target = TRANSLATION_PROVIDER_CODES.get(target_lang, target_lang)
     query = urllib_parse.urlencode(
         {
             "client": "gtx",
-            "sl": "auto",
+            "sl": google_source,
             "tl": google_target,
             "dt": "t",
             "q": text,
@@ -1889,8 +1904,8 @@ def _google_translate_sync(text: str, source_lang: str, target_lang: str) -> Opt
 
 
 def _mymemory_translate_sync(text: str, source_lang: str, target_lang: str) -> Optional[str]:
-    source = "auto" if not source_lang else ("tk" if source_lang == "tm" else source_lang)
-    target = "tk" if target_lang == "tm" else target_lang
+    source = "auto" if not source_lang else TRANSLATION_PROVIDER_CODES.get(source_lang, "auto")
+    target = TRANSLATION_PROVIDER_CODES.get(target_lang, target_lang)
     query = urllib_parse.urlencode({"q": text, "langpair": f"{source}|{target}"})
     request = urllib_request.Request(
         f"https://api.mymemory.translated.net/get?{query}",
@@ -1905,17 +1920,6 @@ def _mymemory_translate_sync(text: str, source_lang: str, target_lang: str) -> O
 
 
 async def _external_translate(text: str, source_lang: str, target_lang: str) -> Optional[str]:
-    try:
-        llm_result = await asyncio.to_thread(
-            _external_translate_sync,
-            text,
-            source_lang,
-            target_lang,
-        )
-        if llm_result and llm_result.strip() != text.strip():
-            return llm_result.strip()
-    except Exception as exc:
-        logger.warning("LLM translation provider failed: %s", exc)
     try:
         google_result = await asyncio.to_thread(
             _google_translate_sync,
@@ -1938,6 +1942,17 @@ async def _external_translate(text: str, source_lang: str, target_lang: str) -> 
             return mymemory_result.strip()
     except Exception as exc:
         logger.warning("MyMemory translation fallback failed: %s", exc)
+    try:
+        llm_result = await asyncio.to_thread(
+            _external_translate_sync,
+            text,
+            source_lang,
+            target_lang,
+        )
+        if llm_result and llm_result.strip() != text.strip():
+            return llm_result.strip()
+    except Exception as exc:
+        logger.warning("LLM translation provider failed: %s", exc)
     return None
 
 
@@ -1990,9 +2005,13 @@ async def translate_text(payload: schemas.TranslationRequest):
         TRANSLATION_CACHE[cache_key] = result
         return result
 
-    raise HTTPException(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        detail="Tərcümə xidməti hazırda əlçatan deyil",
+    # Never turn an upstream outage/rate-limit into a 5xx response.
+    return schemas.TranslationResponse(
+        original_text=text,
+        translated_text=text,
+        source_lang=source_lang,
+        target_lang=target_lang,
+        provider="fallback",
     )
 
 
@@ -2168,7 +2187,7 @@ async def websocket_endpoint(
     client_id: str = "guest",
     token: Optional[str] = Query(None),
 ):
-    known_rooms = {"az", "tr", "kk", "uz", "tm", "ky", "global"}
+    known_rooms = {"az", "tr", "kk", "uz", "tk", "tm", "ky", "global"}
     has_client_path = "client_id" in websocket.path_params
     target_room = room_id
 

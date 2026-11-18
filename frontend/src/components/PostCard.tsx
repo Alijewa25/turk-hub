@@ -95,6 +95,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   }, [post.body, lang]);
 
   useEffect(() => {
+    setTranslatedBody('');
+    setTranslationSource('');
+    setShowTranslation(false);
+    setTranslationError('');
+  }, [lang, post.id]);
+
+  useEffect(() => {
     const target = LANG_TARGET[lang];
     comments.forEach((item) => {
       if (!item.text.trim() || item.autoTried || item.translatedText || item.translating) return;
@@ -134,8 +141,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   const currentAuthorName = user?.full_name || user?.username || t('userGeneric');
   const sourceLang = post.sourceLang?.toLowerCase() || '';
   const targetLang = LANG_TARGET[lang];
-  const normalizedTargetLang = targetLang === 'tk' ? 'tm' : targetLang;
-  const canTranslate = Boolean(post.body?.trim()) && sourceLang !== normalizedTargetLang;
+  const normalizedSourceLang = sourceLang === 'tm' ? 'tk' : sourceLang;
+  const canTranslate = Boolean(post.body?.trim()) && normalizedSourceLang !== targetLang;
 
   const handleTranslatePost = async () => {
     if (!post.body || !canTranslate) return;
