@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
@@ -491,7 +491,21 @@ def _register_user(user: schemas.UserCreate, db: Session):
 
 
 def _login_user(form_data: OAuth2PasswordRequestForm, db: Session):
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    identifier = (form_data.username or "").strip()
+    identifier_clean = identifier.lstrip("@").strip()
+    identifier_lower = identifier.lower()
+    clean_lower = identifier_clean.lower()
+
+    user = (
+        db.query(models.User)
+        .filter(
+            or_(
+                func.lower(models.User.email) == identifier_lower,
+                func.lower(models.User.username) == clean_lower,
+            )
+        )
+        .first()
+    )
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
