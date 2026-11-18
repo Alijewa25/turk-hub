@@ -38,6 +38,44 @@ logger = logging.getLogger("turk_hub")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "").strip()
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "").strip()
+
+
+def is_cloudinary_configured() -> bool:
+    return bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+
+
+def upload_to_cloudinary(content: bytes, filename: str, folder: str = "turk_hub") -> Optional[str]:
+    """Upload binary payload to Cloudinary and return secure URL; None on failure."""
+    if not is_cloudinary_configured():
+        return None
+    try:
+        import cloudinary
+        import cloudinary.uploader
+
+        cloudinary.config(
+            cloud_name=CLOUDINARY_CLOUD_NAME,
+            api_key=CLOUDINARY_API_KEY,
+            api_secret=CLOUDINARY_API_SECRET,
+            secure=True,
+        )
+        res = cloudinary.uploader.upload(
+            content,
+            folder=folder,
+            resource_type="auto",
+            public_id=os.path.splitext(filename)[0] if filename else None,
+            use_filename=True,
+            unique_filename=True,
+        )
+        secure_url = res.get("secure_url") or res.get("url")
+        if secure_url:
+            return str(secure_url)
+    except Exception as exc:
+        logger.warning("Cloudinary upload failed; falling back to local/base64 handling: %s", exc)
+    return None
+
 
 def ensure_upload_dir() -> None:
     """Create backend/uploads regardless of the process working directory."""
@@ -1038,6 +1076,16 @@ async def upload_avatar(
     media_type = file.content_type if file.content_type in {
         "image/jpeg", "image/png", "image/gif", "image/webp"
     } else "image/jpeg"
+
+    # Cloudinary persistent storage first (if configured)
+    c_url = upload_to_cloudinary(content, file.filename or f"avatar_{current_user.id}.jpg", folder="turk_hub/avatars")
+    if c_url:
+        current_user.profile_picture = c_url
+        db.commit()
+        db.refresh(current_user)
+        return {"status": "ok", "avatar_url": c_url, "url": c_url}
+
+    # Fallback to local optimized base64 data URI (never lost across Render restarts)
     try:
         from PIL import Image
 
@@ -1072,24 +1120,42 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
         raise HTTPException(status_code=400, detail="İcazə verilməyən fayl formatı")
 
     max_bytes = 5 * 1024 * 1024
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Fayl boş ola bilməz")
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=400, detail="Fayl ölçüsü 5MB-dan böyük ola bilməz")
+
+    # 1. Cloudinary upload if configured (persistent across Render restarts)
+    c_url = upload_to_cloudinary(content, file.filename or f"upload_{uuid.uuid4().hex}{ext}", folder="turk_hub/uploads")
+    if c_url:
+        return {"url": c_url, "file_url": c_url, "filename": file.filename}
+
+    # 2. For image files without Cloudinary, store compressed base64 data URI so media persists across ephemeral restarts
+    if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp"} and len(content) <= 2 * 1024 * 1024:
+        media_type = file.content_type or ("image/jpeg" if ext in {".jpg", ".jpeg"} else f"image/{ext.lstrip('.')}")
+        try:
+            from PIL import Image
+            with Image.open(io.BytesIO(content)) as image:
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+                resampling = getattr(Image, "Resampling", Image)
+                image.thumbnail((1200, 1200), resampling.LANCZOS)
+                output = io.BytesIO()
+                image.save(output, format="JPEG", quality=80, optimize=True)
+                opt_content = output.getvalue()
+                data_uri = f"data:image/jpeg;base64,{base64.b64encode(opt_content).decode('ascii')}"
+                return {"url": data_uri, "file_url": data_uri, "filename": file.filename}
+        except Exception:
+            pass
+
+    # 3. Fallback to local /uploads directory
+    ensure_upload_dir()
     fname = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, fname)
-    size = 0
     with open(path, "wb") as buffer:
-        while True:
-            chunk = await file.read(1024 * 64)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > max_bytes:
-                buffer.close()
-                try:
-                    os.remove(path)
-                except OSError:
-                    pass
-                raise HTTPException(status_code=400, detail="Fayl ölçüsü 5MB-dan böyük ola bilməz")
-            buffer.write(chunk)
-    return {"url": f"/uploads/{fname}", "filename": file.filename}
+        buffer.write(content)
+    return {"url": f"/uploads/{fname}", "file_url": f"/uploads/{fname}", "filename": file.filename}
 
 
 # --- FOLLOW SYSTEM ---
