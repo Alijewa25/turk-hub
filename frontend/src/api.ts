@@ -130,6 +130,52 @@ export async function translateText(
   targetLang: string,
   sourceLang?: string
 ): Promise<TranslationResult> {
+  const clean = (text || '').trim();
+  if (!clean) {
+    return {
+      original_text: text,
+      translated_text: text,
+      source_lang: sourceLang || '',
+      target_lang: targetLang,
+      provider: 'original',
+    };
+  }
+
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translated = data[0]
+          .map((segment: unknown) =>
+            Array.isArray(segment) && typeof segment[0] === 'string' ? segment[0] : ''
+          )
+          .join('')
+          .trim();
+        if (translated && translated !== clean) {
+          const detectedSource = typeof data[2] === 'string'
+            ? (data[2].toLowerCase() === 'tm' ? 'tk' : data[2].toLowerCase())
+            : (sourceLang || 'auto');
+          return {
+            original_text: clean,
+            translated_text: translated,
+            source_lang: detectedSource,
+            target_lang: targetLang,
+            provider: 'google-browser',
+          };
+        }
+      }
+    }
+  } catch {
+    // Browser provider unavailable or blocked; fall through to the backend fallback.
+  }
+
   try {
     const res = await axios.post(
       `${API_URL}/api/translate`,
@@ -162,7 +208,12 @@ function clearLegacyTranslationCache(): void {
   try {
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
       const key = localStorage.key(index);
-      if (key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX)) localStorage.removeItem(key);
+      if (
+        key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX) ||
+        key?.startsWith('th_translation_v2_')
+      ) {
+        localStorage.removeItem(key);
+      }
     }
   } catch {
     // Storage can be unavailable in private browsing; the in-memory cache still works.
