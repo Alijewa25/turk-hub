@@ -106,6 +106,10 @@ def sync_db_schema(engine) -> None:
                 column_type = column.type.compile(dialect=engine.dialect)
             except Exception:
                 column_type = "TEXT"
+            if column.name == "account_type":
+                column_type = f"{column_type} NOT NULL DEFAULT 'individual'"
+            elif column.name in ("is_admin", "is_verified"):
+                column_type = f"{column_type} NOT NULL DEFAULT FALSE"
             add_column(table.name, column.name, column_type, bool(column.unique))
 
     legacy_user_columns = {
@@ -158,6 +162,20 @@ def init_db() -> bool:
         except Exception:
             logger.exception("Schema column sync failed")
         sync_db_schema(engine)
+        try:
+            admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+            if admin_email:
+                from database import SessionLocal
+                db = SessionLocal()
+                try:
+                    admin = db.query(models.User).filter(models.User.email.ilike(admin_email)).first()
+                    if admin and not admin.is_admin:
+                        admin.is_admin = True
+                        db.commit()
+                finally:
+                    db.close()
+        except Exception:
+            logger.exception("Could not promote configured Super Admin")
         _seed_dictionary_if_empty()
         logger.info("Database schema verified/created successfully")
         return True

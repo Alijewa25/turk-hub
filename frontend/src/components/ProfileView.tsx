@@ -4,6 +4,7 @@ import { flagOf, localizedCountryName, localizedRole, useI18n } from '../i18n';
 import { API_URL, fetchFollowers, fetchFollowing, fetchProjects, fetchSavedPosts, fetchUserPosts, fetchUserStats, followUser, ProjectItem, unfollowUser, uploadAvatar } from '../api';
 import { PostCard } from './PostCard';
 import { UserAvatar } from './UserAvatar';
+import { AccountBadge } from './AccountBadge';
 
 interface ProfileViewProps {
   user: any;
@@ -40,6 +41,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [editName, setEditName] = useState(user?.full_name || '');
   const [editUsername, setEditUsername] = useState(user?.username || '');
   const [editBio, setEditBio] = useState(user?.bio || '');
+  const [editOrgName, setEditOrgName] = useState(user?.org_name || '');
+  const [editOrgCategory, setEditOrgCategory] = useState(user?.org_category || '');
+  const [editWebsite, setEditWebsite] = useState(user?.website || '');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null);
@@ -167,6 +171,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setEditName(user?.full_name || '');
       setEditUsername(user?.username || '');
       setEditBio(user?.bio || '');
+      setEditOrgName(user?.org_name || '');
+      setEditOrgCategory(user?.org_category || '');
+      setEditWebsite(user?.website || '');
       if (user?.id) {
         fetchUserStats(currentToken || null, user.id)
           .then((data) => {
@@ -226,11 +233,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           Authorization: `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
-          full_name: editName,
+          full_name: profileUser?.account_type === 'organization'
+            ? (editOrgName || editName)
+            : editName,
           username: editUsername,
           bio: editBio,
           avatar_url: avatarUrl,
           profile_picture: avatarUrl,
+          org_name: profileUser?.account_type === 'organization' ? editOrgName : undefined,
+          org_category: profileUser?.account_type === 'organization' ? editOrgCategory : undefined,
+          website: profileUser?.account_type === 'organization' ? editWebsite : undefined,
         }),
       });
       if (res.ok) {
@@ -270,7 +282,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-slate-100">{profileUser?.full_name || t('userGeneric')}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-slate-100">
+                {profileUser?.account_type === 'organization'
+                  ? (profileUser?.org_name || profileUser?.full_name || t('userGeneric'))
+                  : (profileUser?.full_name || t('userGeneric'))}
+              </h2>
+              <AccountBadge
+                accountType={profileUser?.account_type}
+                isVerified={profileUser?.is_verified}
+                isAdmin={profileUser?.is_admin}
+              />
+            </div>
             <p className="text-xs text-slate-400">@{profileUser?.username}</p>
             <p className="text-xs text-slate-400 mt-2">{flagOf(profileUser?.country)} {localizedCountryName(profileUser?.country, lang)} · {localizedRole(profileUser?.university, lang, t('studentRole'))}</p>
             <p className="text-xs text-slate-300 mt-2">{profileUser?.bio || t('noBio')}</p>
@@ -385,6 +408,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               authorId: item.user_id,
               author: item.author?.full_name || profileUser?.full_name || t('userGeneric'),
               avatarUrl: item.author?.avatar_url ?? item.author?.profile_picture ?? profileUser?.avatar_url ?? profileUser?.profile_picture,
+              accountType: item.author?.account_type ?? profileUser?.account_type,
+              orgName: item.author?.org_name ?? profileUser?.org_name,
+              isVerified: item.author?.is_verified ?? profileUser?.is_verified,
+              isAdmin: item.author?.is_admin ?? profileUser?.is_admin,
               country: item.author?.country || profileUser?.country || '',
               role: item.author?.university || profileUser?.university || t('studentRole'),
               time: item.created_at ? new Date(item.created_at).toLocaleString() : '',
@@ -421,7 +448,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <div key={u.id} role="button" tabIndex={0} onClick={() => { setShowFollowList(null); _onNavigate?.('profile', u); }} onKeyDown={(event) => { if (event.key === 'Enter') { setShowFollowList(null); _onNavigate?.('profile', u); } }} className="w-full flex items-center gap-2 p-2 rounded-xl border border-neutral-800 text-left hover:border-skyBlue/40">
                   <UserAvatar name={u.full_name} avatarUrl={u.profile_picture || u.avatar_url} className="w-9 h-9 text-sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-100 truncate">{u.full_name}</p>
+                    <p className="flex items-center gap-1 truncate text-xs text-slate-100">
+                      <span className="truncate">
+                        {u.account_type === 'organization' ? (u.org_name || u.full_name) : u.full_name}
+                      </span>
+                      <AccountBadge accountType={u.account_type} isVerified={u.is_verified} isAdmin={u.is_admin} compact />
+                    </p>
                     <p className="text-[10px] text-slate-500 truncate">@{u.username || u.id}</p>
                   </div>
                   <button
@@ -468,6 +500,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 placeholder={t('usernameShort')}
                 className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 focus:outline-none"
               />
+              {profileUser?.account_type === 'organization' && (
+                <>
+                  <input
+                    value={editOrgName}
+                    onChange={(e) => setEditOrgName(e.target.value)}
+                    placeholder="Organization Name"
+                    className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 focus:outline-none"
+                  />
+                  <input
+                    value={editOrgCategory}
+                    onChange={(e) => setEditOrgCategory(e.target.value)}
+                    placeholder="Organization category"
+                    className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={editWebsite}
+                    onChange={(e) => setEditWebsite(e.target.value)}
+                    placeholder="https://"
+                    className="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-xs text-slate-100 focus:outline-none"
+                  />
+                </>
+              )}
               <textarea
                 value={editBio}
                 onChange={(e) => setEditBio(e.target.value)}

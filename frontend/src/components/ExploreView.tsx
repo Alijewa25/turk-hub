@@ -3,6 +3,7 @@ import { MessageCircle, Search, UserCheck, UserPlus } from 'lucide-react';
 import { fetchSuggestions, followUser, unfollowUser } from '../api';
 import { flagOf, useI18n } from '../i18n';
 import { UserAvatar } from './UserAvatar';
+import { AccountBadge } from './AccountBadge';
 
 interface ExploreViewProps {
   token?: string | null;
@@ -100,7 +101,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleProfileClick(u.id)}>
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold text-slate-100 truncate hover:text-skyBlue">{u.full_name}</h3>
+                    <h3 className="text-sm font-semibold text-slate-100 truncate hover:text-skyBlue">
+                      {u.account_type === 'organization' ? (u.org_name || u.full_name) : u.full_name}
+                    </h3>
+                    <AccountBadge accountType={u.account_type} isVerified={u.is_verified} isAdmin={u.is_admin} />
                     <span className="text-xs">{flagOf(u.country)}</span>
                   </div>
                   <p className="text-xs text-slate-500 truncate">@{u.username || u.id}</p>

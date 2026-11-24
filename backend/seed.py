@@ -337,6 +337,10 @@ def ensure_schema_columns(bind=None) -> None:
             ):
                 continue
             column_type = column.type.compile(dialect=target.dialect)
+            if column.name == "account_type":
+                column_type = f"{column_type} NOT NULL DEFAULT 'individual'"
+            elif column.name in ("is_admin", "is_verified"):
+                column_type = f"{column_type} NOT NULL DEFAULT 0"
             statement = text(
                 f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}'
             )

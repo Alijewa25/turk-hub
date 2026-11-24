@@ -52,6 +52,12 @@ export interface StoryAuthor {
   bio?: string | null;
   profile_picture?: string | null;
   avatar_url?: string | null;
+  account_type?: 'individual' | 'organization';
+  is_admin?: boolean;
+  is_verified?: boolean;
+  org_name?: string | null;
+  org_category?: string | null;
+  website?: string | null;
 }
 
 export interface ApiPost {

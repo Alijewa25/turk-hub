@@ -3,6 +3,7 @@ import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'luci
 import { commentPost, likePost, mediaUrl, toggleSavePost, translateCached, translationChanged } from '../api';
 import { LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
 import { UserAvatar } from './UserAvatar';
+import { AccountBadge } from './AccountBadge';
 
 export interface PostMedia {
   title?: string;
@@ -29,6 +30,10 @@ export interface PostData {
   liked_by_me?: boolean | null;
   is_saved?: boolean | null;
   sourceLang?: string | null;
+  accountType?: 'individual' | 'organization';
+  orgName?: string | null;
+  isVerified?: boolean;
+  isAdmin?: boolean;
 }
 
 interface PostComment {
@@ -197,7 +202,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       <div className="p-4 sm:p-5 flex items-center gap-3">
         <UserAvatar name={post.author} avatarUrl={post.avatarUrl} className="w-9 h-9 text-lg" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-xs font-semibold text-slate-100 truncate">{post.author}</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="truncate text-xs font-semibold text-slate-100">
+              {post.accountType === 'organization' ? (post.orgName || post.author) : post.author}
+            </h3>
+            <AccountBadge accountType={post.accountType} isVerified={post.isVerified} isAdmin={post.isAdmin} compact />
+          </div>
           <p className="text-[10px] text-slate-500">
             {localizedCountryName(post.country, lang)} • {localizedRole(post.role, lang, t('studentRole'))} • {post.time}
           </p>

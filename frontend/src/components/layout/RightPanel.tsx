@@ -3,6 +3,7 @@ import { ArrowRight, Rocket, Sparkles, TrendingUp, X } from 'lucide-react';
 import { FollowUser, ProjectItem } from '../../api';
 import { useI18n } from '../../i18n';
 import { UserAvatar } from '../UserAvatar';
+import { AccountBadge } from '../AccountBadge';
 
 interface RightPanelProps {
   user?: any;
@@ -127,7 +128,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         <div className="flex items-center gap-3">
           <UserAvatar name={user?.full_name} avatarUrl={user?.avatar_url || user?.profile_picture} className="w-12 h-12" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-100 truncate">{user?.full_name || t('userGeneric')}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-semibold text-slate-100">
+                {user?.account_type === 'organization' ? (user?.org_name || user?.full_name) : (user?.full_name || t('userGeneric'))}
+              </p>
+              <AccountBadge accountType={user?.account_type} isVerified={user?.is_verified} isAdmin={user?.is_admin} />
+            </div>
             <p className="text-xs text-slate-500 truncate">{user?.email || 'turkhub.az'}</p>
           </div>
         </div>
@@ -156,7 +162,12 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             >
               <UserAvatar name={u.full_name} avatarUrl={u.avatar_url || u.profile_picture} className="w-8 h-8 text-xs" />
               <span className="min-w-0 flex-1">
-                <span className="block text-xs font-semibold text-slate-100 truncate">{u.full_name}</span>
+                <span className="flex items-center gap-1">
+                  <span className="block truncate text-xs font-semibold text-slate-100">
+                    {u.account_type === 'organization' ? (u.org_name || u.full_name) : u.full_name}
+                  </span>
+                  <AccountBadge accountType={u.account_type} isVerified={u.is_verified} isAdmin={u.is_admin} compact />
+                </span>
                 <span className="block text-[10px] text-slate-500">
                   {u.country} • {u.followers_count} {t('followersSuffix')}
                 </span>

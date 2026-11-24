@@ -90,12 +90,21 @@ def _register_user(user: schemas.UserCreate, db: Session):
         username = candidate
 
     hashed_password = hash_password(user.password)
+    account_type = user.account_type
+    admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    is_admin = bool(admin_email and user.email.strip().lower() == admin_email)
     db_user = models.User(
         full_name=user.full_name,
         email=user.email,
         username=username,
         password_hash=hashed_password,
-        country=user.country
+        country=user.country,
+        bio=user.bio,
+        account_type=account_type,
+        is_admin=is_admin,
+        org_name=user.org_name if account_type == "organization" else None,
+        org_category=user.org_category if account_type == "organization" else None,
+        website=user.website if account_type == "organization" else None,
     )
     db.add(db_user)
     db.commit()
@@ -125,6 +134,11 @@ def _login_user(form_data: OAuth2PasswordRequestForm, db: Session):
             detail="Yanlış e-poçt və ya şifrə",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    if admin_email and user.email.strip().lower() == admin_email and not user.is_admin:
+        user.is_admin = True
+        db.commit()
+        db.refresh(user)
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -153,6 +167,12 @@ def follow_info(
         bio=user.bio,
         profile_picture=avatar,
         avatar_url=avatar,
+        account_type=getattr(user, "account_type", "individual") or "individual",
+        is_admin=bool(getattr(user, "is_admin", False)),
+        is_verified=bool(getattr(user, "is_verified", False)),
+        org_name=getattr(user, "org_name", None),
+        org_category=getattr(user, "org_category", None),
+        website=getattr(user, "website", None),
         followers_count=followers_count,
         following_count=following_count,
         posts_count=posts_count,
@@ -285,6 +305,7 @@ def list_users(
         db_query = db_query.filter(
             (models.User.full_name.ilike(pattern)) |
             (models.User.username.ilike(pattern)) |
+            (models.User.org_name.ilike(pattern)) |
             (models.User.email.ilike(pattern))
         )
     users = safe_list_query(lambda: db_query.all(), db, "users")
@@ -362,6 +383,18 @@ def update_me(
         current_user.bio = payload.bio
     if payload.profile_picture is not None:
         current_user.profile_picture = payload.profile_picture
+    if payload.account_type is not None:
+        current_user.account_type = payload.account_type
+        if payload.account_type == "individual":
+            current_user.org_name = None
+            current_user.org_category = None
+            current_user.website = None
+    if payload.org_name is not None:
+        current_user.org_name = payload.org_name
+    if payload.org_category is not None:
+        current_user.org_category = payload.org_category
+    if payload.website is not None:
+        current_user.website = payload.website
     if getattr(payload, 'avatar_url', None) is not None:
         current_user.profile_picture = payload.avatar_url
     if getattr(payload, 'university', None) is None and getattr(payload, 'institution', None) is not None:

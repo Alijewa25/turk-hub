@@ -11,6 +11,12 @@ export interface AuthUser {
   country?: string;
   university?: string;
   bio?: string;
+  account_type?: 'individual' | 'organization';
+  is_admin?: boolean;
+  is_verified?: boolean;
+  org_name?: string | null;
+  org_category?: string | null;
+  website?: string | null;
 }
 
 interface AuthViewProps {
@@ -39,6 +45,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [accountType, setAccountType] = useState<'individual' | 'organization'>('individual');
+  const [country, setCountry] = useState('');
+  const [bio, setBio] = useState('');
+  const [orgName, setOrgName] = useState('');
+  const [orgCategory, setOrgCategory] = useState('');
+  const [website, setWebsite] = useState('');
 
   const tryEndpoints = async (paths: string[], data: any, isJson = false) => {
     let lastError = null;
@@ -90,7 +102,18 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
         localStorage.setItem('user', JSON.stringify(userData));
         onLoginSuccess(token, userData, false);
       } else {
-        const regData = { full_name: fullName, email, password, username: username || undefined };
+        const regData = {
+          full_name: accountType === 'organization' ? (orgName || fullName) : fullName,
+          email,
+          password,
+          username: username || undefined,
+          country: country || undefined,
+          bio: bio || undefined,
+          account_type: accountType,
+          org_name: accountType === 'organization' ? orgName : undefined,
+          org_category: accountType === 'organization' ? orgCategory : undefined,
+          website: accountType === 'organization' ? website : undefined,
+        };
         await tryEndpoints(['/api/auth/register', '/register', '/auth/register'], regData, true);
 
         const params = new URLSearchParams();
@@ -251,15 +274,66 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
             {!isLogin && (
               <>
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('labelFullName')}</label>
-                  <input
-                    type="text"
-                    placeholder={t('labelFullName')}
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    className={inputClass}
-                  />
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">Account type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['individual', 'organization'] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setAccountType(type)}
+                        className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                          accountType === type
+                            ? 'border-skyBlue bg-skyBlue/10 text-skyBlue'
+                            : 'border-neutral-800 bg-black/40 text-slate-400'
+                        }`}
+                      >
+                        {type === 'individual' ? 'Individual' : 'Organization / Company'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {accountType === 'individual' ? (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('labelFullName')}</label>
+                      <input
+                        type="text"
+                        placeholder={t('labelFullName')}
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        className={inputClass}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">Organization Name</label>
+                      <input type="text" placeholder="Organization Name" value={orgName} onChange={(e) => setOrgName(e.target.value)} required className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">Category</label>
+                      <input type="text" placeholder="University, Tech Hub, Company, NGO" value={orgCategory} onChange={(e) => setOrgCategory(e.target.value)} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">Website</label>
+                      <input type="url" placeholder="https://" value={website} onChange={(e) => setWebsite(e.target.value)} className={inputClass} />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">Country</label>
+                  <select value={country} onChange={(e) => setCountry(e.target.value)} required className={inputClass}>
+                    <option value="" disabled>Select country</option>
+                    {UNION_COUNTRIES.map((item) => (
+                      <option key={item.id} value={item.id}>{item.flag} {item.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">Bio / Description</label>
+                  <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Tell the community about you or your organization" className={`${inputClass} resize-none`} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-medium text-slate-400 mb-1.5 ml-1">{t('usernameLabel')}</label>

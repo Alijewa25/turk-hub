@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -15,6 +15,12 @@ class User(Base):
     university = Column(String, nullable=True)       # Baku Engineering University, etc.
     bio = Column(Text, nullable=True)
     profile_picture = Column(String, nullable=True)
+    account_type = Column(String, nullable=False, default="individual", server_default="individual")
+    is_admin = Column(Boolean, nullable=False, default=False, server_default="0")
+    is_verified = Column(Boolean, nullable=False, default=False, server_default="0")
+    org_name = Column(String, nullable=True)
+    org_category = Column(String, nullable=True)
+    website = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     @property

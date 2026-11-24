@@ -1,5 +1,5 @@
 from pydantic import BaseModel, computed_field, model_validator
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Literal
 from datetime import datetime
 
 
@@ -32,6 +32,11 @@ class UserCreate(BaseModel):
     password: str
     username: Optional[str] = None
     country: Optional[str] = None
+    account_type: Literal["individual", "organization"] = "individual"
+    org_name: Optional[str] = None
+    org_category: Optional[str] = None
+    website: Optional[str] = None
+    bio: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -44,6 +49,12 @@ class UserResponse(BaseModel):
     bio: Optional[str] = None
     profile_picture: Optional[str] = None
     avatar_url: Optional[str] = None
+    account_type: Literal["individual", "organization"] = "individual"
+    is_admin: bool = False
+    is_verified: bool = False
+    org_name: Optional[str] = None
+    org_category: Optional[str] = None
+    website: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -60,6 +71,10 @@ class UserUpdate(BaseModel):
     skills: Optional[list] = None
     institution: Optional[str] = None
     metadata: Optional[dict] = None
+    account_type: Optional[Literal["individual", "organization"]] = None
+    org_name: Optional[str] = None
+    org_category: Optional[str] = None
+    website: Optional[str] = None
 
 class UserFollowInfo(UserResponse):
     role: Optional[str] = None
