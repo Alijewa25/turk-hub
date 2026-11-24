@@ -147,6 +147,45 @@ export interface NewsItem {
   author?: StoryAuthor | null;
 }
 
+export interface AdminStats {
+  total_users: number;
+  individual_users: number;
+  organization_users: number;
+  verified_organizations: number;
+  total_posts: number;
+  total_comments: number;
+  pending_news: number;
+  approved_news: number;
+  total_projects: number;
+}
+
+export interface AdminUser {
+  id: number;
+  username?: string | null;
+  email: string;
+  full_name: string;
+  org_name?: string | null;
+  account_type: 'individual' | 'organization';
+  is_verified: boolean;
+  is_admin: boolean;
+  country?: string | null;
+  created_at?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface AdminPost {
+  id: number;
+  user_id: number;
+  body?: string | null;
+  image_url?: string | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  likes_count: number;
+  comments_count: number;
+  created_at?: string | null;
+  author?: StoryAuthor | null;
+}
+
 export interface TranslationResult {
   original_text: string;
   translated_text: string;
@@ -614,6 +653,53 @@ export async function submitNews(token: string | null, payload: {
 }): Promise<NewsItem> {
   const res = await axios.post(`${API_URL}/api/news`, payload, { headers: headers(token) });
   return res.data;
+}
+
+export async function fetchAdminStats(token: string | null): Promise<AdminStats> {
+  const res = await axios.get(`${API_URL}/api/admin/stats`, { headers: headers(token) });
+  return res.data;
+}
+
+export async function fetchAdminNews(token: string | null, statusFilter: 'pending' | 'all' = 'all'): Promise<NewsItem[]> {
+  const res = await axios.get(`${API_URL}/api/admin/news/pending`, {
+    params: { status: statusFilter },
+    headers: headers(token),
+  });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function updateAdminNews(token: string | null, newsId: number, payload: {
+  status?: 'approved' | 'rejected';
+  is_pinned?: boolean;
+}): Promise<any> {
+  const res = await axios.patch(`${API_URL}/api/admin/news/${newsId}`, payload, { headers: headers(token) });
+  return res.data;
+}
+
+export async function fetchAdminUsers(token: string | null, accountType = '', search = ''): Promise<AdminUser[]> {
+  const res = await axios.get(`${API_URL}/api/admin/users`, {
+    params: { account_type: accountType || undefined, search: search || undefined },
+    headers: headers(token),
+  });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function toggleAdminUserVerification(token: string | null, userId: number, isVerified: boolean): Promise<any> {
+  const res = await axios.patch(`${API_URL}/api/admin/users/${userId}/verify`, { is_verified: isVerified }, { headers: headers(token) });
+  return res.data;
+}
+
+export async function fetchAdminPosts(token: string | null): Promise<AdminPost[]> {
+  const res = await axios.get(`${API_URL}/api/admin/posts`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function deleteAdminPost(token: string | null, postId: number): Promise<void> {
+  await axios.delete(`${API_URL}/api/posts/${postId}`, { headers: headers(token) });
+}
+
+export async function deleteAdminNews(token: string | null, newsId: number): Promise<void> {
+  await axios.delete(`${API_URL}/api/news/${newsId}`, { headers: headers(token) });
 }
 
 export async function fetchSuggestions(token: string | null, q?: string): Promise<FollowUser[]> {
