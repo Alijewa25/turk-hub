@@ -122,6 +122,18 @@ export interface ProjectItem {
   created_at?: string | null;
 }
 
+export interface ApiComment {
+  id: number;
+  post_id: number;
+  user_id: number;
+  parent_id?: number | null;
+  text: string;
+  body: string;
+  created_at?: string | null;
+  author?: StoryAuthor | null;
+  replies?: ApiComment[];
+}
+
 export interface TranslationResult {
   original_text: string;
   translated_text: string;
@@ -534,9 +546,9 @@ export async function likePost(token: string | null, postId: number | string) {
   }
 }
 
-export async function commentPost(token: string | null, postId: number | string, text: string) {
+export async function commentPost(token: string | null, postId: number | string, text: string, parentId?: number | null) {
   try {
-    const res = await axios.post(`${API_URL}/api/posts/${postId}/comment`, { text }, { headers: headers(token) });
+    const res = await axios.post(`${API_URL}/api/posts/${postId}/comments`, { text, parent_id: parentId ?? null }, { headers: headers(token) });
     return res.data;
   } catch (err: any) {
     if (err?.response?.status !== 404) {
@@ -551,6 +563,24 @@ export async function commentPost(token: string | null, postId: number | string,
       throw friendlyError(fallbackErr, 'Şərh göndərilə bilmədi.');
     }
   }
+}
+
+export async function fetchPostComments(token: string | null, postId: number | string): Promise<ApiComment[]> {
+  const res = await axios.get(`${API_URL}/api/posts/${postId}/comments`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchPostLikes(token: string | null, postId: number | string): Promise<StoryAuthor[]> {
+  const res = await axios.get(`${API_URL}/api/posts/${postId}/likes`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function deletePost(token: string | null, postId: number | string): Promise<void> {
+  await axios.delete(`${API_URL}/api/posts/${postId}`, { headers: headers(token) });
+}
+
+export async function deleteComment(token: string | null, commentId: number): Promise<void> {
+  await axios.delete(`${API_URL}/api/comments/${commentId}`, { headers: headers(token) });
 }
 
 export async function fetchSuggestions(token: string | null, q?: string): Promise<FollowUser[]> {
