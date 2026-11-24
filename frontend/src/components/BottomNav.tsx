@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Compass, Home, Mail, User } from 'lucide-react';
+import { BookOpen, Compass, Home, Mail, Megaphone, User } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 interface BottomNavProps {
@@ -14,6 +14,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
     { id: 'home', label: t('navHome'), icon: Home },
     { id: 'explore', label: t('navExplore'), icon: Compass },
     { id: 'messages', label: 'DM', icon: Mail },
+    { id: 'news', label: 'News', icon: Megaphone },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },
     { id: 'profile', label: t('navProfile'), icon: User },
   ];
