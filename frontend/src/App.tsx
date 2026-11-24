@@ -18,6 +18,7 @@ import { ProfileView } from './components/ProfileView';
 import { ProjectHub } from './components/ProjectHub';
 import { RoomsView } from './components/RoomsView';
 import { MessagesView } from './components/MessagesView';
+import { NewsView } from './components/NewsView';
 import {
   ApiPost,
   API_URL,
@@ -122,6 +123,7 @@ const VALID_TABS = new Set([
   'projects',
   'dictionary',
   'notifications',
+  'news',
   'profile',
 ]);
 
@@ -680,6 +682,12 @@ export function App() {
                 initialTarget={messagesTarget}
                 onClose={() => setMessagesTarget(null)}
               />
+            </ErrorBoundary>
+          )}
+
+          {activeTab === 'news' && (
+            <ErrorBoundary title={t('sectionLoadError').replace('{section}', 'News')}>
+              <NewsView token={token} user={user} />
             </ErrorBoundary>
           )}
 
