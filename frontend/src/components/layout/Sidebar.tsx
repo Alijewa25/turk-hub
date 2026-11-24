@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, BookOpen, Compass, Home, LogOut, Mail, MessageCircle, Plus, Rocket, Search, User } from 'lucide-react';
+import { Bell, BookOpen, Compass, Home, LogOut, Mail, Megaphone, MessageCircle, Plus, Rocket, Search, User } from 'lucide-react';
 import { fetchSuggestions } from '../../api';
 import { flagOf, useI18n } from '../../i18n';
 import { ThemeToggle } from '../ThemeToggle';
@@ -29,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
     { id: 'rooms', label: t('navRooms'), icon: MessageCircle },
     { id: 'messages', label: t('navMessages'), icon: Mail },
     { id: 'projects', label: t('navProjects'), icon: Rocket },
+    { id: 'news', label: 'News', icon: Megaphone },
     { id: 'dictionary', label: t('navDictionary'), icon: BookOpen },
     { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     { id: 'profile', label: t('navProfile'), icon: User },
