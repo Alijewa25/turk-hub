@@ -203,11 +203,19 @@ class Comment(Base):
     id = Column(Integer, primary_key=True, index=True)
     post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True, index=True)
     body = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     post = relationship("Post")
     author = relationship("User", foreign_keys=[user_id])
+    replies = relationship(
+        "Comment",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        foreign_keys=[parent_id],
+    )
+    parent = relationship("Comment", remote_side=[id], back_populates="replies", foreign_keys=[parent_id])
 
 
 class Notification(Base):
