@@ -218,6 +218,22 @@ class Comment(Base):
     parent = relationship("Comment", remote_side=[id], back_populates="replies", foreign_keys=[parent_id])
 
 
+class News(Base):
+    __tablename__ = "news"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String, nullable=False, default="General", server_default="General")
+    cover_image_url = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending", server_default="pending")
+    is_pinned = Column(Boolean, nullable=False, default=False, server_default="0")
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    author = relationship("User", foreign_keys=[author_id])
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
