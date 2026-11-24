@@ -4,6 +4,7 @@ import logging
 import os
 import uuid
 from typing import Any, List, Optional
+from datetime import datetime, timezone
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,19 @@ from translation_service import detect_translation_lang
 logger = logging.getLogger("turk_hub")
 
 router = APIRouter(tags=["posts"])
+
+
+def utc_datetime(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def post_response(post: models.Post, current_user: models.User, db: Session) -> schemas.PostResponse:
@@ -43,7 +57,7 @@ def post_response(post: models.Post, current_user: models.User, db: Session) -> 
         liked_by_me=liked,
         source_lang=detect_translation_lang(post.body or ""),
         is_saved=is_saved,
-        created_at=post.created_at,
+        created_at=utc_datetime(post.created_at),
         author=schemas.UserResponse.model_validate(post.author) if post.author else None,
     )
 
@@ -214,20 +228,69 @@ def get_post(post_id: int, current_user: models.User = Depends(get_current_user)
     return post_response(post, current_user, db)
 
 
-@router.post("/api/posts/{post_id}/comment")
-@router.post("/posts/{post_id}/comment")
-def comment_post(post_id: int, payload: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def comment_response(comment: models.Comment) -> dict:
+    author = schemas.UserResponse.model_validate(comment.author) if comment.author else None
+    return {
+        "id": comment.id,
+        "post_id": comment.post_id,
+        "user_id": comment.user_id,
+        "parent_id": comment.parent_id,
+        "text": comment.body,
+        "body": comment.body,
+        "created_at": utc_datetime(comment.created_at),
+        "author": author,
+        "replies": [],
+    }
+
+
+@router.delete("/api/posts/{post_id}")
+@router.delete("/posts/{post_id}")
+def delete_post(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post tapılmadı")
-    text = payload.get("text", "").strip()
+    if post.user_id != current_user.id and not bool(current_user.is_admin):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    db.query(models.Comment).filter(models.Comment.post_id == post_id).delete(synchronize_session=False)
+    db.query(models.PostLike).filter(models.PostLike.post_id == post_id).delete(synchronize_session=False)
+    db.query(models.SavedPost).filter(models.SavedPost.post_id == post_id).delete(synchronize_session=False)
+    db.delete(post)
+    db.commit()
+    return {"status": "ok", "deleted": True}
+
+
+@router.get("/api/posts/{post_id}/likes", response_model=List[schemas.UserResponse])
+@router.get("/posts/{post_id}/likes", response_model=List[schemas.UserResponse])
+def list_post_likes(post_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    likes = db.query(models.PostLike).filter(models.PostLike.post_id == post_id).order_by(models.PostLike.created_at.desc()).all()
+    return [like.user for like in likes if like.user]
+
+
+@router.post("/api/posts/{post_id}/comments")
+@router.post("/api/posts/{post_id}/comment")
+@router.post("/posts/{post_id}/comments")
+@router.post("/posts/{post_id}/comment")
+def comment_post(post_id: int, payload: schemas.CommentCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    text = (payload.text if payload.text is not None else payload.body or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Rəy boş ola bilməz")
 
-    comment = models.Comment(post_id=post.id, user_id=current_user.id, body=text)
+    if payload.parent_id is not None:
+        parent = db.query(models.Comment).filter(models.Comment.id == payload.parent_id, models.Comment.post_id == post.id).first()
+        if not parent:
+            raise HTTPException(status_code=404, detail="Cavablandırılan rəy tapılmadı")
+
+    comment = models.Comment(post_id=post.id, user_id=current_user.id, parent_id=payload.parent_id, body=text)
     db.add(comment)
     post.comments_count = (post.comments_count or 0) + 1
     db.commit()
+    db.refresh(comment)
 
     if post.user_id and post.user_id != current_user.id:
         create_notification(
@@ -240,7 +303,50 @@ def comment_post(post_id: int, payload: dict, current_user: models.User = Depend
             content=text[:100],
         )
 
-    return {"status": "ok", "comments_count": post.comments_count}
+    return {"status": "ok", "comments_count": post.comments_count, "comment": comment_response(comment)}
+
+
+@router.get("/api/posts/{post_id}/comments", response_model=List[schemas.CommentResponse])
+@router.get("/posts/{post_id}/comments", response_model=List[schemas.CommentResponse])
+def list_post_comments(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post tapılmadı")
+    comments = db.query(models.Comment).filter(models.Comment.post_id == post_id).order_by(models.Comment.created_at.asc()).all()
+    by_id = {comment.id: comment_response(comment) for comment in comments}
+    roots = []
+    for comment in comments:
+        item = by_id[comment.id]
+        if comment.parent_id and comment.parent_id in by_id:
+            by_id[comment.parent_id]["replies"].append(item)
+        else:
+            roots.append(item)
+    return roots
+
+
+@router.delete("/api/comments/{comment_id}")
+@router.delete("/comments/{comment_id}")
+def delete_comment(comment_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Rəy tapılmadı")
+    if comment.user_id != current_user.id and not bool(current_user.is_admin):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    pending = [comment.id]
+    deleted_ids = set(pending)
+    while pending:
+        child_ids = [row.id for row in db.query(models.Comment).filter(models.Comment.parent_id.in_(pending)).all()]
+        if not child_ids:
+            break
+        deleted_ids.update(child_ids)
+        pending = child_ids
+    deleted_count = len(deleted_ids)
+    db.query(models.Comment).filter(models.Comment.id.in_(deleted_ids)).delete(synchronize_session=False)
+    post = db.query(models.Post).filter(models.Post.id == comment.post_id).first()
+    if post:
+        post.comments_count = max(0, (post.comments_count or 0) - deleted_count)
+    db.commit()
+    return {"status": "ok", "deleted": True}
 
 
 # --- MEDIA UPLOAD ---
