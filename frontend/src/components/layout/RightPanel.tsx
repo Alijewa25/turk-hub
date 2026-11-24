@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { ArrowRight, Rocket, Sparkles, TrendingUp, X } from 'lucide-react';
-import { FollowUser, ProjectItem } from '../../api';
+import { fetchNews, FollowUser, NewsItem, ProjectItem } from '../../api';
 import { useI18n } from '../../i18n';
 import { UserAvatar } from '../UserAvatar';
 import { AccountBadge } from '../AccountBadge';
@@ -121,6 +121,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
 }) => {
   const { lang, t } = useI18n();
   const [activeInfo, setActiveInfo] = React.useState<FooterLinkKey | null>(null);
+  const [latestNews, setLatestNews] = React.useState<NewsItem[]>([]);
+
+  useEffect(() => {
+    fetchNews(localStorage.getItem('token')).then((items) => setLatestNews(items.slice(0, 3))).catch(() => setLatestNews([]));
+  }, []);
 
   return (
     <aside className="hidden lg:block fixed inset-y-0 right-0 z-30 w-80 border-l border-neutral-900 bg-black px-5 py-6 overflow-y-auto no-scrollbar">
@@ -147,6 +152,22 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         >
           {t('viewProfile')}
         </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
+        <button type="button" onClick={() => setActiveTab('news')} className="mb-3 flex w-full items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
+          Latest Announcements
+          <ArrowRight className="h-3.5 w-3.5 text-skyBlue" />
+        </button>
+        <div className="space-y-2">
+          {latestNews.slice(0, 3).map((item) => (
+            <button key={item.id} type="button" onClick={() => setActiveTab('news')} className="block w-full border-l-2 border-skyBlue/40 pl-3 text-left">
+              <span className="block truncate text-xs font-semibold text-slate-200">{item.title}</span>
+              <span className="block text-[10px] text-slate-500">{item.category}</span>
+            </button>
+          ))}
+          {!latestNews.length && <p className="text-[11px] text-slate-500">No announcements yet</p>}
+        </div>
       </div>
 
       <div className="mt-6">
