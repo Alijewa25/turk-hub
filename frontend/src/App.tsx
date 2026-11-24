@@ -164,6 +164,7 @@ function mapApiPost(p: ApiPost): PostData {
     country: p.author?.country || '',
     role: p.author?.university || translateStatic('studentRole'),
     time: timeAgo(p.created_at) || '',
+    createdAt: p.created_at,
     body: p.body || '',
     media: hasMedia
       ? {
@@ -626,6 +627,15 @@ export function App() {
                   postId={post.id}
                   highlighted={highlightedPostId === Number(post.id)}
                   onSavedChange={handleSavedChange}
+                  onDeleted={(deletedId) => {
+                    setFeedPosts((prev) => prev.filter((item) => String(item.id) !== String(deletedId)));
+                    setUserPosts((prev) => prev.filter((item) => String(item.id) !== String(deletedId)));
+                  }}
+                  user={user}
+                  onViewProfile={(id) => {
+                    setProfileViewUserId(id);
+                    setActiveTab('profile');
+                  }}
                 />
               ))}
             </>
