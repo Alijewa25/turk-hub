@@ -21,6 +21,7 @@ class ProjectResponse(BaseModel):
     owner_id: Optional[int] = None
     member_ids: List[int] = []
     member_count: int = 0
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -134,6 +135,30 @@ class PostResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CommentCreate(BaseModel):
+    text: Optional[str] = None
+    body: Optional[str] = None
+    parent_id: Optional[int] = None
+
+
+class CommentResponse(BaseModel):
+    id: int
+    post_id: int
+    user_id: int
+    parent_id: Optional[int] = None
+    text: str
+    body: str
+    created_at: Optional[datetime] = None
+    author: Optional[UserResponse] = None
+    replies: List["CommentResponse"] = []
+
+    class Config:
+        from_attributes = True
+
+
+CommentResponse.model_rebuild()
 
 
 class TranslationRequest(BaseModel):
