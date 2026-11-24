@@ -130,9 +130,18 @@ def get_projects(db: Session = Depends(get_db)):
         db,
         "projects",
     )
+    from datetime import datetime, timezone
+    def utc_created_at(value):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
     return [
         {
             **schemas.ProjectResponse.model_validate(project).model_dump(),
+            "created_at": utc_created_at(project.created_at),
             "member_ids": [
                 member.user_id
                 for member in db.query(models.ProjectMember)
@@ -165,7 +174,16 @@ def create_project(
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
-    return db_project
+    from datetime import datetime, timezone
+    created_at = db_project.created_at
+    if created_at is not None and created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    return {
+        **schemas.ProjectResponse.model_validate(db_project).model_dump(),
+        "created_at": created_at,
+        "member_ids": [],
+        "member_count": 0,
+    }
 
 
 @router.post("/api/projects/{project_id}/join")
