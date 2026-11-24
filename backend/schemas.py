@@ -140,6 +140,40 @@ class NewsResponse(BaseModel):
         from_attributes = True
 
 
+class AdminNewsUpdate(BaseModel):
+    status: Optional[Literal["approved", "rejected"]] = None
+    is_pinned: Optional[bool] = None
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    username: Optional[str] = None
+    email: str
+    full_name: str
+    org_name: Optional[str] = None
+    account_type: Literal["individual", "organization"] = "individual"
+    is_verified: bool = False
+    is_admin: bool = False
+    country: Optional[str] = None
+    created_at: Optional[datetime] = None
+    avatar_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    individual_users: int
+    organization_users: int
+    verified_organizations: int
+    total_posts: int
+    total_comments: int
+    pending_news: int
+    approved_news: int
+    total_projects: int
+
+
 class PostResponse(BaseModel):
     id: int
     user_id: int
