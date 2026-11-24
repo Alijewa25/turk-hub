@@ -399,6 +399,27 @@ def seed_data() -> None:
     db = SessionLocal()
     try:
         added = seed_dictionary(db)
+        if not db.query(models.News).first():
+            news_items = [
+                models.News(
+                    title="TÜRK FORUM 2026",
+                    content="The official Pan-Turkic forum brings young innovators together for dialogue, cultural exchange, and joint projects across six Turkic states.",
+                    category="Forum",
+                    status="approved",
+                    is_pinned=True,
+                    author_id=1,
+                ),
+                models.News(
+                    title="Turkic Tech Scholarship 2026",
+                    content="Holberton School Azerbaijan announces a scholarship initiative for students building technology solutions across the Turkic youth community.",
+                    category="Scholarship",
+                    status="approved",
+                    is_pinned=False,
+                    author_id=1,
+                ),
+            ]
+            db.add_all(news_items)
+            db.commit()
         print(
             f"Pan-Türk lüğəti hazırdır: {added} yeni söz əlavə edildi, "
             f"{len(PAN_TURKIC_WORDS)} söz yoxlanıldı. 🐺"
