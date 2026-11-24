@@ -17,6 +17,7 @@ from routers.hub import router as hub_router
 from routers.messages import router as messages_router
 from routers.news import router as news_router
 from routers.posts import router as posts_router
+from routers.admin import router as admin_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -366,3 +367,4 @@ app.include_router(posts_router)
 app.include_router(messages_router)
 app.include_router(hub_router)
 app.include_router(news_router)
+app.include_router(admin_router)
