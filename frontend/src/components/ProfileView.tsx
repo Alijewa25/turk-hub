@@ -415,6 +415,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               country: item.author?.country || profileUser?.country || '',
               role: item.author?.university || profileUser?.university || t('studentRole'),
               time: item.created_at ? new Date(item.created_at).toLocaleString() : '',
+              createdAt: item.created_at,
               body: item.body || '',
               media: item.image_url || item.file_url ? { image: item.image_url, fileUrl: item.file_url, fileName: item.file_name } : undefined,
               likes: item.likes_count || 0,
@@ -432,6 +433,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 setSavedPosts((prev) => prev.filter((savedPost) => savedPost.id !== Number(postId)));
               }
             }}
+            onDeleted={(deletedId) => setUserPosts((prev: any[]) => prev.filter((item) => String(item.id) !== String(deletedId)))}
+            onViewProfile={(id) => _onNavigate?.('profile', { viewUserId: id })}
           />
         )) : <p className="text-xs text-slate-500 text-center py-8">{t('empty')}</p>}
       </div>
