@@ -19,12 +19,14 @@ import { ProjectHub } from './components/ProjectHub';
 import { RoomsView } from './components/RoomsView';
 import { MessagesView } from './components/MessagesView';
 import { NewsView } from './components/NewsView';
+import { AdminDashboardView } from './components/AdminDashboardView';
 import {
   ApiPost,
   API_URL,
   createNotificationWebSocket,
   createProject,
   fetchCurrentUser,
+  fetchAdminStats,
   fetchNotifications,
   fetchPosts,
   fetchProjects,
@@ -124,6 +126,7 @@ const VALID_TABS = new Set([
   'dictionary',
   'notifications',
   'news',
+  'admin',
   'profile',
 ]);
 
@@ -201,6 +204,7 @@ export function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [createMode, setCreateMode] = useState<'post' | 'story'>('post');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pendingNewsCount, setPendingNewsCount] = useState(0);
 
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [storiesLoaded, setStoriesLoaded] = useState(false);
@@ -280,6 +284,9 @@ export function App() {
         setUser(freshUser);
         localStorage.setItem('user', JSON.stringify(freshUser));
         if (!freshUser.country) setNeedsOnboarding(true);
+        if (freshUser.is_admin) {
+          fetchAdminStats(token).then((stats) => setPendingNewsCount(stats.pending_news)).catch(() => setPendingNewsCount(0));
+        }
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -577,6 +584,7 @@ export function App() {
         onLogout={handleLogout}
         token={token}
         unreadCount={unreadCount}
+        pendingNewsCount={pendingNewsCount}
         onViewProfile={(id) => {
           setProfileViewUserId(id);
           setActiveTab('profile');
@@ -603,6 +611,7 @@ export function App() {
         onCreatePost={() => openCreate('post')}
         onLogout={handleLogout}
         unreadCount={unreadCount}
+        pendingNewsCount={pendingNewsCount}
       />
 
       <div className="md:pl-60 lg:pr-80">
@@ -688,6 +697,16 @@ export function App() {
           {activeTab === 'news' && (
             <ErrorBoundary title={t('sectionLoadError').replace('{section}', 'News')}>
               <NewsView token={token} user={user} />
+            </ErrorBoundary>
+          )}
+
+          {activeTab === 'admin' && (
+            <ErrorBoundary title="Admin Panel">
+              <AdminDashboardView
+                token={token}
+                user={user}
+                onPendingCountChange={setPendingNewsCount}
+              />
             </ErrorBoundary>
           )}
 
@@ -802,7 +821,7 @@ export function App() {
         setActiveTab={handleTabChange}
       />
 
-      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange} />
+      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange} user={user} pendingNewsCount={pendingNewsCount} />
 
       <CreatePostModal
         open={showCreate}
