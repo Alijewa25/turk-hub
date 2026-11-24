@@ -1,7 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
-import { commentPost, likePost, mediaUrl, toggleSavePost, translateCached, translationChanged } from '../api';
+import {
+  ApiComment,
+  StoryAuthor,
+  commentPost,
+  deleteComment,
+  deletePost,
+  fetchPostComments,
+  fetchPostLikes,
+  likePost,
+  mediaUrl,
+  toggleSavePost,
+  translateCached,
+  translationChanged,
+} from '../api';
 import { LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
+import { exactDateTime, hybridTimestamp } from '../dateTime';
 import { UserAvatar } from './UserAvatar';
 import { AccountBadge } from './AccountBadge';
 
@@ -22,6 +36,7 @@ export interface PostData {
   country: string;
   role: string;
   time: string;
+  createdAt?: string | null;
   body: string;
   media?: PostMedia;
   likes: number;
@@ -39,7 +54,12 @@ export interface PostData {
 interface PostComment {
   id: string;
   author: string;
+  authorId?: number;
   text: string;
+  parentId?: number | null;
+  createdAt?: string | null;
+  authorAvatar?: string | null;
+  replies?: PostComment[];
   translatedText?: string;
   sourceLang?: string;
   showTranslated?: boolean;
@@ -55,9 +75,11 @@ interface PostCardProps {
   user?: any;
   highlighted?: boolean;
   onSavedChange?: (postId: string | number, isSaved: boolean) => void;
+  onDeleted?: (postId: string | number) => void;
+  onViewProfile?: (userId: number) => void;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user, highlighted = false, onSavedChange }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, postId, user, highlighted = false, onSavedChange, onDeleted, onViewProfile }) => {
   const { t, lang } = useI18n();
   const [liked, setLiked] = useState(post.is_liked ?? post.liked_by_me ?? false);
   const [saved, setSaved] = useState(post.is_saved ?? false);
@@ -71,6 +93,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   const [showTranslation, setShowTranslation] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  const [showLikes, setShowLikes] = useState(false);
+  const [likers, setLikers] = useState<StoryAuthor[]>([]);
+  const [replyTo, setReplyTo] = useState<PostComment | null>(null);
+  const pid = postId ?? post.id;
 
   useEffect(() => {
     setLiked(post.is_liked ?? post.liked_by_me ?? false);
@@ -81,6 +108,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   useEffect(() => {
     setSaved(post.is_saved ?? false);
   }, [post.id, post.is_saved]);
+
+  useEffect(() => {
+    if (!showComments) return;
+    fetchPostComments(token, pid)
+      .then((items) => {
+        const mapComment = (item: ApiComment): PostComment => ({
+          id: String(item.id),
+          authorId: item.author?.id ?? item.user_id,
+          author: item.author?.full_name || item.author?.username || 'User',
+          authorAvatar: item.author?.avatar_url ?? item.author?.profile_picture,
+          text: item.text || item.body,
+          parentId: item.parent_id,
+          createdAt: item.created_at,
+          replies: (item.replies || []).map(mapComment),
+        });
+        setComments(items.map(mapComment));
+      })
+      .catch(() => setComments([]));
+  }, [showComments, pid, token]);
 
   useEffect(() => {
     setTranslatedBody('');
@@ -134,7 +180,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     });
   }, [comments, lang, token]);
 
-  const pid = postId ?? post.id;
   const imageSrc = mediaUrl(post.media?.image);
   const fileHref = mediaUrl(post.media?.fileUrl);
   const isPdf =
@@ -197,6 +242,40 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     }
   };
 
+  const renderComment = (c: PostComment, depth = 0): React.ReactNode => {
+    const canDelete = Boolean(user?.is_admin) || c.authorId === user?.id;
+    return (
+      <div key={c.id} className={depth ? 'ml-5 border-l border-neutral-800 pl-3' : ''}>
+        <p className="text-xs text-slate-400" title={exactDateTime(c.createdAt)}>
+          <span className="text-slate-200 font-semibold">{c.author}:</span>{' '}
+          {c.showTranslated && c.translatedText ? c.translatedText : c.text}
+        </p>
+        <p className="mt-0.5 text-[9px] text-slate-600">{hybridTimestamp(c.createdAt)}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <button type="button" onClick={() => handleTranslateComment(c)} disabled={c.translating}
+            className="text-[10px] text-slate-500 hover:text-skyBlue disabled:opacity-60">
+            {c.translating ? `🌐 ${t('translating')}` : c.showTranslated ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+          </button>
+          <button type="button" onClick={() => { setReplyTo(c); setComment(''); }} className="text-[10px] text-slate-500 hover:text-skyBlue">Reply</button>
+          {canDelete && (
+            <button type="button" onClick={() => {
+              if (!window.confirm('Delete this comment?')) return;
+              deleteComment(token, Number(c.id)).then(() => {
+                const removeComment = (items: PostComment[]): PostComment[] =>
+                  items
+                    .filter((item) => item.id !== c.id)
+                    .map((item) => ({ ...item, replies: removeComment(item.replies || []) }));
+                setComments((prev) => removeComment(prev));
+                setCommentCount((count) => Math.max(0, count - 1));
+              }).catch(() => window.alert('Could not delete comment.'));
+            }} className="text-[10px] text-red-400 hover:text-red-300">Delete</button>
+          )}
+        </div>
+        {(c.replies || []).map((reply) => renderComment(reply, depth + 1))}
+      </div>
+    );
+  };
+
   return (
     <article id={`post-${post.id}`} className={`w-full bg-neutral-900/60 border rounded-2xl mb-4 overflow-hidden shadow-lg shadow-black/40 transition-colors duration-200 hover:border-neutral-700 ${highlighted ? 'border-skyBlue ring-2 ring-skyBlue/30' : 'border-slate-800/80'}`}>
       <div className="p-4 sm:p-5 flex items-center gap-3">
@@ -208,8 +287,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
             </h3>
             <AccountBadge accountType={post.accountType} isVerified={post.isVerified} isAdmin={post.isAdmin} compact />
           </div>
-          <p className="text-[10px] text-slate-500">
-            {localizedCountryName(post.country, lang)} • {localizedRole(post.role, lang, t('studentRole'))} • {post.time}
+          <p className="text-[10px] text-slate-500" title={exactDateTime(post.createdAt)}>
+            {localizedCountryName(post.country, lang)} • {localizedRole(post.role, lang, t('studentRole'))} • {hybridTimestamp(post.createdAt) || post.time}
           </p>
         </div>
         <button
@@ -232,6 +311,36 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         >
           <Bookmark className="w-5 h-5" fill={saved ? 'currentColor' : 'none'} />
         </button>
+        {(Boolean(user?.is_admin) || post.authorId === user?.id) && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMenu((value) => !value)}
+              aria-label="Post actions"
+              className="px-1 text-lg text-slate-500 hover:text-slate-200"
+            >
+              ...
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-7 z-20 w-28 rounded-lg border border-neutral-800 bg-neutral-950 p-1 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    if (window.confirm('Delete this post?')) {
+                      deletePost(token, pid)
+                        .then(() => onDeleted?.(pid))
+                        .catch(() => window.alert('Could not delete post.'));
+                    }
+                  }}
+                  className="w-full rounded-md px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {post.body && (
@@ -309,7 +418,16 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           className={`flex items-center gap-1.5 text-xs transition-colors ${liked ? 'text-red-500' : 'hover:text-red-500'}`}
         >
           <Heart className="w-5 h-5 transition-transform duration-200 active:scale-125" fill={liked ? 'currentColor' : 'none'} />
-          {likeCount}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setShowLikes(true);
+            fetchPostLikes(token, pid).then(setLikers).catch(() => setLikers([]));
+          }}
+          className="text-xs hover:text-skyBlue hover:underline"
+        >
+          {likeCount} likes
         </button>
         <button
           onClick={() => setShowComments((v) => !v)}
@@ -333,39 +451,45 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
 
       {showComments && (
         <div className="px-4 sm:px-5 pb-4 border-t border-slate-800/80 pt-4 space-y-3">
-          {comments.map((c) => (
-            <div key={c.id} className="space-y-0.5">
-              <p className="text-xs text-slate-400">
-                <span className="text-slate-200 font-semibold">{c.author}:</span>{' '}
-                {c.showTranslated && c.translatedText ? c.translatedText : c.text}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleTranslateComment(c)}
-                  disabled={c.translating}
-                  className="text-[10px] text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
-                >
-                  {c.translating ? `🌐 ${t('translating')}` : c.showTranslated ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
-                </button>
-                {c.showTranslated && c.translatedText && (
-                  <span className="text-[9px] text-skyBlue/70">
-                    {t('translatedFrom').replace('{lang}', langDisplayName(c.sourceLang, lang))}
-                  </span>
-                )}
-              </div>
+          {replyTo && (
+            <div className="flex items-center justify-between rounded-lg bg-skyBlue/5 px-3 py-2 text-[10px] text-skyBlue">
+              <span>Replying to {replyTo.author}</span>
+              <button type="button" onClick={() => setReplyTo(null)} className="text-slate-500">Cancel</button>
             </div>
-          ))}
+          )}
+          {comments.map((c) => renderComment(c))}
           <form
             onSubmit={async (e) => {
               e.preventDefault();
               const text = comment.trim();
               if (!text) return;
               try {
-                setComments((prev) => [...prev, { id: Date.now().toString(), author: currentAuthorName, text }]);
-                setCommentCount((c) => c + 1);
                 setComment('');
-                const res = await commentPost(token, pid, text);
+                const res = await commentPost(token, pid, text, replyTo ? Number(replyTo.id) : null);
+                if (res?.comment) {
+                  const created = res.comment;
+                  const next: PostComment = {
+                    id: String(created.id),
+                    authorId: created.user_id,
+                    author: currentAuthorName,
+                    text,
+                    parentId: created.parent_id,
+                    createdAt: created.created_at,
+                  };
+                  if (replyTo) {
+                    const appendReply = (items: PostComment[]): PostComment[] => items.map((item) => {
+                      if (item.id === replyTo.id) {
+                        return { ...item, replies: [...(item.replies || []), next] };
+                      }
+                      return { ...item, replies: appendReply(item.replies || []) };
+                    });
+                    setComments((prev) => appendReply(prev));
+                  } else {
+                    setComments((prev) => [...prev, next]);
+                  }
+                  setReplyTo(null);
+                }
+                setCommentCount((c) => c + 1);
                 if (res?.comments_count !== undefined) setCommentCount(res.comments_count);
               } catch {
                 setComment(text);
@@ -386,6 +510,36 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
               {t('sendComment')}
             </button>
           </form>
+        </div>
+      )}
+      {showLikes && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80" onClick={() => setShowLikes(false)}>
+          <div onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-4 max-h-[60vh] overflow-y-auto">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-100">{likeCount} likes</h3>
+              <button type="button" onClick={() => setShowLikes(false)} className="text-slate-500 hover:text-slate-200">×</button>
+            </div>
+            <div className="space-y-2">
+              {likers.map((liker) => (
+                <button
+                  type="button"
+                  key={liker.id}
+                  onClick={() => {
+                    setShowLikes(false);
+                    onViewProfile?.(liker.id);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-neutral-800 p-2 text-left hover:border-skyBlue/40"
+                >
+                  <UserAvatar name={liker.full_name} avatarUrl={liker.avatar_url ?? liker.profile_picture} className="w-9 h-9 text-sm" />
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-slate-100">{liker.account_type === 'organization' ? liker.org_name || liker.full_name : liker.full_name}</p>
+                    <p className="truncate text-[10px] text-slate-500">@{liker.username || liker.id} • {liker.country || liker.org_name || ''}</p>
+                  </div>
+                </button>
+              ))}
+              {!likers.length && <p className="py-6 text-center text-xs text-slate-500">No likes yet</p>}
+            </div>
+          </div>
         </div>
       )}
     </article>
