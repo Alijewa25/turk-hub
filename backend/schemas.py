@@ -117,6 +117,29 @@ class PostCreate(BaseModel):
     file_name: Optional[str] = None
 
 
+class NewsCreate(BaseModel):
+    title: str
+    content: str
+    category: str = "General"
+    cover_image_url: Optional[str] = None
+
+
+class NewsResponse(BaseModel):
+    id: int
+    title: str
+    content: str
+    category: str
+    cover_image_url: Optional[str] = None
+    status: str
+    is_pinned: bool = False
+    author_id: int
+    created_at: Optional[datetime] = None
+    author: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
 class PostResponse(BaseModel):
     id: int
     user_id: int
