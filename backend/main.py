@@ -15,6 +15,7 @@ from media_utils import UPLOAD_DIR, ensure_upload_dir
 from routers.auth import router as auth_router, set_init_db_fn
 from routers.hub import router as hub_router
 from routers.messages import router as messages_router
+from routers.news import router as news_router
 from routers.posts import router as posts_router
 
 logging.basicConfig(
@@ -151,6 +152,43 @@ def _seed_dictionary_if_empty() -> None:
         db.close()
 
 
+def _seed_news_if_empty() -> None:
+    from database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        if db.query(models.News).count() > 0:
+            return
+        first_user = db.query(models.User).order_by(models.User.id.asc()).first()
+        if not first_user:
+            return
+        db.add_all([
+            models.News(
+                title="TÜRK FORUM 2026",
+                content="The official Pan-Turkic forum brings young innovators together for dialogue, cultural exchange, and joint projects across six Turkic states.",
+                category="Forum",
+                status="approved",
+                is_pinned=True,
+                author_id=first_user.id,
+            ),
+            models.News(
+                title="Turkic Tech Scholarship 2026",
+                content="Holberton School Azerbaijan announces a scholarship initiative for students building technology solutions across the Turkic youth community.",
+                category="Scholarship",
+                status="approved",
+                is_pinned=False,
+                author_id=first_user.id,
+            ),
+        ])
+        db.commit()
+        logger.info("Seeded approved news announcements")
+    except Exception:
+        db.rollback()
+        logger.exception("Could not seed news announcements")
+    finally:
+        db.close()
+
+
 def init_db() -> bool:
     """Create missing tables, reconcile old PostgreSQL schemas, and verify the DB."""
     try:
@@ -177,6 +215,7 @@ def init_db() -> bool:
         except Exception:
             logger.exception("Could not promote configured Super Admin")
         _seed_dictionary_if_empty()
+        _seed_news_if_empty()
         logger.info("Database schema verified/created successfully")
         return True
     except Exception:
@@ -326,3 +365,4 @@ app.include_router(auth_router)
 app.include_router(posts_router)
 app.include_router(messages_router)
 app.include_router(hub_router)
+app.include_router(news_router)
