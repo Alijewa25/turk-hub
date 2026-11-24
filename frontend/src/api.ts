@@ -134,6 +134,19 @@ export interface ApiComment {
   replies?: ApiComment[];
 }
 
+export interface NewsItem {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  cover_image_url?: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  is_pinned: boolean;
+  author_id: number;
+  created_at?: string | null;
+  author?: StoryAuthor | null;
+}
+
 export interface TranslationResult {
   original_text: string;
   translated_text: string;
@@ -581,6 +594,26 @@ export async function deletePost(token: string | null, postId: number | string):
 
 export async function deleteComment(token: string | null, commentId: number): Promise<void> {
   await axios.delete(`${API_URL}/api/comments/${commentId}`, { headers: headers(token) });
+}
+
+export async function fetchNews(token: string | null): Promise<NewsItem[]> {
+  const res = await axios.get(`${API_URL}/api/news`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function fetchMyNews(token: string | null): Promise<NewsItem[]> {
+  const res = await axios.get(`${API_URL}/api/news/my-submissions`, { headers: headers(token) });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function submitNews(token: string | null, payload: {
+  title: string;
+  content: string;
+  category: string;
+  cover_image_url?: string | null;
+}): Promise<NewsItem> {
+  const res = await axios.post(`${API_URL}/api/news`, payload, { headers: headers(token) });
+  return res.data;
 }
 
 export async function fetchSuggestions(token: string | null, q?: string): Promise<FollowUser[]> {
