@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, BookOpen, Compass, Home, LogOut, Mail, Megaphone, MessageCircle, Plus, Rocket, Search, User } from 'lucide-react';
+import { Bell, BookOpen, Compass, Crown, Home, LogOut, Mail, Megaphone, MessageCircle, Plus, Rocket, Search, User } from 'lucide-react';
 import { fetchSuggestions } from '../../api';
 import { flagOf, useI18n } from '../../i18n';
 import { ThemeToggle } from '../ThemeToggle';
@@ -15,9 +15,10 @@ interface SidebarProps {
   token?: string | null;
   onViewProfile?: (id: number) => void;
   unreadCount?: number;
+  pendingNewsCount?: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onCreatePost, onLogout, token = null, onViewProfile, unreadCount = 0 }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onCreatePost, onLogout, token = null, onViewProfile, unreadCount = 0, pendingNewsCount = 0 }) => {
   const { t } = useI18n();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -34,6 +35,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
     { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     { id: 'profile', label: t('navProfile'), icon: User },
   ];
+  if (user?.is_admin) {
+    navItems.push({
+      id: 'admin',
+      label: 'Admin Panel',
+      icon: Crown,
+      badge: pendingNewsCount > 0 ? pendingNewsCount : undefined,
+    });
+  }
 
   return (
     <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col border-r border-neutral-900 bg-black px-3 py-5">
