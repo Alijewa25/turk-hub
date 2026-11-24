@@ -3,6 +3,7 @@ import {
   Bell,
   BookOpen,
   Compass,
+  Crown,
   Home,
   LogOut,
   Mail,
@@ -27,6 +28,7 @@ interface MobileMenuProps {
   onCreatePost: () => void;
   onLogout: () => void;
   unreadCount?: number;
+  pendingNewsCount?: number;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -38,6 +40,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onCreatePost,
   onLogout,
   unreadCount = 0,
+  pendingNewsCount = 0,
 }) => {
   const { t } = useI18n();
 
@@ -61,6 +64,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
     { id: 'notifications', label: t('navNotifications'), icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     { id: 'profile', label: t('navProfile'), icon: User },
   ];
+  if (user?.is_admin) {
+    navItems.push({ id: 'admin', label: 'Admin Panel', icon: Crown, badge: pendingNewsCount > 0 ? pendingNewsCount : undefined });
+  }
 
   const navigate = (tab: string) => {
     setActiveTab(tab);
