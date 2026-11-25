@@ -207,6 +207,7 @@ class CommentResponse(BaseModel):
     parent_id: Optional[int] = None
     text: str
     body: str
+    source_lang: Optional[str] = None
     created_at: Optional[datetime] = None
     author: Optional[UserResponse] = None
     replies: List["CommentResponse"] = []
@@ -230,6 +231,7 @@ class TranslationResponse(BaseModel):
     source_lang: str
     target_lang: str
     provider: str
+    same_language: bool = False
 
 
 class MessageCreate(BaseModel):

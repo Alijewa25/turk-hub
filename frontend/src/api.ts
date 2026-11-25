@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { normalizeLangCode } from './i18n';
 
 const PRODUCTION_API_URL = 'https://turk-hub.onrender.com';
 const LOCAL_API_URL = 'http://localhost:8000';
@@ -129,6 +130,7 @@ export interface ApiComment {
   parent_id?: number | null;
   text: string;
   body: string;
+  source_lang?: string | null;
   created_at?: string | null;
   author?: StoryAuthor | null;
   replies?: ApiComment[];
@@ -192,6 +194,23 @@ export interface TranslationResult {
   source_lang: string;
   target_lang: string;
   provider: string;
+  same_language?: boolean;
+}
+
+function cleanTranslationResult(result: TranslationResult, original: string): TranslationResult {
+  const sourceLang = normalizeLangCode(result.source_lang);
+  const targetLang = normalizeLangCode(result.target_lang);
+  const sameLanguage =
+    result.same_language === true ||
+    (Boolean(sourceLang) && sourceLang === targetLang) ||
+    /PLEASE SELECT TWO DISTINCT LANGUAGES/i.test(result.translated_text || '');
+  return {
+    ...result,
+    translated_text: sameLanguage ? original : result.translated_text,
+    source_lang: sourceLang,
+    target_lang: targetLang,
+    same_language: sameLanguage,
+  };
 }
 
 export async function translateText(
@@ -201,19 +220,57 @@ export async function translateText(
   sourceLang?: string
 ): Promise<TranslationResult> {
   const clean = (text || '').trim();
+  const normalizedTarget = normalizeLangCode(targetLang);
+  const normalizedSource = normalizeLangCode(sourceLang);
   if (!clean) {
     return {
       original_text: text,
       translated_text: text,
-      source_lang: sourceLang || '',
-      target_lang: targetLang,
+      source_lang: normalizedSource,
+      target_lang: normalizedTarget,
       provider: 'original',
+      same_language: Boolean(normalizedSource && normalizedSource === normalizedTarget),
     };
   }
 
-  const normalizedSource = sourceLang?.toLowerCase() === 'tm'
-    ? 'tk'
-    : (sourceLang?.toLowerCase() || '');
+  if (normalizedSource && normalizedSource !== 'auto' && normalizedSource === normalizedTarget) {
+    return {
+      original_text: clean,
+      translated_text: clean,
+      source_lang: normalizedSource,
+      target_lang: normalizedTarget,
+      provider: 'original',
+      same_language: true,
+    };
+  }
+
+  let backendError: any;
+  try {
+    const response = await axios.post(
+      `${API_URL}/api/translate`,
+      { text: clean, target_lang: normalizedTarget, source_lang: normalizedSource || undefined },
+      { headers: headers(token) }
+    );
+    return cleanTranslationResult(response.data as TranslationResult, clean);
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      try {
+        const response = await axios.post(
+          `${API_URL}/translate`,
+          { text: clean, target_lang: normalizedTarget, source_lang: normalizedSource || undefined },
+          { headers: headers(token) }
+        );
+        return cleanTranslationResult(response.data as TranslationResult, clean);
+      } catch (fallbackError: any) {
+        backendError = fallbackError;
+        logApiFailure('translateText fallback', fallbackError);
+      }
+    } else {
+      backendError = err;
+      logApiFailure('translateText', err);
+    }
+  }
+
   const inferredSource = normalizedSource && normalizedSource !== 'auto'
     ? normalizedSource
     : (/[ґА-яЁёӘәҒғҚқӨөҰұҮүҺһІі]/u.test(clean)
@@ -224,7 +281,7 @@ export async function translateText(
     : ['Autodetect', inferredSource, 'en', 'tr', 'az'];
   for (const myMemorySource of [...new Set(myMemorySources)]) {
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${encodeURIComponent(myMemorySource)}|${encodeURIComponent(targetLang)}`;
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${encodeURIComponent(myMemorySource)}|${encodeURIComponent(normalizedTarget)}`;
       const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
       if (response.ok) {
         const data = await response.json();
@@ -239,13 +296,13 @@ export async function translateText(
           const detectedSource = typeof data?.responseData?.detectedLanguage === 'string'
             ? data.responseData.detectedLanguage.toLowerCase()
             : myMemorySource === 'Autodetect' ? 'auto' : myMemorySource;
-          return {
+          return cleanTranslationResult({
             original_text: clean,
             translated_text: translated,
-            source_lang: detectedSource === 'tm' ? 'tk' : detectedSource,
-            target_lang: targetLang,
+            source_lang: normalizeLangCode(detectedSource),
+            target_lang: normalizedTarget,
             provider: 'mymemory-browser',
-          };
+          }, clean);
         }
       }
     } catch {
@@ -259,7 +316,7 @@ export async function translateText(
   ]) {
     try {
       const response = await fetch(
-        `${lingvaBase}/api/v1/auto/${encodeURIComponent(targetLang)}/${encodeURIComponent(clean)}`,
+        `${lingvaBase}/api/v1/auto/${encodeURIComponent(normalizedTarget)}/${encodeURIComponent(clean)}`,
         { method: 'GET', headers: { Accept: 'application/json' } }
       );
       if (response.ok) {
@@ -268,13 +325,13 @@ export async function translateText(
           ? data.translation.trim()
           : '';
         if (translated && translated !== clean) {
-          return {
+          return cleanTranslationResult({
             original_text: clean,
             translated_text: translated,
             source_lang: inferredSource,
-            target_lang: targetLang,
+            target_lang: normalizedTarget,
             provider: 'lingva-browser',
-          };
+          }, clean);
         }
       }
     } catch {
@@ -282,28 +339,10 @@ export async function translateText(
     }
   }
 
-  try {
-    const res = await axios.post(
-      `${API_URL}/api/translate`,
-      { text, target_lang: targetLang, source_lang: sourceLang },
-      { headers: headers(token) }
-    );
-    return res.data as TranslationResult;
-  } catch (err: any) {
-    if (err?.response?.status !== 404) {
-      logApiFailure('translateText', err);
-      throw friendlyError(err, 'Tərcümə alınmadı.');
-    }
-    const res = await axios.post(
-      `${API_URL}/translate`,
-      { text, target_lang: targetLang, source_lang: sourceLang },
-      { headers: headers(token) }
-    );
-    return res.data as TranslationResult;
-  }
+  throw friendlyError(backendError, 'Tərcümə alınmadı.');
 }
 
-const TRANSLATION_CACHE_VERSION = 'th_translation_v4_';
+const TRANSLATION_CACHE_VERSION = 'th_translation_v5_';
 const LEGACY_TRANSLATION_CACHE_PREFIX = 'th_translation:';
 const translationCache = new Map<string, TranslationResult>();
 let legacyTranslationCacheCleared = false;
@@ -316,6 +355,7 @@ function clearLegacyTranslationCache(): void {
       const key = localStorage.key(index);
       if (
         key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX) ||
+        key?.startsWith('th_translation_v4_') ||
         key?.startsWith('th_translation_v2_') ||
         key?.startsWith('th_translation_v3_')
       ) {
@@ -375,7 +415,15 @@ export async function translateCached(
 
 export function translationChanged(result: TranslationResult, original: string): boolean {
   const translated = (result?.translated_text || '').trim();
-  return Boolean(translated) && translated !== (original || '').trim() && result.source_lang !== result.target_lang;
+  const sourceLang = normalizeLangCode(result?.source_lang);
+  const targetLang = normalizeLangCode(result?.target_lang);
+  return (
+    Boolean(translated) &&
+    translated !== (original || '').trim() &&
+    result.same_language !== true &&
+    !/PLEASE SELECT TWO DISTINCT LANGUAGES/i.test(translated) &&
+    sourceLang !== targetLang
+  );
 }
 
 export interface ProjectDraft {

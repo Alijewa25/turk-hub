@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bookmark, FileText, Heart, MessageCircle, Share2, Sparkles } from 'lucide-react';
+import { Bookmark, FileText, Globe, Heart, MessageCircle, RotateCcw, Share2, Sparkles } from 'lucide-react';
 import {
   ApiComment,
   StoryAuthor,
@@ -14,7 +14,7 @@ import {
   translateCached,
   translationChanged,
 } from '../api';
-import { LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, useI18n } from '../i18n';
+import { LANG_TARGET, langDisplayName, localizedCountryName, localizedRole, normalizeLangCode, useI18n } from '../i18n';
 import { exactDateTime, hybridTimestamp } from '../dateTime';
 import { UserAvatar } from './UserAvatar';
 import { AccountBadge } from './AccountBadge';
@@ -65,6 +65,35 @@ interface PostComment {
   showTranslated?: boolean;
   translating?: boolean;
   autoTried?: boolean;
+  sameLanguage?: boolean;
+}
+
+function updateCommentTree(
+  comments: PostComment[],
+  commentId: string,
+  update: Partial<PostComment>
+): PostComment[] {
+  return comments.map((comment) =>
+    comment.id === commentId
+      ? { ...comment, ...update }
+      : { ...comment, replies: updateCommentTree(comment.replies || [], commentId, update) }
+  );
+}
+
+function flattenCommentTree(comments: PostComment[]): PostComment[] {
+  return comments.flatMap((comment) => [comment, ...flattenCommentTree(comment.replies || [])]);
+}
+
+function resetCommentTranslations(comments: PostComment[], targetLang: string): PostComment[] {
+  return comments.map((comment) => ({
+    ...comment,
+    translatedText: undefined,
+    showTranslated: false,
+    translating: false,
+    autoTried: false,
+    sameLanguage: normalizeLangCode(comment.sourceLang) === targetLang,
+    replies: resetCommentTranslations(comment.replies || [], targetLang),
+  }));
 }
 
 interface PostCardProps {
@@ -91,6 +120,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   const [translatedBody, setTranslatedBody] = useState('');
   const [translationSource, setTranslationSource] = useState('');
   const [showTranslation, setShowTranslation] = useState(false);
+  const [postSameLanguage, setPostSameLanguage] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translationError, setTranslationError] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -119,6 +149,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           author: item.author?.full_name || item.author?.username || 'User',
           authorAvatar: item.author?.avatar_url ?? item.author?.profile_picture,
           text: item.text || item.body,
+          sourceLang: item.source_lang || undefined,
           parentId: item.parent_id,
           createdAt: item.created_at,
           replies: (item.replies || []).map(mapComment),
@@ -132,17 +163,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     setTranslatedBody('');
     setTranslationSource('');
     setShowTranslation(false);
+    setPostSameLanguage(false);
     setTranslationError('');
-    setComments((prev) =>
-      prev.map((c) => ({
-        ...c,
-        translatedText: undefined,
-        sourceLang: undefined,
-        showTranslated: false,
-        translating: false,
-        autoTried: false,
-      }))
-    );
+    setComments((prev) => resetCommentTranslations(prev, LANG_TARGET[lang]));
   }, [post.body, lang]);
 
   useEffect(() => {
@@ -154,29 +177,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
 
   useEffect(() => {
     const target = LANG_TARGET[lang];
-    comments.forEach((item) => {
+    flattenCommentTree(comments).forEach((item) => {
       if (!item.text.trim() || item.autoTried || item.translatedText || item.translating) return;
-      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true, autoTried: true } : c)));
-      translateCached(token, item.text, target, undefined, `comment:${item.id}`)
+      if (normalizeLangCode(item.sourceLang) === target) {
+        setComments((prev) => updateCommentTree(prev, item.id, { autoTried: true, sameLanguage: true }));
+        return;
+      }
+      setComments((prev) => updateCommentTree(prev, item.id, { translating: true, autoTried: true }));
+      translateCached(token, item.text, target, item.sourceLang, `comment:${item.id}`)
         .then((result) => {
           const useful = translationChanged(result, item.text);
-          setComments((prev) =>
-            prev.map((c) =>
-              c.id === item.id
-                ? {
-                    ...c,
-                    translatedText: useful ? result.translated_text : undefined,
-                    sourceLang: result.source_lang,
-                    showTranslated: useful,
-                    translating: false,
-                  }
-                : c
-            )
-          );
+          setComments((prev) => updateCommentTree(prev, item.id, {
+            translatedText: useful ? result.translated_text : undefined,
+            sourceLang: result.source_lang,
+            showTranslated: useful,
+            translating: false,
+            sameLanguage: result.same_language === true || normalizeLangCode(result.source_lang) === target,
+          }));
         })
-        .catch(() =>
-          setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: false } : c)))
-        );
+        .catch(() => setComments((prev) => updateCommentTree(prev, item.id, { translating: false })));
     });
   }, [comments, lang, token]);
 
@@ -189,10 +208,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
       (!post.media?.image && Boolean(post.media?.fileUrl)));
 
   const currentAuthorName = user?.full_name || user?.username || t('userGeneric');
-  const sourceLang = post.sourceLang?.toLowerCase() || '';
+  const sourceLang = normalizeLangCode(post.sourceLang);
   const targetLang = LANG_TARGET[lang];
-  const normalizedSourceLang = sourceLang === 'tm' ? 'tk' : sourceLang;
-  const canTranslate = Boolean(post.body?.trim()) && normalizedSourceLang !== targetLang;
+  const canTranslate = Boolean(post.body?.trim()) && !postSameLanguage && sourceLang !== targetLang;
 
   const handleTranslatePost = async () => {
     if (!post.body || !canTranslate) return;
@@ -207,10 +225,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
     setTranslating(true);
     setTranslationError('');
     try {
-      const result = await translateCached(token, post.body, LANG_TARGET[lang], undefined, `post:${post.id}`);
-      setTranslatedBody(result.translated_text);
+      const result = await translateCached(token, post.body, LANG_TARGET[lang], sourceLang || undefined, `post:${post.id}`);
       setTranslationSource(result.source_lang);
-      setShowTranslation(true);
+      const useful = translationChanged(result, post.body);
+      setPostSameLanguage(result.same_language === true || normalizeLangCode(result.source_lang) === targetLang);
+      setTranslatedBody(useful ? result.translated_text : '');
+      setShowTranslation(useful);
     } catch {
       setTranslationError(t('translationFailed'));
     } finally {
@@ -219,31 +239,35 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
   };
 
   const handleTranslateComment = async (item: PostComment) => {
+    if (item.sameLanguage || normalizeLangCode(item.sourceLang) === targetLang) return;
     if (item.showTranslated) {
-      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, showTranslated: false } : c)));
+      setComments((prev) => updateCommentTree(prev, item.id, { showTranslated: false }));
       return;
     }
     if (item.translatedText) {
-      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, showTranslated: true } : c)));
+      setComments((prev) => updateCommentTree(prev, item.id, { showTranslated: true }));
       return;
     }
-    setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: true, autoTried: true } : c)));
+    setComments((prev) => updateCommentTree(prev, item.id, { translating: true, autoTried: true }));
     try {
-      const result = await translateCached(token, item.text, LANG_TARGET[lang], undefined, `comment:${item.id}`);
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === item.id
-            ? { ...c, translatedText: result.translated_text, sourceLang: result.source_lang, showTranslated: true, translating: false }
-            : c
-        )
-      );
+      const result = await translateCached(token, item.text, LANG_TARGET[lang], item.sourceLang, `comment:${item.id}`);
+      const useful = translationChanged(result, item.text);
+      setComments((prev) => updateCommentTree(prev, item.id, {
+        translatedText: useful ? result.translated_text : undefined,
+        sourceLang: result.source_lang,
+        showTranslated: useful,
+        translating: false,
+        sameLanguage: result.same_language === true || normalizeLangCode(result.source_lang) === targetLang,
+      }));
     } catch {
-      setComments((prev) => prev.map((c) => (c.id === item.id ? { ...c, translating: false } : c)));
+      setComments((prev) => updateCommentTree(prev, item.id, { translating: false }));
     }
   };
 
   const renderComment = (c: PostComment, depth = 0): React.ReactNode => {
     const canDelete = Boolean(user?.is_admin) || c.authorId === user?.id;
+    const commentSourceLang = normalizeLangCode(c.sourceLang);
+    const canTranslateComment = Boolean(c.text.trim()) && !c.sameLanguage && commentSourceLang !== targetLang;
     return (
       <div key={c.id} className={depth ? 'ml-5 border-l border-neutral-800 pl-3' : ''}>
         <p className="text-xs text-slate-400" title={exactDateTime(c.createdAt)}>
@@ -252,11 +276,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         </p>
         <p className="mt-0.5 text-[9px] text-slate-600">{hybridTimestamp(c.createdAt)}</p>
         <div className="flex items-center gap-2 mt-1">
-          <button type="button" onClick={() => handleTranslateComment(c)} disabled={c.translating}
-            className="text-[10px] text-slate-500 hover:text-skyBlue disabled:opacity-60">
-            {c.translating ? `🌐 ${t('translating')}` : c.showTranslated ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
-          </button>
-          <button type="button" onClick={() => { setReplyTo(c); setComment(''); }} className="text-[10px] text-slate-500 hover:text-skyBlue">Reply</button>
+          {canTranslateComment && (
+            <button type="button" onClick={() => handleTranslateComment(c)} disabled={c.translating}
+              className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 disabled:opacity-60">
+              {c.showTranslated ? <RotateCcw className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+              {c.translating ? t('translating') : c.showTranslated ? t('showOriginal') : t('translate')}
+            </button>
+          )}
+          <button type="button" onClick={() => { setReplyTo(c); setComment(''); }} className="text-xs text-slate-500 hover:text-skyBlue">{t('reply')}</button>
           {canDelete && (
             <button type="button" onClick={() => {
               if (!window.confirm('Delete this comment?')) return;
@@ -268,7 +295,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
                 setComments((prev) => removeComment(prev));
                 setCommentCount((count) => Math.max(0, count - 1));
               }).catch(() => window.alert('Could not delete comment.'));
-            }} className="text-[10px] text-red-400 hover:text-red-300">Delete</button>
+            }} className="text-xs text-red-400 hover:text-red-300">{t('delete')}</button>
           )}
         </div>
         {(c.replies || []).map((reply) => renderComment(reply, depth + 1))}
@@ -335,7 +362,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
                   }}
                   className="w-full rounded-md px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10"
                 >
-                  Delete
+                  {t('delete')}
                 </button>
               </div>
             )}
@@ -358,9 +385,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
               type="button"
               onClick={handleTranslatePost}
               disabled={translating}
-              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-skyBlue transition-colors disabled:opacity-60"
+              className="mt-1.5 inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 transition-colors disabled:opacity-60"
             >
-              {translating ? `🌐 ${t('translating')}` : showTranslation ? `🔙 ${t('showOriginal')}` : `🌐 ${t('translate')}`}
+              {showTranslation ? <RotateCcw className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+              {translating ? t('translating') : showTranslation ? t('showOriginal') : t('translate')}
             </button>
           )}
           {translationError && <p className="mt-1 text-[10px] text-red-400">{translationError}</p>}
@@ -427,7 +455,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
           }}
           className="text-xs hover:text-skyBlue hover:underline"
         >
-          {likeCount} likes
+          {likeCount} {t('likes')}
         </button>
         <button
           onClick={() => setShowComments((v) => !v)}
@@ -453,8 +481,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         <div className="px-4 sm:px-5 pb-4 border-t border-slate-800/80 pt-4 space-y-3">
           {replyTo && (
             <div className="flex items-center justify-between rounded-lg bg-skyBlue/5 px-3 py-2 text-[10px] text-skyBlue">
-              <span>Replying to {replyTo.author}</span>
-              <button type="button" onClick={() => setReplyTo(null)} className="text-slate-500">Cancel</button>
+              <span>{t('replyingTo').replace('{author}', replyTo.author)}</span>
+              <button type="button" onClick={() => setReplyTo(null)} className="text-slate-500">{t('cancel')}</button>
             </div>
           )}
           {comments.map((c) => renderComment(c))}
@@ -516,7 +544,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80" onClick={() => setShowLikes(false)}>
           <div onClick={(event) => event.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-4 max-h-[60vh] overflow-y-auto">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-100">{likeCount} likes</h3>
+              <h3 className="text-sm font-bold text-slate-100">{likeCount} {t('likes')}</h3>
               <button type="button" onClick={() => setShowLikes(false)} className="text-slate-500 hover:text-slate-200">×</button>
             </div>
             <div className="space-y-2">
@@ -537,7 +565,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onJoin, token = null, 
                   </div>
                 </button>
               ))}
-              {!likers.length && <p className="py-6 text-center text-xs text-slate-500">No likes yet</p>}
+              {!likers.length && <p className="py-6 text-center text-xs text-slate-500">{t('noLikesYet')}</p>}
             </div>
           </div>
         </div>

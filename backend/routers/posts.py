@@ -237,6 +237,7 @@ def comment_response(comment: models.Comment) -> dict:
         "parent_id": comment.parent_id,
         "text": comment.body,
         "body": comment.body,
+        "source_lang": detect_translation_lang(comment.body or ""),
         "created_at": utc_datetime(comment.created_at),
         "author": author,
         "replies": [],

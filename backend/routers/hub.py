@@ -293,6 +293,7 @@ async def translate_text(payload: schemas.TranslationRequest):
             source_lang=source_lang,
             target_lang=target_lang,
             provider="original",
+            same_language=True,
         )
 
     cache_key = (text, source_lang, target_lang)
@@ -302,12 +303,22 @@ async def translate_text(payload: schemas.TranslationRequest):
 
     external = await external_translate(text, source_lang, target_lang)
     if external:
+        if "PLEASE SELECT TWO DISTINCT LANGUAGES" in external.upper():
+            return schemas.TranslationResponse(
+                original_text=text,
+                translated_text=text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                provider="original",
+                same_language=True,
+            )
         result = schemas.TranslationResponse(
             original_text=text,
             translated_text=external,
             source_lang=source_lang,
             target_lang=target_lang,
             provider="ai",
+            same_language=False,
         )
         if len(TRANSLATION_CACHE) >= MAX_TRANSLATION_CACHE_SIZE:
             TRANSLATION_CACHE.pop(next(iter(TRANSLATION_CACHE)))

@@ -2,6 +2,14 @@ import React, { createContext, useContext, useState } from 'react';
 
 export type LangCode = 'AZ' | 'TR' | 'KK' | 'KY' | 'UZ' | 'TK' | 'EN';
 
+export function normalizeLangCode(code?: string | null): string {
+  const normalized = (code || '').trim().toLowerCase();
+  if (normalized === 'kz') return 'kk';
+  if (normalized === 'kg') return 'ky';
+  if (normalized === 'tm') return 'tk';
+  return normalized;
+}
+
 export interface CountryInfo {
   id: string;
   flag: string;
@@ -451,6 +459,11 @@ const EXTRA_AZ: Record<string, string> = {
   showOriginal: 'Orijinalı göstər',
   translatedFrom: '{lang} dilindən tərcümə edildi',
   translationFailed: 'Tərcümə alınmadı',
+  likes: 'Bəyənmə',
+  reply: 'Cavabla',
+  delete: 'Sil',
+  replyingTo: '{author} şərhinə cavab',
+  noLikesYet: 'Hələ bəyənmə yoxdur',
   originalText: 'Orijinal mətn',
   live: 'Canlı',
   connecting: 'Bağlanılır...',
@@ -605,6 +618,11 @@ const EXTRA_TR: Record<string, string> = {
   showOriginal: 'Orijinalı göster',
   translatedFrom: '{lang} dilinden çevrildi',
   translationFailed: 'Çeviri alınamadı',
+  likes: 'Beğeni',
+  reply: 'Yanıtla',
+  delete: 'Sil',
+  replyingTo: '{author} yorumuna yanıt',
+  noLikesYet: 'Henüz beğeni yok',
   originalText: 'Orijinal metin',
   live: 'Canlı',
   connecting: 'Bağlanıyor...',
@@ -759,6 +777,11 @@ const EXTRA_KK: Record<string, string> = {
   showOriginal: 'Түпнұсқаны көрсету',
   translatedFrom: '{lang} тілінен аударылды',
   translationFailed: 'Аударма алынбады',
+  likes: 'Ұнату',
+  reply: 'Жауап беру',
+  delete: 'Жою',
+  replyingTo: '{author} пікіріне жауап',
+  noLikesYet: 'Әзірге ұнатулар жоқ',
   originalText: 'Түпнұсқа мәтін',
   live: 'Тікелей',
   connecting: 'Қосылуда...',
@@ -913,6 +936,11 @@ const EXTRA_KY: Record<string, string> = {
   showOriginal: 'Түпнусканы көрсөтүү',
   translatedFrom: '{lang} тилинен которулду',
   translationFailed: 'Котормо алынбады',
+  likes: 'Жактыруу',
+  reply: 'Жооп берүү',
+  delete: 'Өчүрүү',
+  replyingTo: '{author} пикирине жооп',
+  noLikesYet: 'Азырынча жактыруулар жок',
   originalText: 'Түпнуска текст',
   live: 'Түз эфир',
   connecting: 'Туташууда...',
@@ -1067,6 +1095,11 @@ const EXTRA_UZ: Record<string, string> = {
   showOriginal: 'Asl nusxani ko\'rsatish',
   translatedFrom: '{lang} tilidan tarjima qilindi',
   translationFailed: 'Tarjima olinmadi',
+  likes: 'Yoqtirish',
+  reply: 'Javob berish',
+  delete: 'O\'chirish',
+  replyingTo: '{author} izohiga javob',
+  noLikesYet: 'Hozircha yoqtirishlar yo\'q',
   originalText: 'Asl matn',
   live: 'Jonli',
   connecting: 'Ulanmoqda...',
@@ -1221,6 +1254,11 @@ const EXTRA_TK: Record<string, string> = {
   showOriginal: 'Asyl nusgasyny görkez',
   translatedFrom: '{lang} dilinden terjime edildi',
   translationFailed: 'Terjime alynmady',
+  likes: 'Halanyş',
+  reply: 'Jogap ber',
+  delete: 'Öçür',
+  replyingTo: '{author} teswirine jogap',
+  noLikesYet: 'Entäk halanma ýok',
   originalText: 'Asyl tekst',
   live: 'Janly',
   connecting: 'Birikdirilýär...',
@@ -1376,6 +1414,11 @@ const EXTRA_EN: Record<string, string> = {
   showOriginal: 'Show original',
   translatedFrom: 'Translated from {lang}',
   translationFailed: 'Translation failed',
+  likes: 'Likes',
+  reply: 'Reply',
+  delete: 'Delete',
+  replyingTo: 'Replying to {author}',
+  noLikesYet: 'No likes yet',
   originalText: 'Original text',
   live: 'Live',
   connecting: 'Connecting...',
@@ -1849,17 +1892,17 @@ export const LANG_TARGET: Record<LangCode, string> = {
 };
 
 const LANG_NAMES: Record<LangCode, Record<string, string>> = {
-  AZ: { az: 'Azərbaycan', tr: 'Türkiyə', kk: 'Qazax', ky: 'Qırğız', uz: 'Özbək', tm: 'Türkmən', en: 'İngilis' },
-  TR: { az: 'Azerbaycan', tr: 'Türkiye', kk: 'Kazak', ky: 'Kırgız', uz: 'Özbek', tm: 'Türkmen', en: 'İngilizce' },
-  KK: { az: 'Әзірбайжан', tr: 'Түркия', kk: 'Қазақ', ky: 'Қырғыз', uz: 'Өзбек', tm: 'Түрікмен', en: 'Ағылшын' },
-  KY: { az: 'Азербайжан', tr: 'Түркия', kk: 'Казак', ky: 'Кыргыз', uz: 'Өзбек', tm: 'Түркмен', en: 'Англис' },
-  UZ: { az: 'Ozarbayjon', tr: 'Turkiya', kk: 'Qozoq', ky: "Qirg'iz", uz: "O'zbek", tm: 'Turkman', en: 'Ingliz' },
-  TK: { az: 'Azerbaýjan', tr: 'Türkiýe', kk: 'Gazak', ky: 'Gyrgyz', uz: 'Özbek', tm: 'Türkmen', en: 'Iňlis' },
-  EN: { az: 'Azerbaijani', tr: 'Turkish', kk: 'Kazakh', ky: 'Kyrgyz', uz: 'Uzbek', tm: 'Turkmen', en: 'English' },
+  AZ: { az: 'Azərbaycan', tr: 'Türkiyə', kk: 'Qazax', ky: 'Qırğız', uz: 'Özbək', tk: 'Türkmən', en: 'İngilis' },
+  TR: { az: 'Azerbaycan', tr: 'Türkiye', kk: 'Kazak', ky: 'Kırgız', uz: 'Özbek', tk: 'Türkmen', en: 'İngilizce' },
+  KK: { az: 'Әзірбайжан', tr: 'Түркия', kk: 'Қазақ', ky: 'Қырғыз', uz: 'Өзбек', tk: 'Түрікмен', en: 'Ағылшын' },
+  KY: { az: 'Азербайжан', tr: 'Түркия', kk: 'Казак', ky: 'Кыргыз', uz: 'Өзбек', tk: 'Түркмен', en: 'Англис' },
+  UZ: { az: 'Ozarbayjon', tr: 'Turkiya', kk: 'Qozoq', ky: "Qirg'iz", uz: "O'zbek", tk: 'Turkman', en: 'Ingliz' },
+  TK: { az: 'Azerbaýjan', tr: 'Türkiýe', kk: 'Gazak', ky: 'Gyrgyz', uz: 'Özbek', tk: 'Türkmen', en: 'Iňlis' },
+  EN: { az: 'Azerbaijani', tr: 'Turkish', kk: 'Kazakh', ky: 'Kyrgyz', uz: 'Uzbek', tk: 'Turkmen', en: 'English' },
 };
 
 export function langDisplayName(code: string | null | undefined, uiLang: LangCode): string {
-  const key = (code || '').toLowerCase();
+  const key = normalizeLangCode(code);
   return LANG_NAMES[uiLang]?.[key] || key.toUpperCase();
 }
 
