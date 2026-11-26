@@ -253,7 +253,7 @@ def get_messages(user_id: int, current_user: models.User = Depends(get_current_u
         ).options(
             joinedload(models.Message.sender),
             joinedload(models.Message.receiver),
-        ).order_by(models.Message.created_at.asc()).all(),
+        ).order_by(models.Message.created_at.asc()).limit(30).all(),
         db,
         "messages",
     )
@@ -331,7 +331,7 @@ def list_notifications(
         q = db.query(models.Notification).filter(models.Notification.user_id == current_user.id)
         if unread_only:
             q = q.filter(models.Notification.is_read == 0)
-        items = q.order_by(models.Notification.created_at.desc()).limit(20).all()
+        items = q.order_by(models.Notification.created_at.desc()).limit(30).all()
 
         unread_count = db.query(models.Notification).filter(
             models.Notification.user_id == current_user.id,
