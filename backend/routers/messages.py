@@ -5,7 +5,7 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 import models
 import schemas
@@ -14,6 +14,7 @@ from database import SessionLocal, get_db
 from db_utils import safe_first_query, safe_list_query
 from notification_service import (
     create_notification,
+    push_user_notification,
     serialize_notification,
     user_notification_manager,
 )
@@ -249,6 +250,9 @@ def get_messages(user_id: int, current_user: models.User = Depends(get_current_u
         lambda: db.query(models.Message).filter(
             ((models.Message.sender_id == current_user.id) & (models.Message.receiver_id == user_id)) |
             ((models.Message.sender_id == user_id) & (models.Message.receiver_id == current_user.id))
+        ).options(
+            joinedload(models.Message.sender),
+            joinedload(models.Message.receiver),
         ).order_by(models.Message.created_at.asc()).all(),
         db,
         "messages",
@@ -273,7 +277,7 @@ def get_messages(user_id: int, current_user: models.User = Depends(get_current_u
 
 @router.post("/api/messages", response_model=schemas.MessageResponse)
 @router.post("/messages", response_model=schemas.MessageResponse)
-def send_message(payload: schemas.MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def send_message(payload: schemas.MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if payload.receiver_id is None:
         raise HTTPException(status_code=400, detail="Alıcı ID tələb olunur")
     if not (payload.content or "").strip():
@@ -297,7 +301,7 @@ def send_message(payload: schemas.MessageCreate, current_user: models.User = Dep
         entity_id=msg.id,
         content=msg.content[:100],
     )
-    return schemas.MessageResponse(
+    response = schemas.MessageResponse(
         id=msg.id,
         sender_id=msg.sender_id,
         receiver_id=msg.receiver_id,
@@ -307,6 +311,11 @@ def send_message(payload: schemas.MessageCreate, current_user: models.User = Dep
         sender=schemas.UserResponse.model_validate(current_user),
         receiver=schemas.UserResponse.model_validate(receiver),
     )
+    push_user_notification(
+        receiver.id,
+        {"type": "direct_message", "message": response.model_dump(mode="json")},
+    )
+    return response
 
 
 # --- NOTIFICATIONS REST ---

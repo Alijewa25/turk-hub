@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Send } from 'lucide-react';
-import { API_URL, fetchUserByUsername, fetchUserStats, translateCached, translationChanged } from '../api';
+import { API_URL, DirectMessage, fetchUserByUsername, fetchUserStats, translateCached, translationChanged } from '../api';
 import { LANG_TARGET, langDisplayName, useI18n } from '../i18n';
 import { UserAvatar } from './UserAvatar';
 
@@ -8,10 +8,31 @@ interface MessagesViewProps {
   token: string | null;
   currentUser: any;
   initialTarget?: any;
+  incomingMessage?: DirectMessage | null;
   onClose?: () => void;
 }
 
-export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, initialTarget, onClose }) => {
+function mergeMessages(current: any[], incoming: any[]) {
+  const byId = new Map(current.map((message) => [String(message.id), message]));
+  incoming.forEach((message) => {
+    const id = String(message.id);
+    byId.set(id, { ...byId.get(id), ...message });
+  });
+  return Array.from(byId.values()).sort((a, b) => {
+    const timeDifference = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+    if (timeDifference) return timeDifference;
+    if (typeof a.id === 'number' && typeof b.id === 'number') return a.id - b.id;
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+export const MessagesView: React.FC<MessagesViewProps> = ({
+  token,
+  currentUser,
+  initialTarget,
+  incomingMessage,
+  onClose,
+}) => {
   const { t, lang } = useI18n();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeUser, setActiveUser] = useState<any>(initialTarget || null);
@@ -23,6 +44,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
     Record<number, { text: string; sourceLang: string; show: boolean; loading: boolean; targetLang: string; done: boolean }>
   >({});
   const pollRef = useRef<number | null>(null);
+  const activeUserIdRef = useRef<number | null>(activeUser?.id ?? null);
 
   const fetchConvos = async () => {
     if (!token) return;
@@ -47,7 +69,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
       });
       if (res.ok) {
         const data = await res.json();
-        setMessages(Array.isArray(data) ? data : []);
+        if (activeUserIdRef.current === uid) {
+          setMessages((current) => mergeMessages(current, Array.isArray(data) ? data : []));
+        }
       }
     } catch {
       // ignore
@@ -88,7 +112,12 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
   }, [initialTarget, token]);
 
   useEffect(() => {
-    if (!activeUser?.id) return;
+    activeUserIdRef.current = activeUser?.id ?? null;
+    if (!activeUser?.id) {
+      setMessages([]);
+      return;
+    }
+    setMessages([]);
     setError('');
     fetchMessages(activeUser.id);
     if (pollRef.current) window.clearInterval(pollRef.current);
@@ -100,6 +129,17 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
       }
     };
   }, [activeUser?.id, token]);
+
+  useEffect(() => {
+    if (!incomingMessage) return;
+    void fetchConvos();
+    if (
+      Number(incomingMessage.sender_id) === Number(activeUser?.id) &&
+      Number(incomingMessage.receiver_id) === Number(currentUser?.id)
+    ) {
+      setMessages((current) => mergeMessages(current, [incomingMessage]));
+    }
+  }, [incomingMessage, activeUser?.id, currentUser?.id]);
 
   useEffect(() => {
     const target = LANG_TARGET[lang];
@@ -139,6 +179,17 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
     e.preventDefault();
     const text = input.trim();
     if (!text || !token || !activeUser?.id || sending) return;
+    const optimisticId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticMessage = {
+      id: optimisticId,
+      sender_id: currentUser?.id,
+      receiver_id: activeUser.id,
+      content: text,
+      created_at: new Date().toISOString(),
+      pending: true,
+    };
+    setMessages((current) => mergeMessages(current, [optimisticMessage]));
+    setInput('');
     setSending(true);
     setError('');
     try {
@@ -151,10 +202,15 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
         const detail = await res.json().catch(() => null);
         throw new Error(detail?.detail || t('messageSendFailed'));
       }
-      setInput('');
-      await fetchMessages(activeUser.id);
-      await fetchConvos();
+      const sentMessage = await res.json();
+      setMessages((current) => mergeMessages(
+        current.filter((message) => message.id !== optimisticId),
+        [sentMessage]
+      ));
+      void fetchConvos();
     } catch (err: any) {
+      setMessages((current) => current.filter((message) => message.id !== optimisticId));
+      setInput((current) => current || text);
       setError(err?.message || t('messageSendFailed'));
     } finally {
       setSending(false);
@@ -188,7 +244,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, currentUser, 
             const tr = translations[m.id];
             const display = tr?.show && tr.text ? tr.text : m.content;
             return (
-              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} ${m.pending ? 'opacity-60' : ''}`}>
                 <div
                   className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs ${
                     mine ? 'bg-skyBlue text-black' : 'bg-neutral-900 text-slate-200 border border-neutral-800'

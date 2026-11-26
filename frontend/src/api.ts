@@ -866,6 +866,15 @@ export interface NotificationItem {
   created_at?: string | null;
 }
 
+export interface DirectMessage {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  content: string;
+  read?: number;
+  created_at?: string | null;
+}
+
 export interface NotificationsResponse {
   unread_count: number;
   notifications: NotificationItem[];
@@ -1005,7 +1014,8 @@ export function createNotificationWebSocket(
   token: string | null,
   userId: number | null | undefined,
   onNotification: (notif: NotificationItem) => void,
-  onStatusChange?: (status: 'connected' | 'disconnected' | 'connecting') => void
+  onStatusChange?: (status: 'connected' | 'disconnected' | 'connecting') => void,
+  onDirectMessage?: (message: DirectMessage) => void
 ): () => void {
   if (typeof window === 'undefined') return () => {};
 
@@ -1063,6 +1073,10 @@ export function createNotificationWebSocket(
         }
         if (data?.type === 'notification' && data.notification) {
           onNotification(data.notification);
+          return;
+        }
+        if (data?.type === 'direct_message' && data.message) {
+          onDirectMessage?.(data.message);
         }
       } catch {
         // ignore non-json

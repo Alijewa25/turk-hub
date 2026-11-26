@@ -26,6 +26,7 @@ import {
   AUTH_EXPIRED_EVENT,
   createNotificationWebSocket,
   createProject,
+  DirectMessage,
   fetchCurrentUser,
   fetchAdminStats,
   fetchNotifications,
@@ -226,6 +227,7 @@ export function App() {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [incomingDirectMessage, setIncomingDirectMessage] = useState<DirectMessage | null>(null);
   const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
 
   const handleLogout = useCallback(() => {
@@ -241,6 +243,7 @@ export function App() {
     setStats({ followers: 0, following: 0 });
     setNotifications([]);
     setUnreadCount(0);
+    setIncomingDirectMessage(null);
     setNeedsOnboarding(false);
     setActiveTab('home');
     setProfileViewUserId(null);
@@ -275,7 +278,9 @@ export function App() {
           return [newNotif, ...filtered];
         });
         setUnreadCount((c) => c + 1);
-      }
+      },
+      undefined,
+      setIncomingDirectMessage
     );
     const pollInterval = setInterval(() => {
       void loadNotifications();
@@ -699,6 +704,7 @@ export function App() {
                 token={token}
                 currentUser={user}
                 initialTarget={messagesTarget}
+                incomingMessage={incomingDirectMessage}
                 onClose={() => setMessagesTarget(null)}
               />
             </ErrorBoundary>
