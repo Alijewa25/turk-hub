@@ -23,6 +23,7 @@ import { AdminDashboardView } from './components/AdminDashboardView';
 import {
   ApiPost,
   API_URL,
+  AUTH_EXPIRED_EVENT,
   createNotificationWebSocket,
   createProject,
   fetchCurrentUser,
@@ -226,6 +227,32 @@ export function App() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('th_user_posts');
+    localStorage.removeItem('th_joined_projects');
+    setToken(null);
+    setUser(null);
+    setUserPosts([]);
+    setFeedPosts([]);
+    setJoinedProjectIds(new Set());
+    setStats({ followers: 0, following: 0 });
+    setNotifications([]);
+    setUnreadCount(0);
+    setNeedsOnboarding(false);
+    setActiveTab('home');
+    setProfileViewUserId(null);
+    setMessagesTarget(null);
+    setMobileMenuOpen(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleLogout);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleLogout);
+  }, [handleLogout]);
+
   const loadNotifications = useCallback(async () => {
     if (!token) return;
     const res = await fetchNotifications(token);
@@ -373,23 +400,6 @@ export function App() {
       />
     );
   }
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('th_user_posts');
-    localStorage.removeItem('th_joined_projects');
-    setToken(null);
-    setUser(null);
-    setUserPosts([]);
-    setFeedPosts([]);
-    setJoinedProjectIds(new Set());
-    setStats({ followers: 0, following: 0 });
-    setNeedsOnboarding(false);
-    setActiveTab('home');
-    setProfileViewUserId(null);
-    setMobileMenuOpen(false);
-  };
 
   const handleTabChange = (tab: string) => {
     if (tab === 'profile') {

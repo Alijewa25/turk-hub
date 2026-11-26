@@ -1,5 +1,7 @@
-import axios from 'axios';
+import axios, { type AxiosError } from 'axios';
 import { normalizeLangCode } from './i18n';
+
+export const AUTH_EXPIRED_EVENT = 'turkhub:auth-expired';
 
 const PRODUCTION_API_URL = 'https://turk-hub.onrender.com';
 const LOCAL_API_URL = 'http://localhost:8000';
@@ -440,7 +442,24 @@ function headers(token: string | null): Record<string, string> {
 
 axios.defaults.timeout = 15000;
 
+axios.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      const hadToken = typeof localStorage !== 'undefined' && localStorage.getItem('token') !== null;
+      if (hadToken) {
+        localStorage.removeItem('token');
+      }
+      if (hadToken && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 function logApiFailure(label: string, error: any) {
+  if (error?.response?.status === 401) return;
   console.warn(`[api] ${label} failed`, error?.message || error);
 }
 
