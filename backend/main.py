@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -8,6 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 import models
 from database import engine
