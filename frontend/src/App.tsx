@@ -590,7 +590,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-slate-100">
+    <div className="min-h-screen bg-black text-slate-100 md:flex">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={handleTabChange}
@@ -629,7 +629,7 @@ export function App() {
         pendingNewsCount={pendingNewsCount}
       />
 
-      <div className="md:pl-60 lg:pr-80">
+      <div className="min-w-0 flex-1 lg:pr-80">
         <main className="mx-auto w-full max-w-[620px] px-3 md:px-4 pt-4 pb-28 md:py-6">
           {activeTab === 'home' && (
             <>

@@ -45,15 +45,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
   }
 
   return (
-    <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col border-r border-neutral-900 bg-black px-3 py-5">
-      <button onClick={() => setActiveTab('home')} className="flex items-center gap-2.5 px-3 mb-7 text-left">
+    <aside className="hidden md:flex sticky top-0 h-screen w-60 shrink-0 flex-col justify-between overflow-y-auto border-r border-neutral-900 bg-black px-3 py-2 z-40">
+      <button onClick={() => setActiveTab('home')} className="flex items-center gap-2.5 px-3 mb-4 text-left">
         <img src="/logo.jpg" alt={t('brandLogoAlt')} className="w-9 h-9 rounded-full object-cover" />
         <span className="font-heading text-2xl font-extrabold leading-none tracking-tight bg-gradient-to-r from-skyBlue to-cyan-300 bg-clip-text text-transparent">
           TURK HUB
         </span>
       </button>
 
-      <div className="mx-1 mb-2 relative">
+      <div className="mx-1 mb-1 relative">
         <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-2 py-1.5">
           <Search className="w-4 h-4 text-slate-500" />
           <input
@@ -94,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
         )}
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav className="flex flex-col space-y-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -102,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+              className={`group flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
                 isActive
                   ? 'bg-neutral-900 text-skyBlue font-semibold border border-neutral-800'
                   : 'text-slate-300 hover:bg-neutral-900/70 hover:text-slate-100 border border-transparent'
@@ -124,17 +124,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user,
 
       <button
         onClick={onCreatePost}
-        className="mt-5 flex items-center justify-center gap-2 py-3 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-sm font-bold transition-all duration-200 shadow-lg shadow-skyBlue/25 active:scale-[0.98]"
+        className="my-2 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-skyBlue hover:bg-skyBlue-hover text-black text-sm font-bold transition-all duration-200 shadow-lg shadow-skyBlue/25 active:scale-[0.98]"
       >
         <Plus className="w-5 h-5" />
         {t('newPost')}
       </button>
 
-      <div className="mt-auto pt-4 space-y-2 border-t border-neutral-900">
+      <div className="mt-auto pt-2 space-y-1 border-t border-neutral-900">
         <LanguageSwitcher placement="up" />
         <ThemeToggle />
         <div
-          className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-neutral-900/70 transition-colors cursor-pointer"
+          className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-neutral-900/70 transition-colors cursor-pointer"
           onClick={() => setActiveTab('profile')}
         >
           <UserAvatar name={user?.full_name} avatarUrl={user?.avatar_url || user?.profile_picture} className="w-9 h-9" alt={user?.full_name || ''} />
