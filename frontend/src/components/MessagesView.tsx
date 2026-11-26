@@ -44,6 +44,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     Record<number, { text: string; sourceLang: string; show: boolean; loading: boolean; targetLang: string; done: boolean }>
   >({});
   const pollRef = useRef<number | null>(null);
+  const fetchInFlightRef = useRef<boolean>(false);
   const activeUserIdRef = useRef<number | null>(activeUser?.id ?? null);
 
   const fetchConvos = async () => {
@@ -63,6 +64,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
   const fetchMessages = async (uid: number) => {
     if (!token) return;
+    if (fetchInFlightRef.current) return; // prevent overlapping requests
+    fetchInFlightRef.current = true;
     try {
       const res = await fetch(`${API_URL}/api/messages/${uid}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -75,6 +78,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
       }
     } catch {
       // ignore
+    } finally {
+      fetchInFlightRef.current = false;
     }
   };
 
@@ -121,7 +126,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     setError('');
     fetchMessages(activeUser.id);
     if (pollRef.current) window.clearInterval(pollRef.current);
-    pollRef.current = window.setInterval(() => fetchMessages(activeUser.id), 2000);
+    pollRef.current = window.setInterval(() => fetchMessages(activeUser.id), 15000);
     return () => {
       if (pollRef.current) {
         window.clearInterval(pollRef.current);

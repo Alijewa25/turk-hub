@@ -1,4 +1,7 @@
 import axios, { type AxiosError } from 'axios';
+
+// Set a global timeout of 30 seconds for all Axios requests
+axios.defaults.timeout = 30000;
 import { normalizeLangCode } from './i18n';
 
 export const AUTH_EXPIRED_EVENT = 'turkhub:auth-expired';
