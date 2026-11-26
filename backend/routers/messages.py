@@ -324,7 +324,6 @@ async def send_message(payload: schemas.MessageCreate, current_user: models.User
 @router.get("/notifications")
 def list_notifications(
     unread_only: bool = False,
-    limit: int = Query(50, ge=1, le=200),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -332,7 +331,7 @@ def list_notifications(
         q = db.query(models.Notification).filter(models.Notification.user_id == current_user.id)
         if unread_only:
             q = q.filter(models.Notification.is_read == 0)
-        items = q.order_by(models.Notification.created_at.desc()).limit(limit).all()
+        items = q.order_by(models.Notification.created_at.desc()).limit(20).all()
 
         unread_count = db.query(models.Notification).filter(
             models.Notification.user_id == current_user.id,

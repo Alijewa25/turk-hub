@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { AuthView } from './components/AuthView';
 import { CountrySelection } from './components/CountrySelection';
@@ -227,6 +227,7 @@ export function App() {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const notificationsFetchInFlight = useRef(false);
   const [incomingDirectMessage, setIncomingDirectMessage] = useState<DirectMessage | null>(null);
   const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
 
@@ -257,10 +258,15 @@ export function App() {
   }, [handleLogout]);
 
   const loadNotifications = useCallback(async () => {
-    if (!token) return;
-    const res = await fetchNotifications(token);
-    setNotifications(res.notifications);
-    setUnreadCount(res.unread_count);
+    if (!token || notificationsFetchInFlight.current) return;
+    notificationsFetchInFlight.current = true;
+    try {
+      const res = await fetchNotifications(token);
+      setNotifications(res.notifications);
+      setUnreadCount(res.unread_count);
+    } finally {
+      notificationsFetchInFlight.current = false;
+    }
   }, [token]);
 
   useEffect(() => {
