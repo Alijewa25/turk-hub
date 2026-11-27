@@ -9,11 +9,14 @@
 **One network. Six nations. Seven languages. Zero borders.**
 
 [![Live Platform](https://img.shields.io/badge/Live_Platform-turk--hub.vercel.app-E4002B?style=for-the-badge&logo=vercel&logoColor=white)](https://turk-hub.vercel.app)
-[![Tech Stack](https://img.shields.io/badge/Stack-React_|_FastAPI_|_PostgreSQL-0A66C2?style=for-the-badge&logo=react&logoColor=white)](#tech-stack)
-[![Languages](https://img.shields.io/badge/Languages-7_Turkic_+_EN-00A86B?style=for-the-badge&logo=googletranslate&logoColor=white)](#features)
+[![Tech Stack](https://img.shields.io/badge/Stack-React%20%7C%20FastAPI%20%7C%20PostgreSQL-0A66C2?style=for-the-badge&logo=react&logoColor=white)](#tech-stack)
+[![Languages](https://img.shields.io/badge/Languages-7%20Turkic%20%2B%20EN-00A86B?style=for-the-badge&logo=googletranslate&logoColor=white)](#features)
 [![License](https://img.shields.io/badge/License-Proprietary-black?style=for-the-badge)](#license)
 
-[**🚀 Live Demo**](https://turk-hub.vercel.app) · [**🧩 Problem**](#problem-solution) · [**✨ Features**](#features) · [**🏗️ Architecture**](#architecture) · [**🗺️ Roadmap**](#roadmap) · [**📄 License**](#license)
+[**🚀 Live Demo**](https://turk-hub.vercel.app) · [**🧩 Problem**](#problem-solution) · [**✨ Features**](#features) · [**🏗️ Architecture**](#architecture) · [**🗺️ Roadmap**](#roadmap) · [**🌐 Languages**](#multilingual) · [**📄 License**](#license)
+
+**🌐 Read in:**
+[🇦🇿 Azərbaycan](#azerbaijani) · [🇹🇷 Türkçe](#turkish) · [🇰🇿 Қазақша](#kazakh) · [🇺🇿 Oʻzbekcha](#uzbek) · [🇰🇬 Кыргызча](#kyrgyz) · [🇹🇲 Türkmençe](#turkmen)
 
 </div>
 
@@ -34,8 +37,9 @@
 11. [Demo Walkthrough](#demo)
 12. [Future Roadmap](#roadmap)
 13. [Investor FAQ](#faq)
-14. [Contact](#contact)
-15. [License & Copyright](#license)
+14. [Multilingual Summaries](#multilingual)
+15. [Contact](#contact)
+16. [License & Copyright](#license)
 
 ---
 
@@ -380,6 +384,152 @@ It combines community, translation, a comparative etymology dictionary, and proj
 <br>
 
 The roadmap covers AI Turkic NLP translation models, native mobile apps, and university and hackathon verification APIs. See the [Future Roadmap](#roadmap).
+
+</details>
+
+---
+
+<a id="multilingual"></a>
+
+## 🌐 Multilingual Summaries
+
+TURK HUB is built for the Turkic world, so here is a short summary of the platform in each of the six Turkic languages it supports.
+
+<a id="azerbaijani"></a>
+
+<details>
+<summary><b>🇦🇿 Azərbaycan</b></summary>
+
+### TURK HUB nədir?
+
+**TURK HUB** Azərbaycan, Türkiyə, Qazaxıstan, Özbəkistan, Qırğızıstan və Türkmənistan gənclərini, tələbələrini, startaplarını və təsdiqlənmiş təşkilatlarını bir araya gətirən **Pan-Türk Gənclər və İnnovasiya Şəbəkəsidir**.
+
+**Əsas imkanlar:**
+- 🌐 7 dildə tam lokallaşdırılmış interfeys
+- 🔁 Türk dilləri arasında bir kliklə tərcümə
+- 💬 Real vaxt rejimində ölkə və qlobal söhbət otaqları, şəxsi mesajlar
+- 📚 6 türk dilində müqayisəli etimologiya lüğəti (Sözlük)
+- 🚀 Komanda yığımı, bacarıq uyğunlaşdırması və qoşulma sorğuları üçün Layihə Mərkəzi
+- 📰 Sosial lent, 24 saatlıq hekayələr, təsdiqlənmiş təşkilatlar, bildirişlər və Admin Paneli
+
+🔗 [turk-hub.vercel.app](https://turk-hub.vercel.app)
+
+[⬆️ Yuxarı qayıt](#top)
+
+</details>
+
+<a id="turkish"></a>
+
+<details>
+<summary><b>🇹🇷 Türkçe</b></summary>
+
+### TURK HUB Nedir?
+
+**TURK HUB**, Azerbaycan, Türkiye, Kazakistan, Özbekistan, Kırgızistan ve Türkmenistan'daki gençleri, öğrencileri, girişimleri ve doğrulanmış kuruluşları buluşturan **Pan-Türk Gençlik ve İnovasyon Ağı**'dır.
+
+**Temel özellikler:**
+- 🌐 7 dilde tam yerelleştirilmiş arayüz
+- 🔁 Türk lehçeleri arasında tek tıkla çeviri
+- 💬 Gerçek zamanlı ülke ve global sohbet odaları, özel mesajlaşma
+- 📚 6 Türk dilinde karşılaştırmalı etimoloji sözlüğü (Sözlük)
+- 🚀 Takım kurma, beceri eşleştirme ve katılım talepleri için Proje Merkezi
+- 📰 Sosyal akış, 24 saatlik hikâyeler, doğrulanmış kuruluşlar, bildirimler ve Yönetici Paneli
+
+🔗 [turk-hub.vercel.app](https://turk-hub.vercel.app)
+
+[⬆️ Başa dön](#top)
+
+</details>
+
+<a id="kazakh"></a>
+
+<details>
+<summary><b>🇰🇿 Қазақша</b></summary>
+
+### TURK HUB дегеніміз не?
+
+**TURK HUB** — Әзірбайжан, Түркия, Қазақстан, Өзбекстан, Қырғызстан және Түрікменстанның жастарын, студенттерін, стартаптарын және расталған ұйымдарын біріктіретін **Пантүркілік жастар мен инновациялар желісі**.
+
+**Негізгі мүмкіндіктер:**
+- 🌐 7 тілдегі толық локализацияланған интерфейс
+- 🔁 Түркі тілдері арасында бір рет басып аудару
+- 💬 Нақты уақыттағы елдік және жаһандық чат бөлмелері, жеке хабарламалар
+- 📚 6 түркі тіліндегі салыстырмалы этимологиялық сөздік (Sözlük)
+- 🚀 Команда құру, дағдыларды сәйкестендіру және қосылу сұрауларына арналған Жобалар орталығы
+- 📰 Әлеуметтік лента, 24 сағаттық тарихтар, расталған ұйымдар, хабарландырулар және Әкімші панелі
+
+🔗 [turk-hub.vercel.app](https://turk-hub.vercel.app)
+
+[⬆️ Жоғарыға оралу](#top)
+
+</details>
+
+<a id="uzbek"></a>
+
+<details>
+<summary><b>🇺🇿 Oʻzbekcha</b></summary>
+
+### TURK HUB nima?
+
+**TURK HUB** — Ozarbayjon, Turkiya, Qozogʻiston, Oʻzbekiston, Qirgʻiziston va Turkmanistonning yoshlari, talabalari, startaplari va tasdiqlangan tashkilotlarini birlashtiruvchi **Pan-turkiy yoshlar va innovatsiyalar tarmogʻi**dir.
+
+**Asosiy imkoniyatlar:**
+- 🌐 7 tilda toʻliq lokalizatsiya qilingan interfeys
+- 🔁 Turkiy tillar oʻrtasida bir bosishda tarjima
+- 💬 Real vaqtdagi mamlakat va global chat xonalari, shaxsiy xabarlar
+- 📚 6 turkiy tilda qiyosiy etimologiya lugʻati (Sözlük)
+- 🚀 Jamoa tuzish, koʻnikmalarni moslashtirish va qoʻshilish soʻrovlari uchun Loyihalar markazi
+- 📰 Ijtimoiy lenta, 24 soatlik hikoyalar, tasdiqlangan tashkilotlar, bildirishnomalar va Admin paneli
+
+🔗 [turk-hub.vercel.app](https://turk-hub.vercel.app)
+
+[⬆️ Yuqoriga qaytish](#top)
+
+</details>
+
+<a id="kyrgyz"></a>
+
+<details>
+<summary><b>🇰🇬 Кыргызча</b></summary>
+
+### TURK HUB деген эмне?
+
+**TURK HUB** — Азербайжан, Түркия, Казакстан, Өзбекстан, Кыргызстан жана Түркмөнстандын жаштарын, студенттерин, стартаптарын жана ырасталган уюмдарын бириктирген **Пантүрк жаштар жана инновация тармагы**.
+
+**Негизги мүмкүнчүлүктөр:**
+- 🌐 7 тилдеги толук локалдаштырылган интерфейс
+- 🔁 Түрк тилдеринин ортосунда бир басуу менен котормо
+- 💬 Реалдуу убакыттагы өлкөлүк жана глобалдык чат бөлмөлөрү, жеке билдирүүлөр
+- 📚 6 түрк тилиндеги салыштырма этимологиялык сөздүк (Sözlük)
+- 🚀 Команда түзүү, көндүмдөрдү дал келтирүү жана кошулуу өтүнүчтөрү үчүн Долбоорлор борбору
+- 📰 Социалдык лента, 24 сааттык окуялар, ырасталган уюмдар, эскертмелер жана Админ панели
+
+🔗 [turk-hub.vercel.app](https://turk-hub.vercel.app)
+
+[⬆️ Жогору кайтуу](#top)
+
+</details>
+
+<a id="turkmen"></a>
+
+<details>
+<summary><b>🇹🇲 Türkmençe</b></summary>
+
+### TURK HUB näme?
+
+**TURK HUB** — Azerbaýjanyň, Türkiýäniň, Gazagystanyň, Özbegistanyň, Gyrgyzystanyň we Türkmenistanyň ýaşlaryny, talyplaryny, startaplaryny we tassyklanan guramalaryny birleşdirýän **Pan-türki ýaşlar we innowasiýa ulgamydyr**.
+
+**Esasy mümkinçilikler:**
+- 🌐 7 dilde doly lokallaşdyrylan interfeýs
+- 🔁 Türki dilleriň arasynda bir basyşda terjime
+- 💬 Hakyky wagtdaky ýurt we global çat otaglary, şahsy habarlar
+- 📚 6 türki dilde deňeşdirme etimologiýa sözlügi (Sözlük)
+- 🚀 Topar döretmek, başarnyklary deňeşdirmek we goşulmak haýyşlary üçin Taslamalar merkezi
+- 📰 Sosial lenta, 24 sagatlyk hekaýalar, tassyklanan guramalar, bildirişler we Admin paneli
+
+🔗 [turk-hub.vercel.app](https://turk-hub.vercel.app)
+
+[⬆️ Ýokary gaýtmak](#top)
 
 </details>
 
